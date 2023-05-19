@@ -15,15 +15,19 @@ object Dep {
   lazy val arrowVector = O.apacheArrow % "arrow-vector" % "0.17.1"
   lazy val arrowMemory = O.apacheArrow % "arrow-memory" % "0.17.1"
 
-  lazy val zio       = O.zio %% "zio"        % V.zio
-  lazy val zioSchema = O.zio %% "zio-schema" % "0.4.11"
+  lazy val zio        = O.zio %% "zio"          % V.zio
+  lazy val zioSchema  = O.zio %% "zio-schema"   % "0.4.11"
+  lazy val zioTest    = O.zio %% "zio-test"     % V.zio
+  lazy val zioTestSbt = O.zio %% "zio-test-sbt" % V.zio
 
   lazy val core = Seq(
     arrowFormat,
     arrowVector,
     arrowMemory,
     zio,
-    zioSchema
+    zioSchema,
+    zioTest    % Test,
+    zioTestSbt % Test
   )
 
 }

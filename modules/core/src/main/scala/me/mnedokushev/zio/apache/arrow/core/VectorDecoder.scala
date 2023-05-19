@@ -32,6 +32,9 @@ trait VectorDecoder[-From <: ValueVector, +To] extends ArrowDecoder[From, To] { 
 
 object VectorDecoder {
 
+  def apply[From <: ValueVector, To](implicit vd: VectorDecoder[From, To]): VectorDecoder[From, To] =
+    vd
+
   def apply[From <: ValueVector, To](getIdx: From => Int => To): VectorDecoder[From, To] =
     new VectorDecoder[From, To] {
       override protected def decodeUnsafe(from: From, idx: Int): To =
