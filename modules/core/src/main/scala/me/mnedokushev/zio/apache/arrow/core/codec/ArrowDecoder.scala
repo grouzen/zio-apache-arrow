@@ -1,4 +1,4 @@
-package me.mnedokushev.zio.apache.arrow.core
+package me.mnedokushev.zio.apache.arrow.core.codec
 
 import zio._
 
@@ -8,7 +8,7 @@ trait ArrowDecoder[-From, +To] {
 
   def decode(from: From): Either[Throwable, Chunk[To]]
 
-  def decodeZio(from: From): Task[Chunk[To]] =
+  def decodeZIO(from: From): Task[Chunk[To]] =
     ZIO.fromEither(decode(from))
 
 }

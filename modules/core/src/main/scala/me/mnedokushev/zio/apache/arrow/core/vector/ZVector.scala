@@ -1,14 +1,15 @@
-package me.mnedokushev.zio.apache.arrow.core
+package me.mnedokushev.zio.apache.arrow.core.vector
 
+import me.mnedokushev.zio.apache.arrow.core.codec.VectorDecoder
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.ListVector
 import org.apache.arrow.vector.complex.impl.UnionListWriter
-import org.apache.arrow.vector.{ BigIntVector, BitVector, FixedWidthVector, IntVector, ValueVector, VarCharVector }
 import zio._
 
 import java.nio.charset.StandardCharsets
 
-trait ZVector[-Val, Vector] {
+trait ZVector[Val, Vector] {
 
   protected def wrapUnsafe(unsafe: BufferAllocator => Vector): RIO[BufferAllocator, Vector] =
     ZIO.serviceWithZIO[BufferAllocator] { alloc =>
@@ -39,11 +40,14 @@ object ZVector {
 
   final object ListLong extends ZVectorList[Long](_.writeBigInt)
 
-  abstract class ZVectorScalar[-Val, Vector <: ValueVector](makeVec: BufferAllocator => Vector)(
+  abstract class ZVectorScalar[Val, Vector <: ValueVector](makeVec: BufferAllocator => Vector)(
     allocNew: Vector => Int => Unit
   )(
     setVal: Vector => (Int, Val) => Unit
   ) extends ZVector[Val, Vector] {
+
+    def decodeZIO(vec: Vector)(implicit decoder: VectorDecoder[Vector, Val]): Task[Chunk[Val]] =
+      decoder.decodeZIO(vec)
 
     def apply(elems: Val*): RIO[BufferAllocator, Vector] =
       wrapUnsafe(unsafe.apply(elems)(_))
@@ -86,7 +90,10 @@ object ZVector {
 
   }
 
-  abstract class ZVectorList[-Val](writeVal: UnionListWriter => Val => Unit) extends ZVector[Val, ListVector] {
+  abstract class ZVectorList[Val](writeVal: UnionListWriter => Val => Unit) extends ZVector[Val, ListVector] {
+
+    def decodeZIO(vec: ListVector)(implicit decoder: VectorDecoder[ListVector, List[Val]]): Task[Chunk[List[Val]]] =
+      decoder.decodeZIO(vec)
 
     def apply(elems: List[Val]*): RIO[BufferAllocator, ListVector] =
       wrapUnsafe(unsafe.apply(elems)(_))
@@ -94,7 +101,7 @@ object ZVector {
     def empty: RIO[BufferAllocator, ListVector] =
       wrapUnsafe(unsafe.empty(_))
 
-    def fromChunk(chunk: Chunk[Val]): RIO[BufferAllocator, ListVector] =
+    def fromChunk[Col[x] <: Iterable[x]](chunk: Chunk[Col[Val]]): RIO[BufferAllocator, ListVector] =
       wrapUnsafe(unsafe.fromChunk(chunk)(_))
 
     def fromIterable(it: Iterable[Iterable[Val]]): RIO[BufferAllocator, ListVector] =
@@ -108,7 +115,7 @@ object ZVector {
       def empty(implicit alloc: BufferAllocator): ListVector =
         ListVector.empty("listVector", alloc)
 
-      def fromChunk(chunk: Chunk[Val])(implicit alloc: BufferAllocator): ListVector =
+      def fromChunk[Col[x] <: Iterable[x]](chunk: Chunk[Col[Val]])(implicit alloc: BufferAllocator): ListVector =
         this.fromIterable(chunk.to(Iterable))
 
       def fromIterable(it: Iterable[Iterable[Val]])(implicit alloc: BufferAllocator): ListVector = {

@@ -1,8 +1,8 @@
-package me.mnedokushev.zio.apache.arrow.core
+package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.ListVector
-import org.apache.arrow.vector.complex.impl.{ BigIntReaderImpl, BitReaderImpl, IntReaderImpl }
+import org.apache.arrow.vector.complex.impl.{BigIntReaderImpl, BitReaderImpl, IntReaderImpl}
 import org.apache.arrow.vector.complex.reader.FieldReader
 import zio._
 

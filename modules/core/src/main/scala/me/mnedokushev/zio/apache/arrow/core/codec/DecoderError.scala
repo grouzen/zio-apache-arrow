@@ -1,4 +1,4 @@
-package me.mnedokushev.zio.apache.arrow.core
+package me.mnedokushev.zio.apache.arrow.core.codec
 
 import java.io.IOException
 

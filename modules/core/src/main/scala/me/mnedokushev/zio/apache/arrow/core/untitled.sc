@@ -1,4 +1,6 @@
-import me.mnedokushev.zio.apache.arrow.core.{ VectorDecoder, ZAllocator, ZVector }
+import me.mnedokushev.zio.apache.arrow.core.codec.VectorDecoder
+import me.mnedokushev.zio.apache.arrow.core.ZAllocator
+import me.mnedokushev.zio.apache.arrow.core.vector.ZVector
 import org.apache.arrow.memory.RootAllocator
 import zio.ZIO
 
