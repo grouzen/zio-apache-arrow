@@ -18,43 +18,55 @@ object ArrowDecoderSpec extends ZIOSpecDefault {
   val vectorDecoderSpec =
     suite("VectorDecoder")(
       test("empty") {
-        for {
-          intVec     <- ZVector.Int.empty
-          listIntVec <- ZVector.ListInt.empty
+        ZIO.scoped(
+          for {
+            intVec     <- ZVector.Int.empty
+            listIntVec <- ZVector.ListInt.empty
 
-          intResult     <- VectorDecoder[IntVector, Int].decodeZIO(intVec)
-          listIntResult <- VectorDecoder[ListVector, List[Int]].decodeZIO(listIntVec)
-        } yield assertTrue(intResult.isEmpty) && assertTrue(listIntResult.isEmpty)
+            intResult     <- VectorDecoder[IntVector, Int].decodeZIO(intVec)
+            listIntResult <- VectorDecoder[ListVector, List[Int]].decodeZIO(listIntVec)
+          } yield assertTrue(intResult.isEmpty) && assertTrue(listIntResult.isEmpty)
+        )
       },
       test("decode boolean") {
-        for {
-          vec    <- ZVector.Boolean(true, true, false)
-          result <- VectorDecoder[BitVector, Boolean].decodeZIO(vec)
-        } yield assert(result)(equalTo(Chunk(true, true, false)))
+        ZIO.scoped(
+          for {
+            vec    <- ZVector.Boolean(true, true, false)
+            result <- VectorDecoder[BitVector, Boolean].decodeZIO(vec)
+          } yield assert(result)(equalTo(Chunk(true, true, false)))
+        )
       },
       test("decode int") {
-        for {
-          vec    <- ZVector.Int(1, 2, 3)
-          result <- VectorDecoder[IntVector, Int].decodeZIO(vec)
-        } yield assert(result)(equalTo(Chunk(1, 2, 3)))
+        ZIO.scoped(
+          for {
+            vec    <- ZVector.Int(1, 2, 3)
+            result <- VectorDecoder[IntVector, Int].decodeZIO(vec)
+          } yield assert(result)(equalTo(Chunk(1, 2, 3)))
+        )
       },
       test("decode long") {
-        for {
-          vec    <- ZVector.Long(1, 2, 3)
-          result <- VectorDecoder[BigIntVector, Long].decodeZIO(vec)
-        } yield assert(result)(equalTo(Chunk(1L, 2L, 3L)))
+        ZIO.scoped(
+          for {
+            vec    <- ZVector.Long(1, 2, 3)
+            result <- VectorDecoder[BigIntVector, Long].decodeZIO(vec)
+          } yield assert(result)(equalTo(Chunk(1L, 2L, 3L)))
+        )
       },
       test("decode string") {
-        for {
-          vec    <- ZVector.String("zio", "cats", "monix")
-          result <- VectorDecoder[VarCharVector, String].decodeZIO(vec)
-        } yield assert(result)(equalTo(Chunk("zio", "cats", "monix")))
+        ZIO.scoped(
+          for {
+            vec    <- ZVector.String("zio", "cats", "monix")
+            result <- VectorDecoder[VarCharVector, String].decodeZIO(vec)
+          } yield assert(result)(equalTo(Chunk("zio", "cats", "monix")))
+        )
       },
       test("decode list int") {
-        for {
-          vec    <- ZVector.ListInt(List(1, 2), List(3))
-          result <- VectorDecoder[ListVector, List[Int]].decodeZIO(vec)
-        } yield assert(result)(equalTo(Chunk(List(1, 2), List(3))))
+        ZIO.scoped(
+          for {
+            vec    <- ZVector.ListInt(List(1, 2), List(3))
+            result <- VectorDecoder[ListVector, List[Int]].decodeZIO(vec)
+          } yield assert(result)(equalTo(Chunk(List(1, 2), List(3))))
+        )
       }
     ).provideLayer(ZAllocator.rootLayer())
 }

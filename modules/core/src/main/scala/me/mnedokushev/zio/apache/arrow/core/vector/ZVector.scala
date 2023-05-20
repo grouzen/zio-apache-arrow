@@ -9,12 +9,14 @@ import zio._
 
 import java.nio.charset.StandardCharsets
 
-trait ZVector[Val, Vector] {
+trait ZVector[Val, Vector <: AutoCloseable] {
 
-  protected def wrapUnsafe(unsafe: BufferAllocator => Vector): RIO[BufferAllocator, Vector] =
-    ZIO.serviceWithZIO[BufferAllocator] { alloc =>
-      ZIO.attempt(unsafe(alloc))
-    }
+  protected def unsafe(unsafe: BufferAllocator => Vector): RIO[Scope with BufferAllocator, Vector] =
+    ZIO.fromAutoCloseable(
+      ZIO.serviceWithZIO[BufferAllocator] { alloc =>
+        ZIO.attempt(unsafe(alloc))
+      }
+    )
 
 }
 
@@ -46,22 +48,22 @@ object ZVector {
     setVal: Vector => (Int, Val) => Unit
   ) extends ZVector[Val, Vector] {
 
+    def apply(elems: Val*): RIO[Scope with BufferAllocator, Vector] =
+      unsafe(Unsafe.apply(elems)(_))
+
     def decodeZIO(vec: Vector)(implicit decoder: VectorDecoder[Vector, Val]): Task[Chunk[Val]] =
       decoder.decodeZIO(vec)
 
-    def apply(elems: Val*): RIO[BufferAllocator, Vector] =
-      wrapUnsafe(unsafe.apply(elems)(_))
+    def empty: RIO[Scope with BufferAllocator, Vector] =
+      unsafe(Unsafe.empty(_))
 
-    def empty: RIO[BufferAllocator, Vector] =
-      wrapUnsafe(unsafe.empty(_))
+    def fromChunk(chunk: Chunk[Val]): RIO[Scope with BufferAllocator, Vector] =
+      unsafe(Unsafe.fromChunk(chunk)(_))
 
-    def fromChunk(chunk: Chunk[Val]): RIO[BufferAllocator, Vector] =
-      wrapUnsafe(unsafe.fromChunk(chunk)(_))
+    def fromIterable(it: Iterable[Val]): RIO[Scope with BufferAllocator, Vector] =
+      unsafe(Unsafe.fromIterable(it)(_))
 
-    def fromIterable(it: Iterable[Val]): RIO[BufferAllocator, Vector] =
-      wrapUnsafe(unsafe.fromIterable(it)(_))
-
-    object unsafe {
+    object Unsafe {
 
       def apply(elems: Seq[Val])(implicit alloc: BufferAllocator): Vector =
         this.fromIterable(elems.to(Iterable))
@@ -95,19 +97,19 @@ object ZVector {
     def decodeZIO(vec: ListVector)(implicit decoder: VectorDecoder[ListVector, List[Val]]): Task[Chunk[List[Val]]] =
       decoder.decodeZIO(vec)
 
-    def apply(elems: List[Val]*): RIO[BufferAllocator, ListVector] =
-      wrapUnsafe(unsafe.apply(elems)(_))
+    def apply(elems: List[Val]*): RIO[Scope with BufferAllocator, ListVector] =
+      unsafe(Unsafe.apply(elems)(_))
 
-    def empty: RIO[BufferAllocator, ListVector] =
-      wrapUnsafe(unsafe.empty(_))
+    def empty: RIO[Scope with BufferAllocator, ListVector] =
+      unsafe(Unsafe.empty(_))
 
-    def fromChunk[Col[x] <: Iterable[x]](chunk: Chunk[Col[Val]]): RIO[BufferAllocator, ListVector] =
-      wrapUnsafe(unsafe.fromChunk(chunk)(_))
+    def fromChunk[Col[x] <: Iterable[x]](chunk: Chunk[Col[Val]]): RIO[Scope with BufferAllocator, ListVector] =
+      unsafe(Unsafe.fromChunk(chunk)(_))
 
-    def fromIterable(it: Iterable[Iterable[Val]]): RIO[BufferAllocator, ListVector] =
-      wrapUnsafe(unsafe.fromIterable(it)(_))
+    def fromIterable(it: Iterable[Iterable[Val]]): RIO[Scope with BufferAllocator, ListVector] =
+      unsafe(Unsafe.fromIterable(it)(_))
 
-    object unsafe {
+    object Unsafe {
 
       def apply(elems: Seq[List[Val]])(implicit alloc: BufferAllocator): ListVector =
         fromIterable(elems.to(Iterable))

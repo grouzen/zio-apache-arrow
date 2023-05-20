@@ -6,13 +6,13 @@ import zio.ZIO
 
 implicit val alloc = new RootAllocator()
 
-val vec = ZVector.Int.unsafe.apply(Seq(1, 2, 3))
+val vec = ZVector.Int.Unsafe.apply(Seq(1, 2, 3))
 
 val vecZio = ZVector.Int(1, 2, 3)
 
 VectorDecoder.intDecoder.decode(vec)
 
-val emptyVec = ZVector.Int.unsafe.empty
+val emptyVec = ZVector.Int.Unsafe.empty
 
 VectorDecoder.intDecoder.decode(emptyVec)
 

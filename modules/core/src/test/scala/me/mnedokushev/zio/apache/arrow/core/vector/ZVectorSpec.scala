@@ -18,10 +18,12 @@ object ZVectorSpec extends ZIOSpecDefault {
       test("fromChunk") {
         val chunk = Chunk(List(1, 2), List(3))
 
-        for {
-          listIntVec <- ListInt.fromChunk(chunk)
-          result     <- ListInt.decodeZIO(listIntVec)
-        } yield assert(chunk)(equalTo(result))
+        ZIO.scoped(
+          for {
+            listIntVec <- ListInt.fromChunk(chunk)
+            result     <- ListInt.decodeZIO(listIntVec)
+          } yield assert(chunk)(equalTo(result))
+        )
       }
     )
 
