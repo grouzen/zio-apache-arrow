@@ -1,6 +1,7 @@
 package me.mnedokushev.zio.apache.arrow.core
 
 import org.apache.arrow.vector._
+import org.apache.arrow.vector.complex.ListVector
 import zio._
 import zio.test._
 import zio.test.Assertion._
@@ -16,9 +17,12 @@ object ArrowDecoderSpec extends ZIOSpecDefault {
     suite("VectorDecoder")(
       test("empty") {
         for {
-          vec    <- ZVector.Int.empty
-          result <- VectorDecoder[IntVector, Int].decodeZio(vec)
-        } yield assertTrue(result.isEmpty)
+          intVec     <- ZVector.Int.empty
+          listIntVec <- ZVector.ListInt.empty
+
+          intResult     <- VectorDecoder[IntVector, Int].decodeZio(intVec)
+          listIntResult <- VectorDecoder[ListVector, List[Int]].decodeZio(listIntVec)
+        } yield assertTrue(intResult.isEmpty) && assertTrue(listIntResult.isEmpty)
       },
       test("decode boolean") {
         for {
@@ -43,6 +47,12 @@ object ArrowDecoderSpec extends ZIOSpecDefault {
           vec    <- ZVector.String("zio", "cats", "monix")
           result <- VectorDecoder[VarCharVector, String].decodeZio(vec)
         } yield assert(result)(equalTo(Chunk("zio", "cats", "monix")))
+      },
+      test("decode list int") {
+        for {
+          vec    <- ZVector.ListInt(List(1, 2), List(3))
+          result <- VectorDecoder[ListVector, List[Int]].decodeZio(vec)
+        } yield assert(result)(equalTo(Chunk(List(1, 2), List(3))))
       }
     ).provideLayer(ZAllocator.rootLayer())
 }
