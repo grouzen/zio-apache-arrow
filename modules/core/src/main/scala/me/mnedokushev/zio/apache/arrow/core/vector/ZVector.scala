@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets
 
 trait ZVector[Val, Vector <: AutoCloseable] {
 
-  protected def unsafe(unsafe: BufferAllocator => Vector): RIO[Scope with BufferAllocator, Vector] =
+  protected def fromUnsafe(unsafe: BufferAllocator => Vector): RIO[Scope with BufferAllocator, Vector] =
     ZIO.fromAutoCloseable(
       ZIO.serviceWithZIO[BufferAllocator] { alloc =>
         ZIO.attempt(unsafe(alloc))
@@ -49,19 +49,19 @@ object ZVector {
   ) extends ZVector[Val, Vector] {
 
     def apply(elems: Val*): RIO[Scope with BufferAllocator, Vector] =
-      unsafe(Unsafe.apply(elems)(_))
+      fromUnsafe(Unsafe.apply(elems)(_))
 
     def decodeZIO(vec: Vector)(implicit decoder: VectorDecoder[Vector, Val]): Task[Chunk[Val]] =
       decoder.decodeZIO(vec)
 
     def empty: RIO[Scope with BufferAllocator, Vector] =
-      unsafe(Unsafe.empty(_))
+      fromUnsafe(Unsafe.empty(_))
 
     def fromChunk(chunk: Chunk[Val]): RIO[Scope with BufferAllocator, Vector] =
-      unsafe(Unsafe.fromChunk(chunk)(_))
+      fromUnsafe(Unsafe.fromChunk(chunk)(_))
 
     def fromIterable(it: Iterable[Val]): RIO[Scope with BufferAllocator, Vector] =
-      unsafe(Unsafe.fromIterable(it)(_))
+      fromUnsafe(Unsafe.fromIterable(it)(_))
 
     object Unsafe {
 
@@ -98,16 +98,16 @@ object ZVector {
       decoder.decodeZIO(vec)
 
     def apply(elems: List[Val]*): RIO[Scope with BufferAllocator, ListVector] =
-      unsafe(Unsafe.apply(elems)(_))
+      fromUnsafe(Unsafe.apply(elems)(_))
 
     def empty: RIO[Scope with BufferAllocator, ListVector] =
-      unsafe(Unsafe.empty(_))
+      fromUnsafe(Unsafe.empty(_))
 
     def fromChunk[Col[x] <: Iterable[x]](chunk: Chunk[Col[Val]]): RIO[Scope with BufferAllocator, ListVector] =
-      unsafe(Unsafe.fromChunk(chunk)(_))
+      fromUnsafe(Unsafe.fromChunk(chunk)(_))
 
     def fromIterable(it: Iterable[Iterable[Val]]): RIO[Scope with BufferAllocator, ListVector] =
-      unsafe(Unsafe.fromIterable(it)(_))
+      fromUnsafe(Unsafe.fromIterable(it)(_))
 
     object Unsafe {
 

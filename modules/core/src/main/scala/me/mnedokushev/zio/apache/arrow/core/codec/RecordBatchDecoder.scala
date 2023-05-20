@@ -29,7 +29,7 @@ object RecordBatchDecoder {
 
   def apply[To](getIdx: VectorSchemaRoot => Int => To): RecordBatchDecoder[To] =
     new RecordBatchDecoder[To] {
-      override protected def decodeUnsafe(from: VectorSchemaRoot, idx: RuntimeFlags): To =
+      override def decodeUnsafe(from: VectorSchemaRoot, idx: Int): To =
         try getIdx(from)(idx)
         catch {
           case NonFatal(ex) => throw DecoderError("Error decoding vector", ex)

@@ -2,7 +2,7 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.ListVector
-import org.apache.arrow.vector.complex.impl.{BigIntReaderImpl, BitReaderImpl, IntReaderImpl}
+import org.apache.arrow.vector.complex.impl.{ BigIntReaderImpl, BitReaderImpl, IntReaderImpl }
 import org.apache.arrow.vector.complex.reader.FieldReader
 import zio._
 
@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets
 import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
-trait VectorDecoder[-From <: ValueVector, +To] extends ArrowDecoder[From, To] { self =>
+trait VectorDecoder[From <: ValueVector, +To] extends ArrowDecoder[From, To] { self =>
 
   override final def decode(from: From): Either[Throwable, Chunk[To]] =
     try {
@@ -28,6 +28,18 @@ trait VectorDecoder[-From <: ValueVector, +To] extends ArrowDecoder[From, To] { 
       case ex: DecoderError => Left(ex)
     }
 
+  final def map[B](f: To => B): VectorDecoder[From, B] =
+    new VectorDecoder[From, B] {
+      override def decodeUnsafe(from: From, idx: Int): B =
+        f(self.decodeUnsafe(from, idx))
+    }
+
+  final def flatMap[B](f: To => VectorDecoder[From, B]): VectorDecoder[From, B] =
+    new VectorDecoder[From, B] {
+      override def decodeUnsafe(from: From, idx: Int): B =
+        f(self.decodeUnsafe(from, idx)).decodeUnsafe(from, idx)
+    }
+
 }
 
 object VectorDecoder {
@@ -37,7 +49,7 @@ object VectorDecoder {
 
   def apply[From <: ValueVector, To](getIdx: From => Int => To): VectorDecoder[From, To] =
     new VectorDecoder[From, To] {
-      override protected def decodeUnsafe(from: From, idx: Int): To =
+      override def decodeUnsafe(from: From, idx: Int): To =
         try getIdx(from)(idx)
         catch {
           case NonFatal(ex) => throw DecoderError("Error decoding vector", ex)

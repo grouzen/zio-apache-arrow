@@ -17,6 +17,27 @@ object ArrowDecoderSpec extends ZIOSpecDefault {
 
   val vectorDecoderSpec =
     suite("VectorDecoder")(
+      test("map") {
+        ZIO.scoped(
+          for {
+            intVec <- ZVector.Int(1, 2, 3)
+            result <- VectorDecoder.intDecoder.map(_.toString).decodeZIO(intVec)
+          } yield assert(result)(equalTo(Chunk("1", "2", "3")))
+        )
+      },
+      test("flatMap") {
+        ZIO.scoped(
+          for {
+            intVec <- ZVector.Int(1, 2, 3)
+            result <- VectorDecoder.intDecoder.flatMap {
+                        case i if i % 2 == 0 =>
+                          VectorDecoder.intDecoder.map(even => s"even:$even")
+                        case _ =>
+                          VectorDecoder.intDecoder.map(odd => s"odd:$odd")
+                      }.decodeZIO(intVec)
+          } yield assert(result)(equalTo(Chunk("odd:1", "even:2", "odd:3")))
+        )
+      },
       test("empty") {
         ZIO.scoped(
           for {
