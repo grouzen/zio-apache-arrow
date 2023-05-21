@@ -1,12 +1,15 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.vector._
-import org.apache.arrow.vector.complex.ListVector
+import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import org.apache.arrow.vector.complex.impl.{ BigIntReaderImpl, BitReaderImpl, IntReaderImpl }
 import org.apache.arrow.vector.complex.reader.FieldReader
+import org.apache.arrow.vector.types.pojo.ArrowType
 import zio._
+import zio.schema.{ DynamicValue, Schema, StandardType, TypeId }
 
 import java.nio.charset.StandardCharsets
+import scala.collection.immutable.ListMap
 import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
@@ -52,7 +55,7 @@ object VectorDecoder {
       override def decodeUnsafe(from: From, idx: Int): To =
         try getIdx(from)(idx)
         catch {
-          case NonFatal(ex) => throw DecoderError("Error decoding vector", ex)
+          case NonFatal(ex) => throw DecoderError("Error decoding vector", Some(ex))
         }
     }
 
@@ -71,6 +74,47 @@ object VectorDecoder {
     listDecoder[Int, IntReaderImpl](_.readInteger())
   implicit val listLongDecoder: VectorDecoder[ListVector, List[Long]]       =
     listDecoder[Long, BigIntReaderImpl](_.readLong())
+
+  implicit def structDecoder[A](implicit schema: Schema[A]): VectorDecoder[StructVector, A] =
+    VectorDecoder { vec => idx =>
+      /*
+        1. transform StructVector to DynamicValue
+           - read value by idx for each field
+           - create DynamicValue from the list map of fieldName => value
+        2. materialize DynamicValue to value (literally case class) with validation
+           - map ZIO Schema DecodeError to ZIO Apache Arrow DecoderError
+       */
+      val reader0 = vec.getReader
+
+      reader0.setPosition(idx)
+      val dynamicValue = schema match {
+        case record: Schema.Record[A] =>
+          val listMap = record.fields.map { field =>
+            val reader = reader0.reader(field.name)
+
+            val value: DynamicValue = reader0.getField.getType match {
+              case _: ArrowType.Int  =>
+                DynamicValue.Primitive[Int](reader.readInteger(), StandardType.IntType)
+              case _: ArrowType.Bool =>
+                DynamicValue.Primitive[Boolean](reader.readBoolean(), StandardType.BoolType)
+              case _: ArrowType.List => ??? // recursion
+              case other             =>
+                throw DecoderError(s"Unsupported Arrow type $other")
+            }
+
+            field.name.asInstanceOf[String] -> value
+          }.to(ListMap)
+
+          DynamicValue.Record(TypeId.Structural, listMap)
+        case _                        =>
+          throw DecoderError(s"Given ZIO schema must be of type Schema.Record[A]")
+      }
+
+      dynamicValue.toTypedValue match {
+        case Right(v)      => v
+        case Left(message) => throw DecoderError(message)
+      }
+    }
 
   private def listDecoder[Val, Reader](
     readVal: Reader => Val

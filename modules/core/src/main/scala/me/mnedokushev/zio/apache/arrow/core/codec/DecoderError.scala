@@ -4,5 +4,5 @@ import java.io.IOException
 
 final case class DecoderError(
   message: String,
-  cause: Throwable
-) extends IOException(message, cause)
+  cause: Option[Throwable] = None
+) extends IOException(message, cause.getOrElse(new Throwable()))

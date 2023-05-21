@@ -32,7 +32,7 @@ object RecordBatchDecoder {
       override def decodeUnsafe(from: VectorSchemaRoot, idx: Int): To =
         try getIdx(from)(idx)
         catch {
-          case NonFatal(ex) => throw DecoderError("Error decoding vector", ex)
+          case NonFatal(ex) => throw DecoderError("Error decoding vector", Some(ex))
         }
     }
 
