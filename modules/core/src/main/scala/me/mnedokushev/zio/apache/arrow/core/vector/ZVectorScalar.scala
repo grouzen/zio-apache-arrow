@@ -2,7 +2,6 @@ package me.mnedokushev.zio.apache.arrow.core.vector
 
 import me.mnedokushev.zio.apache.arrow.core.codec.VectorDecoder
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ValueVector
 import zio._
 
@@ -27,6 +26,9 @@ abstract class ZVectorScalar[Val, Vector <: ValueVector](makeVec: BufferAllocato
   def fromIterable(it: Iterable[Val]): RIO[Scope with BufferAllocator, Vector] =
     fromUnsafe(Unsafe.fromIterable(it)(_))
 
+  def toIterable(vec: Vector)(implicit decoder: VectorDecoder[Vector, Val]): Either[Throwable, Iterable[Val]] =
+    decoder.decode(vec)
+
   object Unsafe {
 
     def apply(elems: Seq[Val])(implicit alloc: BufferAllocator): Vector =
@@ -43,7 +45,7 @@ abstract class ZVectorScalar[Val, Vector <: ValueVector](makeVec: BufferAllocato
       this.fromIterable(chunk.to(Iterable))
 
     def fromIterable(it: Iterable[Val])(implicit alloc: BufferAllocator): Vector = {
-      val vec = makeVec(alloc)
+      val vec = this.empty
       val len = it.size
 
       allocNew(vec)(len)

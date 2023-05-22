@@ -14,7 +14,7 @@ trait RecordBatchDecoder[+To] extends ArrowDecoder[VectorSchemaRoot, To] { self 
       val builder  = ChunkBuilder.make[To](rowCount)
 
       while (idx <= rowCount) {
-        builder.addOne(decodeUnsafe(from, idx))
+        builder.addOne(decodeOne(from, idx))
         idx += 1
       }
 
@@ -29,7 +29,7 @@ object RecordBatchDecoder {
 
   def apply[To](getIdx: VectorSchemaRoot => Int => To): RecordBatchDecoder[To] =
     new RecordBatchDecoder[To] {
-      override def decodeUnsafe(from: VectorSchemaRoot, idx: Int): To =
+      override def decodeOne(from: VectorSchemaRoot, idx: Int): To =
         try getIdx(from)(idx)
         catch {
           case NonFatal(ex) => throw DecoderError("Error decoding vector", Some(ex))

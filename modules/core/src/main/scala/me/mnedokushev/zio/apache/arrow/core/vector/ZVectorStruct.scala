@@ -51,7 +51,15 @@ abstract class ZVectorStruct[Val](implicit schema: Schema[Val]) extends ZVector[
     }
 
     def fromIterable(it: Iterable[Val])(implicit alloc: BufferAllocator): StructVector = {
-      val vec = this.empty
+      val vec    = this.empty
+      val len    = it.size
+      val writer = vec.getWriter
+
+      it.zipWithIndex.foreach { case (v, i) =>
+        writer.setPosition(i)
+
+      }
+
       ???
     }
 

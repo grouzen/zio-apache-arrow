@@ -13,16 +13,16 @@ import scala.collection.immutable.ListMap
 import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
-trait VectorDecoder[From <: ValueVector, +To] extends ArrowDecoder[From, To] { self =>
+trait VectorDecoder[Vector <: ValueVector, +Val] extends ArrowDecoder[Vector, Val] { self =>
 
-  override final def decode(from: From): Either[Throwable, Chunk[To]] =
+  override final def decode(from: Vector): Either[Throwable, Chunk[Val]] =
     try {
       var idx        = 0
       val valueCount = from.getValueCount
-      val builder    = ChunkBuilder.make[To](valueCount)
+      val builder    = ChunkBuilder.make[Val](valueCount)
 
       while (idx < valueCount) {
-        builder.addOne(decodeUnsafe(from, idx))
+        builder.addOne(decodeOne(from, idx))
         idx += 1
       }
 
@@ -31,28 +31,28 @@ trait VectorDecoder[From <: ValueVector, +To] extends ArrowDecoder[From, To] { s
       case ex: DecoderError => Left(ex)
     }
 
-  final def map[B](f: To => B): VectorDecoder[From, B] =
-    new VectorDecoder[From, B] {
-      override def decodeUnsafe(from: From, idx: Int): B =
-        f(self.decodeUnsafe(from, idx))
+  final def map[B](f: Val => B): VectorDecoder[Vector, B] =
+    new VectorDecoder[Vector, B] {
+      override def decodeOne(from: Vector, idx: Int): B =
+        f(self.decodeOne(from, idx))
     }
 
-  final def flatMap[B](f: To => VectorDecoder[From, B]): VectorDecoder[From, B] =
-    new VectorDecoder[From, B] {
-      override def decodeUnsafe(from: From, idx: Int): B =
-        f(self.decodeUnsafe(from, idx)).decodeUnsafe(from, idx)
+  final def flatMap[B](f: Val => VectorDecoder[Vector, B]): VectorDecoder[Vector, B] =
+    new VectorDecoder[Vector, B] {
+      override def decodeOne(from: Vector, idx: Int): B =
+        f(self.decodeOne(from, idx)).decodeOne(from, idx)
     }
 
 }
 
 object VectorDecoder {
 
-  def apply[From <: ValueVector, To](implicit vd: VectorDecoder[From, To]): VectorDecoder[From, To] =
-    vd
+  def apply[Vector <: ValueVector, Val](implicit decoder: VectorDecoder[Vector, Val]): VectorDecoder[Vector, Val] =
+    decoder
 
-  def apply[From <: ValueVector, To](getIdx: From => Int => To): VectorDecoder[From, To] =
-    new VectorDecoder[From, To] {
-      override def decodeUnsafe(from: From, idx: Int): To =
+  def apply[Vector <: ValueVector, Val](getIdx: Vector => Int => Val): VectorDecoder[Vector, Val] =
+    new VectorDecoder[Vector, Val] {
+      override def decodeOne(from: Vector, idx: Int): Val =
         try getIdx(from)(idx)
         catch {
           case NonFatal(ex) => throw DecoderError("Error decoding vector", Some(ex))

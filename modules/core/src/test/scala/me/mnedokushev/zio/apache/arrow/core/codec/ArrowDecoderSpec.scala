@@ -13,7 +13,7 @@ object ArrowDecoderSpec extends ZIOSpecDefault {
   override def spec: Spec[TestEnvironment with Scope, Any] =
     suite("ArrowDecoder")(
       vectorDecoderSpec
-    )
+    ).provideLayer(ZAllocator.rootLayer())
 
   val vectorDecoderSpec =
     suite("VectorDecoder")(
@@ -89,5 +89,5 @@ object ArrowDecoderSpec extends ZIOSpecDefault {
           } yield assert(result)(equalTo(Chunk(List(1, 2), List(3))))
         )
       }
-    ).provideLayer(ZAllocator.rootLayer())
+    )
 }

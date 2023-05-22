@@ -34,7 +34,7 @@ object ZVector {
         new VarCharVector("stringVector", _)
       )(_.allocateNew)(vec => (i, v) => vec.set(i, v.getBytes(StandardCharsets.UTF_8)))
 
-  final object ListBoolean extends ZVectorList[Boolean](vec => v => vec.writeBit(if (v) 1 else 0))
+  final object ListBoolean extends ZVectorList[Boolean](writer => v => writer.writeBit(if (v) 1 else 0))
 
   final object ListInt extends ZVectorList[Int](_.writeInt)
 
