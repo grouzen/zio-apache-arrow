@@ -1,10 +1,12 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.complex.ListVector
+import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import org.apache.arrow.vector.complex.impl.UnionListWriter
+import org.apache.arrow.vector.types.pojo.{ ArrowType, FieldType }
 import org.apache.arrow.vector.{ BigIntVector, BitVector, IntVector, ValueVector, VarCharVector }
 import zio.Chunk
+import zio.schema.{ Schema, StandardType }
 
 import java.nio.charset.StandardCharsets
 import scala.util.control.NonFatal
@@ -47,6 +49,62 @@ object VectorEncoder {
   implicit def listLongEncoder[Col[x] <: Iterable[x]]: VectorEncoder[Col[Long], ListVector]       =
     listEncoder(_.writeBigInt)
 
+  def structEncoder[Val](implicit schema: Schema[Val]): VectorEncoder[Val, StructVector] =
+    new VectorEncoder[Val, StructVector] {
+      override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): StructVector = {
+        val vec    = init(alloc)
+        val len    = chunk.length
+        val writer = vec.getWriter
+        val it     = chunk.iterator
+        var i      = 0
+
+        while (it.hasNext) {
+          writer.setPosition(i)
+
+          i += 1
+        }
+
+        vec
+      }
+
+      override protected def init(alloc: BufferAllocator): StructVector = {
+        val vec = StructVector.empty("structVector", alloc)
+
+        schema match {
+          case record: Schema.Record[Val] =>
+            record.fields.foreach { field =>
+              field.schema match {
+                case Schema.Primitive(StandardType.IntType, _)    =>
+                  vec.addOrGet(
+                    field.name,
+                    new FieldType(false, new ArrowType.Int(32, true), null),
+                    classOf[IntVector]
+                  )
+                case Schema.Primitive(StandardType.LongType, _)   =>
+                  vec.addOrGet(
+                    field.name,
+                    new FieldType(false, new ArrowType.Int(64, true), null),
+                    classOf[BigIntVector]
+                  )
+                case Schema.Primitive(StandardType.StringType, _) =>
+                  vec.addOrGet(
+                    field.name,
+                    new FieldType(false, ArrowType.Utf8.INSTANCE, null),
+                    classOf[VarCharVector]
+                  )
+                case other                                        =>
+                  throw EncoderError(s"Unsupported ZIO Schema type $other")
+              }
+            }
+          case _                          =>
+            throw EncoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
+        }
+
+        vec
+      }
+
+    }
+
   def listEncoder[Val, Col[x] <: Iterable[x]](
     writeVal: UnionListWriter => Val => Unit
   ): VectorEncoder[Col[Val], ListVector] =
@@ -87,17 +145,20 @@ object VectorEncoder {
     new VectorEncoder[Val, Vector] { self =>
       override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector = {
         val vec = init(alloc)
-        val len = chunk.length
-        val it  = chunk.iterator
-        var i   = 0
 
-        allocNew(vec)(len)
+        if (chunk.nonEmpty) {
+          val len = chunk.length
+          val it  = chunk.iterator
+          var i   = 0
 
-        while (it.hasNext) {
-          setVal(vec)(i, it.next())
-          i += 1
+          allocNew(vec)(len)
+          while (it.hasNext) {
+            setVal(vec)(i, it.next())
+            i += 1
+          }
+          vec.setValueCount(len)
         }
-        vec.setValueCount(len)
+
         vec
       }
 
