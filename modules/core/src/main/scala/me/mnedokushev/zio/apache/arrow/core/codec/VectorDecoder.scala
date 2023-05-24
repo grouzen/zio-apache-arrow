@@ -31,16 +31,16 @@ trait VectorDecoder[Vector <: ValueVector, +Val] extends ArrowDecoder[Vector, Va
       case ex: DecoderError => Left(ex)
     }
 
-  final def map[B](f: Val => B): VectorDecoder[Vector, B] =
-    new VectorDecoder[Vector, B] {
-      override def decodeOne(from: Vector, idx: Int): B =
-        f(self.decodeOne(from, idx))
-    }
-
-  final def flatMap[B](f: Val => VectorDecoder[Vector, B]): VectorDecoder[Vector, B] =
+  override def flatMap[B](f: Val => ArrowDecoder[Vector, B]): ArrowDecoder[Vector, B] =
     new VectorDecoder[Vector, B] {
       override def decodeOne(from: Vector, idx: Int): B =
         f(self.decodeOne(from, idx)).decodeOne(from, idx)
+    }
+
+  override def map[B](f: Val => B): ArrowDecoder[Vector, B] =
+    new VectorDecoder[Vector, B] {
+      override def decodeOne(from: Vector, idx: Int): B =
+        f(self.decodeOne(from, idx))
     }
 
 }
@@ -74,6 +74,22 @@ object VectorDecoder {
     listDecoder[Int, IntReaderImpl](_.readInteger())
   implicit val listLongDecoder: VectorDecoder[ListVector, List[Long]]       =
     listDecoder[Long, BigIntReaderImpl](_.readLong())
+
+  private def listDecoder[Val, Reader](
+    readVal: Reader => Val
+  )(implicit ev: Reader <:< FieldReader): VectorDecoder[ListVector, List[Val]] =
+    VectorDecoder { vec => idx =>
+      val reader0    = vec.getReader
+      val reader     = reader0.reader().asInstanceOf[Reader]
+      val listBuffer = ListBuffer.empty[Val]
+
+      reader0.setPosition(idx)
+      while (reader0.next())
+        if (reader.isSet)
+          listBuffer.addOne(readVal(reader))
+
+      listBuffer.result()
+    }
 
   implicit def structDecoder[A](implicit schema: Schema[A]): VectorDecoder[StructVector, A] =
     VectorDecoder { vec => idx =>
@@ -114,22 +130,6 @@ object VectorDecoder {
         case Right(v)      => v
         case Left(message) => throw DecoderError(message)
       }
-    }
-
-  private def listDecoder[Val, Reader](
-    readVal: Reader => Val
-  )(implicit ev: Reader <:< FieldReader): VectorDecoder[ListVector, List[Val]] =
-    VectorDecoder { vec => idx =>
-      val reader0    = vec.getReader
-      val reader     = reader0.reader().asInstanceOf[Reader]
-      val listBuffer = ListBuffer.empty[Val]
-
-      reader0.setPosition(idx)
-      while (reader0.next())
-        if (reader.isSet)
-          listBuffer.addOne(readVal(reader))
-
-      listBuffer.result()
     }
 
 }

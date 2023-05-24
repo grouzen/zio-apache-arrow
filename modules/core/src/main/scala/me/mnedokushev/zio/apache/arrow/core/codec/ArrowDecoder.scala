@@ -2,13 +2,17 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 
 import zio._
 
-trait ArrowDecoder[-From, +To] {
+trait ArrowDecoder[Vector, +Val] { self =>
 
-  def decodeOne(from: From, idx: Int): To
+  def decode(from: Vector): Either[Throwable, Chunk[Val]]
 
-  def decode(from: From): Either[Throwable, Chunk[To]]
+  def decodeOne(from: Vector, idx: Int): Val
 
-  def decodeZIO(from: From): Task[Chunk[To]] =
+  def decodeZIO(from: Vector): Task[Chunk[Val]] =
     ZIO.fromEither(decode(from))
+
+  def flatMap[B](f: Val => ArrowDecoder[Vector, B]): ArrowDecoder[Vector, B]
+
+  def map[B](f: Val => B): ArrowDecoder[Vector, B]
 
 }
