@@ -3,7 +3,7 @@ package me.mnedokushev.zio.apache.arrow.core
 import org.apache.arrow.memory.RootAllocator
 import zio._
 
-object ZAllocator {
+object ArrowAllocator {
 
   def root(limit: Long = Long.MaxValue): ZIO[Scope, Throwable, RootAllocator] =
     ZIO.acquireRelease(

@@ -4,20 +4,20 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import org.apache.arrow.vector.complex.impl.UnionListWriter
 import org.apache.arrow.vector.types.pojo.{ ArrowType, FieldType }
-import org.apache.arrow.vector.{ BigIntVector, BitVector, IntVector, ValueVector, VarCharVector }
+import org.apache.arrow.vector._
 import zio.Chunk
-import zio.schema.{ Schema, StandardType }
+import zio.schema._
 
 import java.nio.charset.StandardCharsets
 import scala.util.control.NonFatal
 
-trait VectorEncoder[-Val, Vector <: ValueVector] extends ArrowEncoder[Val, Vector] {
+trait ArrowVectorEncoder[-Val, Vector <: ValueVector] extends ArrowEncoder[Val, Vector] {
 
   override def encode(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Either[Throwable, Vector] =
     try
       Right(encodeUnsafe(chunk))
     catch {
-      case NonFatal(ex) => Left(EncoderError("Error encoding vector", Some(ex)))
+      case NonFatal(ex) => Left(ArrowEncoderError("Error encoding vector", Some(ex)))
     }
 
   protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector
@@ -26,33 +26,35 @@ trait VectorEncoder[-Val, Vector <: ValueVector] extends ArrowEncoder[Val, Vecto
 
 }
 
-object VectorEncoder {
+object ArrowVectorEncoder {
 
-  def apply[Val, Vector <: ValueVector](implicit encoder: VectorEncoder[Val, Vector]): VectorEncoder[Val, Vector] =
+  def apply[Val, Vector <: ValueVector](implicit
+    encoder: ArrowVectorEncoder[Val, Vector]
+  ): ArrowVectorEncoder[Val, Vector] =
     encoder
 
-  implicit val booleanEncoder: VectorEncoder[Boolean, BitVector]   =
-    scalarEncoder(new BitVector("bitVector", _))(_.allocateNew)(vec => (i, v) => vec.set(i, if (v) 1 else 0))
-  implicit val intEncoder: VectorEncoder[Int, IntVector]           =
-    scalarEncoder(new IntVector("intVector", _))(_.allocateNew)(_.set)
-  implicit val longEncoder: VectorEncoder[Long, BigIntVector]      =
-    scalarEncoder(new BigIntVector("longVector", _))(_.allocateNew)(_.set)
-  implicit val stringEncoder: VectorEncoder[String, VarCharVector] =
-    scalarEncoder(new VarCharVector("stringVector", _))(_.allocateNew)(vec =>
+  implicit val booleanEncoder: ArrowVectorEncoder[Boolean, BitVector]   =
+    scalar(new BitVector("bitVector", _))(_.allocateNew)(vec => (i, v) => vec.set(i, if (v) 1 else 0))
+  implicit val intEncoder: ArrowVectorEncoder[Int, IntVector]           =
+    scalar(new IntVector("intVector", _))(_.allocateNew)(_.set)
+  implicit val longEncoder: ArrowVectorEncoder[Long, BigIntVector]      =
+    scalar(new BigIntVector("longVector", _))(_.allocateNew)(_.set)
+  implicit val stringEncoder: ArrowVectorEncoder[String, VarCharVector] =
+    scalar(new VarCharVector("stringVector", _))(_.allocateNew)(vec =>
       (i, v) => vec.set(i, v.getBytes(StandardCharsets.UTF_8))
     )
 
-  implicit def listBooleanEncoder[Col[x] <: Iterable[x]]: VectorEncoder[Col[Boolean], ListVector] =
-    listEncoder(writer => v => writer.writeBit(if (v) 1 else 0))
-  implicit def listIntEncoder[Col[x] <: Iterable[x]]: VectorEncoder[Col[Int], ListVector]         =
-    listEncoder(_.writeInt)
-  implicit def listLongEncoder[Col[x] <: Iterable[x]]: VectorEncoder[Col[Long], ListVector]       =
-    listEncoder(_.writeBigInt)
+  implicit def listBooleanEncoder[Col[x] <: Iterable[x]]: ArrowVectorEncoder[Col[Boolean], ListVector] =
+    list(writer => v => writer.writeBit(if (v) 1 else 0))
+  implicit def listIntEncoder[Col[x] <: Iterable[x]]: ArrowVectorEncoder[Col[Int], ListVector]         =
+    list(_.writeInt)
+  implicit def listLongEncoder[Col[x] <: Iterable[x]]: ArrowVectorEncoder[Col[Long], ListVector]       =
+    list(_.writeBigInt)
 
-  def listEncoder[Val, Col[x] <: Iterable[x]](
+  def list[Val, Col[x] <: Iterable[x]](
     writeVal: UnionListWriter => Val => Unit
-  ): VectorEncoder[Col[Val], ListVector] =
-    new VectorEncoder[Col[Val], ListVector] {
+  ): ArrowVectorEncoder[Col[Val], ListVector] =
+    new ArrowVectorEncoder[Col[Val], ListVector] {
       override protected def encodeUnsafe(chunk: Chunk[Col[Val]])(implicit alloc: BufferAllocator): ListVector = {
         val vec    = init(alloc)
         val len0   = chunk.length
@@ -83,10 +85,10 @@ object VectorEncoder {
         ListVector.empty("listVector", alloc)
     }
 
-  def scalarEncoder[Val, Vector <: ValueVector](initVec: BufferAllocator => Vector)(allocNew: Vector => Int => Unit)(
+  def scalar[Val, Vector <: ValueVector](initVec: BufferAllocator => Vector)(allocNew: Vector => Int => Unit)(
     setVal: Vector => (Int, Val) => Unit
-  ): VectorEncoder[Val, Vector] =
-    new VectorEncoder[Val, Vector] { self =>
+  ): ArrowVectorEncoder[Val, Vector] =
+    new ArrowVectorEncoder[Val, Vector] { self =>
       override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector = {
         val vec = init(alloc)
 
@@ -114,8 +116,8 @@ object VectorEncoder {
       }
     }
 
-  def structEncoder[Val](implicit schema: Schema[Val]): VectorEncoder[Val, StructVector] =
-    new VectorEncoder[Val, StructVector] {
+  def struct[Val](implicit schema: Schema[Val]): ArrowVectorEncoder[Val, StructVector] =
+    new ArrowVectorEncoder[Val, StructVector] {
       override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): StructVector = {
         val vec    = init(alloc)
         val len    = chunk.length
@@ -158,11 +160,11 @@ object VectorEncoder {
                     classOf[VarCharVector]
                   )
                 case other                                        =>
-                  throw EncoderError(s"Unsupported ZIO Schema type $other")
+                  throw ArrowEncoderError(s"Unsupported ZIO Schema type $other")
               }
             }
           case _                          =>
-            throw EncoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
+            throw ArrowEncoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
 
         vec

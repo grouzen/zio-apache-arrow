@@ -1,5 +1,5 @@
-import me.mnedokushev.zio.apache.arrow.core.codec.VectorDecoder
-import me.mnedokushev.zio.apache.arrow.core.ZAllocator
+import me.mnedokushev.zio.apache.arrow.core.codec.ArrowVectorDecoder
+import me.mnedokushev.zio.apache.arrow.core.ArrowAllocator
 import me.mnedokushev.zio.apache.arrow.core.vector.ZVector
 import org.apache.arrow.memory.RootAllocator
 import zio.ZIO
@@ -8,10 +8,10 @@ import zio.schema.{ Schema, TypeId }
 implicit val alloc = new RootAllocator()
 
 val vec = ZVector.Int.Unsafe(Seq(1, 2, 3))
-VectorDecoder.intDecoder.decode(vec)
+ArrowVectorDecoder.intDecoder.decode(vec)
 
 val emptyVec = ZVector.Int.Unsafe.empty
-VectorDecoder.intDecoder.decode(emptyVec)
+ArrowVectorDecoder.intDecoder.decode(emptyVec)
 
 //
 //val prog = for {
@@ -39,4 +39,4 @@ implicit val schemaPerson: Schema.CaseClass3[String, Int, Long, Person] =
   )
 
 val emptyStructVec = ZVector.Struct[Person].Unsafe.empty
-VectorDecoder.structDecoder[Person].decode(emptyStructVec)
+ArrowVectorDecoder.struct[Person].decode(emptyStructVec)

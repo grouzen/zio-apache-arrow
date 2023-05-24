@@ -5,7 +5,7 @@ import zio._
 
 import scala.util.control.NonFatal
 
-trait RecordBatchDecoder[+Val] extends ArrowDecoder[VectorSchemaRoot, Val] { self =>
+trait ArrowRecordBatchDecoder[+Val] extends ArrowDecoder[VectorSchemaRoot, Val] { self =>
 
   override final def decode(from: VectorSchemaRoot): Either[Throwable, Chunk[Val]] =
     try {
@@ -20,31 +20,31 @@ trait RecordBatchDecoder[+Val] extends ArrowDecoder[VectorSchemaRoot, Val] { sel
 
       Right(builder.result())
     } catch {
-      case ex: DecoderError => Left(ex)
+      case ex: ArrowDecoderError => Left(ex)
     }
 
   override def flatMap[B](f: Val => ArrowDecoder[VectorSchemaRoot, B]): ArrowDecoder[VectorSchemaRoot, B] =
-    new RecordBatchDecoder[B] {
+    new ArrowRecordBatchDecoder[B] {
       override def decodeOne(from: VectorSchemaRoot, idx: Int): B =
         f(self.decodeOne(from, idx)).decodeOne(from, idx)
     }
 
   override def map[B](f: Val => B): ArrowDecoder[VectorSchemaRoot, B] =
-    new RecordBatchDecoder[B] {
+    new ArrowRecordBatchDecoder[B] {
       override def decodeOne(from: VectorSchemaRoot, idx: Int): B =
         f(self.decodeOne(from, idx))
     }
 
 }
 
-object RecordBatchDecoder {
+object ArrowRecordBatchDecoder {
 
-  def apply[To](getIdx: VectorSchemaRoot => Int => To): RecordBatchDecoder[To] =
-    new RecordBatchDecoder[To] {
+  def apply[To](getIdx: VectorSchemaRoot => Int => To): ArrowRecordBatchDecoder[To] =
+    new ArrowRecordBatchDecoder[To] {
       override def decodeOne(from: VectorSchemaRoot, idx: Int): To =
         try getIdx(from)(idx)
         catch {
-          case NonFatal(ex) => throw DecoderError("Error decoding vector", Some(ex))
+          case NonFatal(ex) => throw ArrowDecoderError("Error decoding vector", Some(ex))
         }
     }
 

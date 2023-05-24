@@ -2,18 +2,18 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.{ ListVector, StructVector }
-import org.apache.arrow.vector.complex.impl.{ BigIntReaderImpl, BitReaderImpl, IntReaderImpl }
+import org.apache.arrow.vector.complex.impl._
 import org.apache.arrow.vector.complex.reader.FieldReader
 import org.apache.arrow.vector.types.pojo.ArrowType
 import zio._
-import zio.schema.{ DynamicValue, Schema, StandardType, TypeId }
+import zio.schema._
 
 import java.nio.charset.StandardCharsets
 import scala.collection.immutable.ListMap
 import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
-trait VectorDecoder[Vector <: ValueVector, +Val] extends ArrowDecoder[Vector, Val] { self =>
+trait ArrowVectorDecoder[Vector <: ValueVector, +Val] extends ArrowDecoder[Vector, Val] { self =>
 
   override final def decode(from: Vector): Either[Throwable, Chunk[Val]] =
     try {
@@ -28,57 +28,59 @@ trait VectorDecoder[Vector <: ValueVector, +Val] extends ArrowDecoder[Vector, Va
 
       Right(builder.result())
     } catch {
-      case ex: DecoderError => Left(ex)
+      case ex: ArrowDecoderError => Left(ex)
     }
 
   override def flatMap[B](f: Val => ArrowDecoder[Vector, B]): ArrowDecoder[Vector, B] =
-    new VectorDecoder[Vector, B] {
+    new ArrowVectorDecoder[Vector, B] {
       override def decodeOne(from: Vector, idx: Int): B =
         f(self.decodeOne(from, idx)).decodeOne(from, idx)
     }
 
   override def map[B](f: Val => B): ArrowDecoder[Vector, B] =
-    new VectorDecoder[Vector, B] {
+    new ArrowVectorDecoder[Vector, B] {
       override def decodeOne(from: Vector, idx: Int): B =
         f(self.decodeOne(from, idx))
     }
 
 }
 
-object VectorDecoder {
+object ArrowVectorDecoder {
 
-  def apply[Vector <: ValueVector, Val](implicit decoder: VectorDecoder[Vector, Val]): VectorDecoder[Vector, Val] =
+  def apply[Vector <: ValueVector, Val](implicit
+    decoder: ArrowVectorDecoder[Vector, Val]
+  ): ArrowVectorDecoder[Vector, Val] =
     decoder
 
-  def apply[Vector <: ValueVector, Val](getIdx: Vector => Int => Val): VectorDecoder[Vector, Val] =
-    new VectorDecoder[Vector, Val] {
+  def apply[Vector <: ValueVector, Val](getIdx: Vector => Int => Val): ArrowVectorDecoder[Vector, Val] =
+    new ArrowVectorDecoder[Vector, Val] {
       override def decodeOne(from: Vector, idx: Int): Val =
         try getIdx(from)(idx)
         catch {
-          case NonFatal(ex) => throw DecoderError("Error decoding vector", Some(ex))
+          case NonFatal(ex) => throw ArrowDecoderError("Error decoding vector", Some(ex))
         }
     }
 
-  implicit val booleanDecoder: VectorDecoder[BitVector, Boolean]   =
-    VectorDecoder(vec => idx => vec.getObject(idx))
-  implicit val intDecoder: VectorDecoder[IntVector, Int]           =
-    VectorDecoder(_.get)
-  implicit val longDecoder: VectorDecoder[BigIntVector, Long]      =
-    VectorDecoder(_.get)
-  implicit val stringDecoder: VectorDecoder[VarCharVector, String] =
-    VectorDecoder(vec => idx => new String(vec.get(idx), StandardCharsets.UTF_8))
+  implicit val booleanDecoder: ArrowVectorDecoder[BitVector, Boolean]   =
+    ArrowVectorDecoder(vec => idx => vec.getObject(idx))
+  implicit val intDecoder: ArrowVectorDecoder[IntVector, Int]           =
+    ArrowVectorDecoder(_.get)
+  implicit val longDecoder: ArrowVectorDecoder[BigIntVector, Long]      =
+    ArrowVectorDecoder(_.get)
+  implicit val stringDecoder: ArrowVectorDecoder[VarCharVector, String] =
+    ArrowVectorDecoder(vec => idx => new String(vec.get(idx), StandardCharsets.UTF_8))
 
-  implicit val listBooleanDecoder: VectorDecoder[ListVector, List[Boolean]] =
-    listDecoder[Boolean, BitReaderImpl](_.readBoolean())
-  implicit val listIntDecoder: VectorDecoder[ListVector, List[Int]]         =
-    listDecoder[Int, IntReaderImpl](_.readInteger())
-  implicit val listLongDecoder: VectorDecoder[ListVector, List[Long]]       =
-    listDecoder[Long, BigIntReaderImpl](_.readLong())
+  implicit val listBooleanDecoder: ArrowVectorDecoder[ListVector, List[Boolean]] =
+    list[Boolean, BitReaderImpl](_.readBoolean())
+  implicit val listIntDecoder: ArrowVectorDecoder[ListVector, List[Int]]         =
+    list[Int, IntReaderImpl](_.readInteger())
+  implicit val listLongDecoder: ArrowVectorDecoder[ListVector, List[Long]]       =
+    list[Long, BigIntReaderImpl](_.readLong())
 
-  private def listDecoder[Val, Reader](
+  private def list[Val, Reader](
     readVal: Reader => Val
-  )(implicit ev: Reader <:< FieldReader): VectorDecoder[ListVector, List[Val]] =
-    VectorDecoder { vec => idx =>
+  )(implicit ev: Reader <:< FieldReader): ArrowVectorDecoder[ListVector, List[Val]] =
+    ArrowVectorDecoder { vec => idx =>
       val reader0    = vec.getReader
       val reader     = reader0.reader().asInstanceOf[Reader]
       val listBuffer = ListBuffer.empty[Val]
@@ -91,8 +93,8 @@ object VectorDecoder {
       listBuffer.result()
     }
 
-  implicit def structDecoder[A](implicit schema: Schema[A]): VectorDecoder[StructVector, A] =
-    VectorDecoder { vec => idx =>
+  implicit def struct[A](implicit schema: Schema[A]): ArrowVectorDecoder[StructVector, A] =
+    ArrowVectorDecoder { vec => idx =>
       /*
         1. transform StructVector to DynamicValue
            - read value by idx for each field
@@ -115,7 +117,7 @@ object VectorDecoder {
                 DynamicValue.Primitive[Boolean](reader.readBoolean(), StandardType.BoolType)
               case _: ArrowType.List => ??? // recursion
               case other             =>
-                throw DecoderError(s"Unsupported Arrow type $other")
+                throw ArrowDecoderError(s"Unsupported Arrow type $other")
             }
 
             field.name.asInstanceOf[String] -> value
@@ -123,12 +125,12 @@ object VectorDecoder {
 
           DynamicValue.Record(TypeId.Structural, listMap)
         case _                        =>
-          throw DecoderError(s"Given ZIO schema must be of type Schema.Record[A]")
+          throw ArrowDecoderError(s"Given ZIO schema must be of type Schema.Record[A]")
       }
 
       dynamicValue.toTypedValue match {
         case Right(v)      => v
-        case Left(message) => throw DecoderError(message)
+        case Left(message) => throw ArrowDecoderError(message)
       }
     }
 
