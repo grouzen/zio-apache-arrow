@@ -1,13 +1,16 @@
-import sbt._
+import sbt.*
+import sbt.Keys.scalaVersion
 
 object Dep {
 
   object V {
-    val zio = "2.0.13"
+    val zio       = "2.0.13"
+    val zioSchema = "0.4.11"
   }
 
   object O {
     val apacheArrow = "org.apache.arrow"
+    val scalaLang   = "org.scala-lang"
     val zio         = "dev.zio"
   }
 
@@ -15,10 +18,11 @@ object Dep {
   lazy val arrowVector = O.apacheArrow % "arrow-vector" % "0.17.1"
   lazy val arrowMemory = O.apacheArrow % "arrow-memory" % "0.17.1"
 
-  lazy val zio        = O.zio %% "zio"          % V.zio
-  lazy val zioSchema  = O.zio %% "zio-schema"   % "0.4.11"
-  lazy val zioTest    = O.zio %% "zio-test"     % V.zio
-  lazy val zioTestSbt = O.zio %% "zio-test-sbt" % V.zio
+  lazy val zio                 = O.zio %% "zio"                   % V.zio
+  lazy val zioSchema           = O.zio %% "zio-schema"            % V.zioSchema
+  lazy val zioSchemaDerivation = O.zio %% "zio-schema-derivation" % V.zioSchema
+  lazy val zioTest             = O.zio %% "zio-test"              % V.zio
+  lazy val zioTestSbt          = O.zio %% "zio-test-sbt"          % V.zio
 
   lazy val core = Seq(
     arrowFormat,
@@ -26,8 +30,9 @@ object Dep {
     arrowMemory,
     zio,
     zioSchema,
-    zioTest    % Test,
-    zioTestSbt % Test
+    zioSchemaDerivation % Test,
+    zioTest             % Test,
+    zioTestSbt          % Test
   )
 
 }

@@ -33,13 +33,13 @@ trait ArrowVectorDecoder[Vector <: ValueVector, +Val] extends ArrowDecoder[Vecto
 
   override def flatMap[B](f: Val => ArrowDecoder[Vector, B]): ArrowDecoder[Vector, B] =
     new ArrowVectorDecoder[Vector, B] {
-      override def decodeOne(from: Vector, idx: Int): B =
+      override protected[core] def decodeOne(from: Vector, idx: Int): B =
         f(self.decodeOne(from, idx)).decodeOne(from, idx)
     }
 
   override def map[B](f: Val => B): ArrowDecoder[Vector, B] =
     new ArrowVectorDecoder[Vector, B] {
-      override def decodeOne(from: Vector, idx: Int): B =
+      override protected[core] def decodeOne(from: Vector, idx: Int): B =
         f(self.decodeOne(from, idx))
     }
 
@@ -54,7 +54,7 @@ object ArrowVectorDecoder {
 
   def apply[Vector <: ValueVector, Val](getIdx: Vector => Int => Val): ArrowVectorDecoder[Vector, Val] =
     new ArrowVectorDecoder[Vector, Val] {
-      override def decodeOne(from: Vector, idx: Int): Val =
+      override protected[core] def decodeOne(from: Vector, idx: Int): Val =
         try getIdx(from)(idx)
         catch {
           case NonFatal(ex) => throw ArrowDecoderError("Error decoding vector", Some(ex))
@@ -111,12 +111,19 @@ object ArrowVectorDecoder {
             val reader = reader0.reader(field.name)
 
             val value: DynamicValue = reader0.getField.getType match {
-              case _: ArrowType.Int  =>
-                DynamicValue.Primitive[Int](reader.readInteger(), StandardType.IntType)
-              case _: ArrowType.Bool =>
+              case _: ArrowType.Bool                                        =>
                 DynamicValue.Primitive[Boolean](reader.readBoolean(), StandardType.BoolType)
-              case _: ArrowType.List => ??? // recursion
-              case other             =>
+              case n: ArrowType.Int if n.getBitWidth == 32 && n.getIsSigned =>
+                DynamicValue.Primitive[Int](reader.readInteger(), StandardType.IntType)
+              case n: ArrowType.Int if n.getBitWidth == 64 && n.getIsSigned =>
+                DynamicValue.Primitive[Long](reader.readLong(), StandardType.LongType)
+              case _: ArrowType.Utf8                                        =>
+                DynamicValue.Primitive[String](
+                  new String(reader.readByteArray(), StandardCharsets.UTF_8),
+                  StandardType.StringType
+                )
+              case _: ArrowType.List                                        => ??? // recursion
+              case other                                                    =>
                 throw ArrowDecoderError(s"Unsupported Arrow type $other")
             }
 
