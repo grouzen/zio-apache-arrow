@@ -134,57 +134,15 @@ object ArrowVectorEncoder {
             name.fold(writer0.list)(writer0.list).asInstanceOf[PromotableWriter]
 
           schema0 match {
-            case cc: Schema.CaseClass1[_, _]                                                                 =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass2[_, _, _]                                                              =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass3[_, _, _, _]                                                           =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass4[_, _, _, _, _]                                                        =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass5[_, _, _, _, _, _]                                                     =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass6[_, _, _, _, _, _, _]                                                  =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass7[_, _, _, _, _, _, _, _]                                               =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass8[_, _, _, _, _, _, _, _, _]                                            =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass9[_, _, _, _, _, _, _, _, _, _]                                         =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass10[_, _, _, _, _, _, _, _, _, _, _]                                     =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass11[_, _, _, _, _, _, _, _, _, _, _, _]                                  =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass12[_, _, _, _, _, _, _, _, _, _, _, _, _]                               =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass13[_, _, _, _, _, _, _, _, _, _, _, _, _, _]                            =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass14[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _]                         =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass15[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]                      =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass16[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]                   =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass17[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]                =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass18[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]             =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass19[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]          =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass20[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]       =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass21[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _]    =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case cc: Schema.CaseClass22[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _] =>
-              encodeCaseClass(value, cc.fields, structWriter)
-            case Schema.Primitive(standardType, _)                                                           =>
+            case record: Schema.Record[A]                =>
+              encodeCaseClass(value, record.fields, structWriter)
+            case Schema.Primitive(standardType, _)       =>
               encodePrimitive(value, name, standardType, writer0)
-            case Schema.Sequence(elemSchema, _, g, _, _)                                                     =>
+            case Schema.Sequence(elemSchema, _, g, _, _) =>
               encodeSequence(g(value), elemSchema, listWriter)
-            case lzy: Schema.Lazy[_]                                                                         =>
+            case lzy: Schema.Lazy[_]                     =>
               encodeSchema(value, name, lzy.schema, writer0)
-            case other                                                                                       =>
+            case other                                   =>
               throw ArrowEncoderError(s"Unsupported ZIO Schema type $other")
 
           }
