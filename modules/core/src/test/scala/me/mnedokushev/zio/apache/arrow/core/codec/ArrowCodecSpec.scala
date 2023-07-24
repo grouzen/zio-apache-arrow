@@ -45,7 +45,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
 
   val vectorCodecScalarSpec =
     suite("ArrowVector Encoder/Decoder scalar")(
-      test("codec empty") {
+      test("codec - empty") {
         ZIO.scoped(
           for {
             vec <- ArrowVectorEncoder[Int, IntVector].encodeZIO(Chunk.empty)
@@ -53,7 +53,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
           } yield assertTrue(result.isEmpty)
         )
       },
-      test("codec boolean") {
+      test("codec - boolean") {
         ZIO.scoped(
           for {
             vec <- ArrowVectorEncoder[Boolean, BitVector].encodeZIO(Chunk(true, true, false))
@@ -61,7 +61,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
           } yield assert(result)(equalTo(Chunk(true, true, false)))
         )
       },
-      test("codec int") {
+      test("codec - int") {
         ZIO.scoped(
           for {
             vec <- ArrowVectorEncoder[Int, IntVector].encodeZIO(Chunk(1, 2, 3))
@@ -69,7 +69,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
           } yield assert(result)(equalTo(Chunk(1, 2, 3)))
         )
       },
-      test("codec long") {
+      test("codec - long") {
         ZIO.scoped(
           for {
             vec <- ArrowVectorEncoder[Long, BigIntVector].encodeZIO(Chunk(1L, 2L, 3L))
@@ -77,7 +77,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
           } yield assert(result)(equalTo(Chunk(1L, 2L, 3L)))
         )
       },
-      test("codec string") {
+      test("codec - string") {
         ZIO.scoped(
           for {
             vec <- ArrowVectorEncoder[String, VarCharVector].encodeZIO(Chunk("zio", "cats", "monix"))
@@ -89,7 +89,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
 
   val vectorCodecListSpec =
     suite("ArrowVector Encoder/Decoder list")(
-      test("codec list empty") {
+      test("codec list - empty") {
         ZIO.scoped(
           for {
             vec <- ArrowVectorEncoder[List[Int], ListVector].encodeZIO(Chunk.empty)
@@ -97,7 +97,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
           } yield assertTrue(result.isEmpty)
         )
       },
-      test("codec list boolean") {
+      test("codec list - boolean") {
         ZIO.scoped(
           for {
             vec <- ArrowVectorEncoder[Set[Boolean], ListVector].encodeZIO(Chunk(Set(true), Set(false, true)))
@@ -105,7 +105,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
           } yield assert(result)(equalTo(Chunk(List(true), List(false, true))))
         )
       },
-      test("codec list int") {
+      test("codec list - int") {
         ZIO.scoped(
           for {
             vec <- ArrowVectorEncoder[Set[Int], ListVector].encodeZIO(Chunk(Set(1, 2), Set(3)))
@@ -113,7 +113,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
           } yield assert(result)(equalTo(Chunk(List(1, 2), List(3))))
         )
       },
-      test("codec list long") {
+      test("codec list - long") {
         ZIO.scoped(
           for {
             vec <- ArrowVectorEncoder[Set[Long], ListVector].encodeZIO(Chunk(Set(1L, 2L), Set(3L)))

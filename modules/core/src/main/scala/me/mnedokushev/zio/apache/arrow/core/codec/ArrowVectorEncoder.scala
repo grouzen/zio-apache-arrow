@@ -2,14 +2,14 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.complex.{ ListVector, StructVector }
-import org.apache.arrow.vector.complex.impl.{ NullableStructWriter, PromotableWriter, UnionListWriter }
-import org.apache.arrow.vector.types.pojo.{ ArrowType, FieldType }
+import org.apache.arrow.vector.complex.impl.{ PromotableWriter, UnionListWriter }
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.writer.FieldWriter
 import zio.Chunk
 import zio.schema._
 
 import java.nio.charset.StandardCharsets
+import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
 trait ArrowVectorEncoder[-Val, Vector <: ValueVector] extends ArrowEncoder[Val, Vector] {
@@ -35,13 +35,13 @@ object ArrowVectorEncoder {
     encoder
 
   implicit val booleanEncoder: ArrowVectorEncoder[Boolean, BitVector]   =
-    scalar(new BitVector("bitVector", _))(_.allocateNew)(vec => (i, v) => vec.set(i, if (v) 1 else 0))
+    primitive(new BitVector("bitVector", _))(_.allocateNew)(vec => (i, v) => vec.set(i, if (v) 1 else 0))
   implicit val intEncoder: ArrowVectorEncoder[Int, IntVector]           =
-    scalar(new IntVector("intVector", _))(_.allocateNew)(_.set)
+    primitive(new IntVector("intVector", _))(_.allocateNew)(_.set)
   implicit val longEncoder: ArrowVectorEncoder[Long, BigIntVector]      =
-    scalar(new BigIntVector("longVector", _))(_.allocateNew)(_.set)
+    primitive(new BigIntVector("longVector", _))(_.allocateNew)(_.set)
   implicit val stringEncoder: ArrowVectorEncoder[String, VarCharVector] =
-    scalar(new VarCharVector("stringVector", _))(_.allocateNew)(vec =>
+    primitive(new VarCharVector("stringVector", _))(_.allocateNew)(vec =>
       (i, v) => vec.set(i, v.getBytes(StandardCharsets.UTF_8))
     )
 
@@ -52,6 +52,37 @@ object ArrowVectorEncoder {
     list(_.writeInt)
   implicit def listLongEncoder[Col[x] <: Iterable[x]]: ArrowVectorEncoder[Col[Long], ListVector]       =
     list(_.writeBigInt)
+
+  def primitive[Val, Vector <: ValueVector](initVec: BufferAllocator => Vector)(allocNew: Vector => Int => Unit)(
+    setVal: Vector => (Int, Val) => Unit
+  ): ArrowVectorEncoder[Val, Vector] =
+    new ArrowVectorEncoder[Val, Vector] { self =>
+      override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector = {
+        val vec = init(alloc)
+
+        if (chunk.nonEmpty) {
+          val len = chunk.length
+          val it  = chunk.iterator
+          var i   = 0
+
+          allocNew(vec)(len)
+          while (it.hasNext) {
+            setVal(vec)(i, it.next())
+            i += 1
+          }
+          vec.setValueCount(len)
+        }
+
+        vec
+      }
+
+      override protected def init(alloc: BufferAllocator): Vector = {
+        val vec = initVec(alloc)
+
+        vec.setValueCount(0)
+        vec
+      }
+    }
 
   // TODO: support .list and .struct writer (latter means we need to add Schema[Val])
   def list[Val, Col[x] <: Iterable[x]](
@@ -88,65 +119,36 @@ object ArrowVectorEncoder {
         ListVector.empty("listVector", alloc)
     }
 
-  def scalar[Val, Vector <: ValueVector](initVec: BufferAllocator => Vector)(allocNew: Vector => Int => Unit)(
-    setVal: Vector => (Int, Val) => Unit
-  ): ArrowVectorEncoder[Val, Vector] =
-    new ArrowVectorEncoder[Val, Vector] { self =>
-      override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector = {
-        val vec = init(alloc)
-
-        if (chunk.nonEmpty) {
-          val len = chunk.length
-          val it  = chunk.iterator
-          var i   = 0
-
-          allocNew(vec)(len)
-          while (it.hasNext) {
-            setVal(vec)(i, it.next())
-            i += 1
-          }
-          vec.setValueCount(len)
-        }
-
-        vec
-      }
-
-      override protected def init(alloc: BufferAllocator): Vector = {
-        val vec = initVec(alloc)
-
-        vec.setValueCount(0)
-        vec
-      }
-    }
-
   def struct[Val](implicit schema: Schema[Val]): ArrowVectorEncoder[Val, StructVector] =
     new ArrowVectorEncoder[Val, StructVector] {
       override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): StructVector = {
 
-        def encodeSchema[A](value: A, name: Option[String], schema0: Schema[A], writer0: FieldWriter): Unit = {
-          def structWriter =
-            name.fold[FieldWriter](
-              writer0.struct().asInstanceOf[UnionListWriter]
-            )(
-              writer0.struct(_).asInstanceOf[PromotableWriter]
-            )
-          def listWriter   =
-            name.fold(writer0.list)(writer0.list).asInstanceOf[PromotableWriter]
+        def encodeCaseClass[A](value: A, fields: Chunk[Schema.Field[A, _]], writer0: FieldWriter): Unit = {
+          writer0.start()
+          fields.foreach { case Schema.Field(name, schema0, _, _, get, _) =>
+            encodeSchema(get(value), Some(name), schema0.asInstanceOf[Schema[Any]], writer0)
+          }
+          writer0.end()
+        }
 
+        @tailrec
+        def encodeSchema[A](value: A, name: Option[String], schema0: Schema[A], writer0: FieldWriter): Unit =
           schema0 match {
-            case record: Schema.Record[A]                =>
-              encodeCaseClass(value, record.fields, structWriter)
             case Schema.Primitive(standardType, _)       =>
               encodePrimitive(value, name, standardType, writer0)
+            case record: Schema.Record[A]                =>
+              val writer = name.fold[FieldWriter](writer0.struct().asInstanceOf[UnionListWriter])(
+                writer0.struct(_).asInstanceOf[PromotableWriter]
+              )
+              encodeCaseClass(value, record.fields, writer)
             case Schema.Sequence(elemSchema, _, g, _, _) =>
-              encodeSequence(g(value), elemSchema, listWriter)
+              val writer = name.fold(writer0.list)(writer0.list).asInstanceOf[PromotableWriter]
+              encodeSequence(g(value), elemSchema, writer)
             case lzy: Schema.Lazy[_]                     =>
               encodeSchema(value, name, lzy.schema, writer0)
             case other                                   =>
               throw ArrowEncoderError(s"Unsupported ZIO Schema type $other")
-
           }
-        }
 
         def encodeSequence[A](chunk: Chunk[A], schema0: Schema[A], writer0: FieldWriter): Unit = {
           val it = chunk.iterator
@@ -181,14 +183,6 @@ object ArrowVectorEncoder {
             case (other, _)                           =>
               throw ArrowEncoderError(s"Unsupported ZIO Schema StandardType $other")
           }
-
-        def encodeCaseClass[A](value: A, fields: Chunk[Schema.Field[A, _]], writer0: FieldWriter): Unit = {
-          writer0.start()
-          fields.foreach { case Schema.Field(name, schema0, _, _, get, _) =>
-            encodeSchema(get(value), Some(name), schema0.asInstanceOf[Schema[Any]], writer0)
-          }
-          writer0.end()
-        }
 
         schema match {
           case record: Schema.Record[Val] =>

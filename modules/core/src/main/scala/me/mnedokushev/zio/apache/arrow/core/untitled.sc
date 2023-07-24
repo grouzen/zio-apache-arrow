@@ -1,90 +1,136 @@
-import me.mnedokushev.zio.apache.arrow.core.codec.ArrowVectorDecoder
+import me.mnedokushev.zio.apache.arrow.core.codec.{ ArrowVectorDecoder, ArrowVectorEncoder }
 import me.mnedokushev.zio.apache.arrow.core.ArrowAllocator
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.IntVector
 import org.apache.arrow.vector.complex.StructVector
+import org.apache.arrow.vector.complex.impl.{ IntReaderImpl, UnionListReader }
 import org.apache.arrow.vector.types.pojo.{ ArrowType, FieldType }
-import zio.ZIO
-import zio.schema.{ Schema, TypeId }
+import zio._
+import zio.schema._
+
+import scala.collection.mutable.ListBuffer
+
+// Fixtures
+
+final case class ListOfScalars(list: List[Int])
+object ListOfScalars {
+  implicit val schema: Schema[ListOfScalars] = DeriveSchema.gen[ListOfScalars]
+}
+
+final case class StructOfScalars(a: Int, b: String)
+object StructOfScalars {
+  implicit val schema: Schema[StructOfScalars] = DeriveSchema.gen[StructOfScalars]
+}
+
+// Allocator
 
 implicit val alloc = new RootAllocator()
 
+// Write
+
 // Struct
-val structVec = StructVector.empty("structVector", alloc)
+//val structVec = StructVector.empty("structVector", alloc)
+//
+//val writer                   = structVec.getWriter
+//val writerListFoo            = writer.list("foo")
+//val writerIntBar             = writer.integer("bar")
+//val writerStructBaz          = writer.struct("baz")
+//val writerStructBazListC     = writerStructBaz.list("c")
+//val writerListDog            = writer.list("dog")
+//val writerListDogStruct      = writerListDog.struct()
+//val writerListDogStructListB = writerListDogStruct.list("b")
+//
+////writer.setInitialCapacity(16)
+//
+////writer.allocate()
+////writer.start()
+//
+//writer.setPosition(0)
+//writerListFoo.startList()
+//writerListFoo.integer().writeInt(16)
+//writerListFoo.integer().writeInt(24)
+//writerListFoo.integer().writeInt(12)
+//writerListFoo.integer().writeInt(12314)
+//writerListFoo.endList()
+//writerIntBar.writeInt(12)
+//writerStructBaz.start()
+//writerStructBaz.integer("a").writeInt(231)
+//writerStructBaz.bit("b").writeBit(1)
+//writerStructBaz.end()
+//writerStructBazListC.setPosition(0)
+//writerStructBazListC.startList()
+//writerStructBazListC.integer().writeInt(123)
+//writerStructBazListC.integer().writeInt(12341)
+//writerStructBazListC.endList()
+//writerListDog.startList()
+//writerListDogStruct.start()
+//writerListDogStruct.integer("a").writeInt(444)
+//writerListDogStructListB.setPosition(0)
+//writerListDogStructListB.startList()
+//writerListDogStructListB.integer().writeInt(123)
+//writerListDogStructListB.integer().writeInt(1321231)
+//writerListDogStructListB.endList()
+//writerListDogStruct.end()
+//writerListDog.endList()
+//structVec.setIndexDefined(0)
+//
+//writer.setPosition(1)
+//writerListFoo.startList()
+//writerListFoo.integer().writeInt(16123)
+//writerListFoo.endList()
+//writerIntBar.writeInt(123)
+//writerStructBaz.start()
+//writerStructBaz.integer("a").writeInt(1111)
+//writerStructBaz.bit("b").writeBit(0)
+//writerStructBaz.end()
+//writerStructBazListC.setPosition(1)
+//writerStructBazListC.startList()
+//writerStructBazListC.integer().writeInt(1)
+//writerStructBazListC.integer().writeInt(3333)
+//writerStructBazListC.endList()
+//writerListDog.startList()
+//writerListDogStruct.start()
+//writerListDogStruct.integer("a").writeInt(9999)
+//writerListDogStructListB.setPosition(1)
+//writerListDogStructListB.startList()
+//writerListDogStructListB.integer().writeInt(888828)
+//writerListDogStructListB.integer().writeInt(6354512)
+//writerListDogStructListB.endList()
+//writerListDogStruct.end()
+//writerListDog.endList()
+//structVec.setIndexDefined(1)
+//
+////writer.end()
+//writer.setValueCount(2)
+//
+//structVec
 
-val writer                   = structVec.getWriter
-val writerListFoo            = writer.list("foo")
-val writerIntBar             = writer.integer("bar")
-val writerStructBaz          = writer.struct("baz")
-val writerStructBazListC     = writerStructBaz.list("c")
-val writerListDog            = writer.list("dog")
-val writerListDogStruct      = writerListDog.struct()
-val writerListDogStructListB = writerListDogStruct.list("b")
+// Read
 
-//writer.setInitialCapacity(16)
+// Struct
+implicit val dataStructEncoder = ArrowVectorEncoder.struct[ListOfScalars]
 
-//writer.allocate()
-//writer.start()
+val structVec = ArrowVectorEncoder[ListOfScalars, StructVector]
+  .encode(Chunk(ListOfScalars(List(1, 2, 3)), ListOfScalars(List(2))))
+  .getOrElse(StructVector.empty("struct", alloc))
 
-writer.setPosition(0)
-writerListFoo.startList()
-writerListFoo.integer().writeInt(16)
-writerListFoo.integer().writeInt(24)
-writerListFoo.integer().writeInt(12)
-writerListFoo.integer().writeInt(12314)
-writerListFoo.endList()
-writerIntBar.writeInt(12)
-writerStructBaz.start()
-writerStructBaz.integer("a").writeInt(231)
-writerStructBaz.bit("b").writeBit(1)
-writerStructBaz.end()
-writerStructBazListC.setPosition(0)
-writerStructBazListC.startList()
-writerStructBazListC.integer().writeInt(123)
-writerStructBazListC.integer().writeInt(12341)
-writerStructBazListC.endList()
-writerListDog.startList()
-writerListDogStruct.start()
-writerListDogStruct.integer("a").writeInt(444)
-writerListDogStructListB.setPosition(0)
-writerListDogStructListB.startList()
-writerListDogStructListB.integer().writeInt(123)
-writerListDogStructListB.integer().writeInt(1321231)
-writerListDogStructListB.endList()
-writerListDogStruct.end()
-writerListDog.endList()
-structVec.setIndexDefined(0)
+val reader  = structVec.getReader
+val reader0 = reader.reader("list").asInstanceOf[UnionListReader]
+val reader1 = reader0.reader()
 
-writer.setPosition(1)
-writerListFoo.startList()
-writerListFoo.integer().writeInt(16123)
-writerListFoo.endList()
-writerIntBar.writeInt(123)
-writerStructBaz.start()
-writerStructBaz.integer("a").writeInt(1111)
-writerStructBaz.bit("b").writeBit(0)
-writerStructBaz.end()
-writerStructBazListC.setPosition(1)
-writerStructBazListC.startList()
-writerStructBazListC.integer().writeInt(1)
-writerStructBazListC.integer().writeInt(3333)
-writerStructBazListC.endList()
-writerListDog.startList()
-writerListDogStruct.start()
-writerListDogStruct.integer("a").writeInt(9999)
-writerListDogStructListB.setPosition(1)
-writerListDogStructListB.startList()
-writerListDogStructListB.integer().writeInt(888828)
-writerListDogStructListB.integer().writeInt(6354512)
-writerListDogStructListB.endList()
-writerListDogStruct.end()
-writerListDog.endList()
-structVec.setIndexDefined(1)
+reader0.setPosition(0)
+val listBuffer1 = ListBuffer.empty[Int]
+while (reader0.next())
+  if (reader0.isSet)
+    listBuffer1.addOne(reader1.readInteger())
+listBuffer1.result()
 
-//writer.end()
-writer.setValueCount(2)
-
-structVec
+reader.setPosition(1)
+val listBuffer2 = ListBuffer.empty[Int]
+while (reader0.next())
+  if (reader.isSet)
+    listBuffer2.addOne(reader1.readInteger())
+listBuffer2.result()
 
 //val vec = ZVector.Int.Unsafe(Seq(1, 2, 3))
 //ArrowVectorDecoder.intDecoder.decode(vec)

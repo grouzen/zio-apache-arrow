@@ -31,9 +31,9 @@ object Dep {
     arrowMemory,
     zio,
     zioSchema,
-    zioSchemaDerivation % Test,
-    zioTest             % Test,
-    zioTestSbt          % Test
+    zioSchemaDerivation,
+    zioTest    % Test,
+    zioTestSbt % Test
   )
 
 }
