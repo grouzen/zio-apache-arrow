@@ -23,8 +23,6 @@ trait ArrowVectorEncoder[-Val, Vector <: ValueVector] extends ArrowEncoder[Val, 
 
   protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector
 
-  protected def init(alloc: BufferAllocator): Vector
-
 }
 
 object ArrowVectorEncoder {
@@ -50,7 +48,7 @@ object ArrowVectorEncoder {
   ): ArrowVectorEncoder[Val, Vector] =
     new ArrowVectorEncoder[Val, Vector] { self =>
       override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector = {
-        val vec = init(alloc)
+        val vec = initVec(alloc)
         val len = chunk.length
 
         if (chunk.nonEmpty) {
@@ -65,9 +63,6 @@ object ArrowVectorEncoder {
         vec.setValueCount(len)
         vec
       }
-
-      override protected def init(alloc: BufferAllocator): Vector =
-        initVec(alloc)
     }
 
   implicit def list[Val, Col[x] <: Iterable[x]](implicit
@@ -75,7 +70,7 @@ object ArrowVectorEncoder {
   ): ArrowVectorEncoder[Col[Val], ListVector] =
     new ArrowVectorEncoder[Col[Val], ListVector] {
       override protected def encodeUnsafe(chunk: Chunk[Col[Val]])(implicit alloc: BufferAllocator): ListVector = {
-        val vec    = init(alloc)
+        val vec    = ListVector.empty("listVector", alloc)
         val len    = chunk.length
         val writer = vec.getWriter
         val it     = chunk.iterator
@@ -90,9 +85,6 @@ object ArrowVectorEncoder {
         vec
 
       }
-
-      override protected def init(alloc: BufferAllocator): ListVector =
-        ListVector.empty("listVector", alloc)
     }
 
   implicit def struct[Val](implicit schema: Schema[Val]): ArrowVectorEncoder[Val, StructVector] =
@@ -100,7 +92,7 @@ object ArrowVectorEncoder {
       override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): StructVector =
         schema match {
           case record: Schema.Record[Val] =>
-            val vec    = init(alloc)
+            val vec    = StructVector.empty("structVector", alloc)
             val len    = chunk.length
             val writer = vec.getWriter
             val it     = chunk.iterator.zipWithIndex
@@ -116,9 +108,6 @@ object ArrowVectorEncoder {
           case _                          =>
             throw ArrowEncoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
-
-      override protected def init(alloc: BufferAllocator): StructVector =
-        StructVector.empty("structVector", alloc)
     }
 
   private def encodeCaseClass[A](value: A, fields: Chunk[Schema.Field[A, _]], writer0: FieldWriter)(implicit

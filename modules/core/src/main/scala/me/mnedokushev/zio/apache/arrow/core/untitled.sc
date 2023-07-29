@@ -9,10 +9,27 @@ import zio._
 import zio.schema._
 
 import scala.collection.mutable.ListBuffer
-//
-//trait Base
-//case class BString(v: String) extends Base
-//case class BInt(v: Int)       extends Base
+
+
+
+
+trait Base
+case class BString(v: String) extends Base
+case class BInt(v: Int)       extends Base
+
+trait Enc[A] { self =>
+  type B
+  def encode(chunk: A): self.B
+}
+
+val stringEnc: Enc[String] = new Enc[String] {
+  type B = BString
+  override def encode(chunk: String): BString =
+    BString(chunk)
+}
+
+stringEnc.encode("foo")
+
 //
 //trait Encoder[A, B] {
 //  def encode(v: A): B
