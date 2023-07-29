@@ -45,158 +45,70 @@ object ArrowVectorEncoder {
       (i, v) => vec.set(i, v.getBytes(StandardCharsets.UTF_8))
     )
 
-  // Define schema for primitive types using Schema.primitive to reuse for list[Val: Schema]
-  implicit def listBooleanEncoder[Col[x] <: Iterable[x]]: ArrowVectorEncoder[Col[Boolean], ListVector] =
-    list(writer => v => writer.writeBit(if (v) 1 else 0))
-  implicit def listIntEncoder[Col[x] <: Iterable[x]]: ArrowVectorEncoder[Col[Int], ListVector]         =
-    list(_.writeInt)
-  implicit def listLongEncoder[Col[x] <: Iterable[x]]: ArrowVectorEncoder[Col[Long], ListVector]       =
-    list(_.writeBigInt)
-
   def primitive[Val, Vector <: ValueVector](initVec: BufferAllocator => Vector)(allocNew: Vector => Int => Unit)(
     setVal: Vector => (Int, Val) => Unit
   ): ArrowVectorEncoder[Val, Vector] =
     new ArrowVectorEncoder[Val, Vector] { self =>
       override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector = {
         val vec = init(alloc)
+        val len = chunk.length
 
         if (chunk.nonEmpty) {
-          val len = chunk.length
-          val it  = chunk.iterator
-          var i   = 0
+          val it = chunk.iterator.zipWithIndex
 
           allocNew(vec)(len)
-          while (it.hasNext) {
-            setVal(vec)(i, it.next())
-            i += 1
+          it.foreach { case (v, i) =>
+            setVal(vec)(i, v)
           }
-          vec.setValueCount(len)
         }
 
+        vec.setValueCount(len)
         vec
       }
 
-      override protected def init(alloc: BufferAllocator): Vector = {
-        val vec = initVec(alloc)
-
-        vec.setValueCount(0)
-        vec
-      }
+      override protected def init(alloc: BufferAllocator): Vector =
+        initVec(alloc)
     }
 
-  // TODO: support .list and .struct writer (latter means we need to add Schema[Val])
-  def list[Val, Col[x] <: Iterable[x]](
-    writeVal: UnionListWriter => Val => Unit
+  implicit def list[Val, Col[x] <: Iterable[x]](implicit
+    schema: Schema[Val]
   ): ArrowVectorEncoder[Col[Val], ListVector] =
     new ArrowVectorEncoder[Col[Val], ListVector] {
       override protected def encodeUnsafe(chunk: Chunk[Col[Val]])(implicit alloc: BufferAllocator): ListVector = {
         val vec    = init(alloc)
-        val len0   = chunk.length
+        val len    = chunk.length
         val writer = vec.getWriter
-        val it0    = chunk.iterator
-        var i      = 0
+        val it     = chunk.iterator
 
-        while (it0.hasNext) {
-          val nested = it0.next()
-          val len    = nested.size
-          val it     = nested.iterator
-
+        it.foreach { vs =>
           writer.startList()
-          writer.setPosition(i)
-          while (it.hasNext)
-            writeVal(writer)(it.next())
-          writer.setValueCount(len)
+          vs.iterator.foreach(encodeSchema(_, None, schema, writer))
           writer.endList()
-
-          i += 1
         }
 
-        vec.setValueCount(len0)
+        vec.setValueCount(len)
         vec
+
       }
 
       override protected def init(alloc: BufferAllocator): ListVector =
         ListVector.empty("listVector", alloc)
     }
 
-  def struct[Val](implicit schema: Schema[Val]): ArrowVectorEncoder[Val, StructVector] =
+  implicit def struct[Val](implicit schema: Schema[Val]): ArrowVectorEncoder[Val, StructVector] =
     new ArrowVectorEncoder[Val, StructVector] {
-      override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): StructVector = {
-
-        def encodeCaseClass[A](value: A, fields: Chunk[Schema.Field[A, _]], writer0: FieldWriter): Unit = {
-          writer0.start()
-          fields.foreach { case Schema.Field(name, schema0, _, _, get, _) =>
-            encodeSchema(get(value), Some(name), schema0.asInstanceOf[Schema[Any]], writer0)
-          }
-          writer0.end()
-        }
-
-        @tailrec
-        def encodeSchema[A](value: A, name: Option[String], schema0: Schema[A], writer0: FieldWriter): Unit =
-          schema0 match {
-            case Schema.Primitive(standardType, _)       =>
-              encodePrimitive(value, name, standardType, writer0)
-            case record: Schema.Record[A]                =>
-              val writer = name.fold[FieldWriter](writer0.struct().asInstanceOf[UnionListWriter])(
-                writer0.struct(_).asInstanceOf[PromotableWriter]
-              )
-              encodeCaseClass(value, record.fields, writer)
-            case Schema.Sequence(elemSchema, _, g, _, _) =>
-              val writer = name.fold(writer0.list)(writer0.list).asInstanceOf[PromotableWriter]
-              encodeSequence(g(value), elemSchema, writer)
-            case lzy: Schema.Lazy[_]                     =>
-              encodeSchema(value, name, lzy.schema, writer0)
-            case other                                   =>
-              throw ArrowEncoderError(s"Unsupported ZIO Schema type $other")
-          }
-
-        def encodeSequence[A](chunk: Chunk[A], schema0: Schema[A], writer0: FieldWriter): Unit = {
-          val it = chunk.iterator
-
-          writer0.startList()
-          while (it.hasNext)
-            encodeSchema(it.next(), None, schema0, writer0)
-          writer0.endList()
-        }
-
-        def encodePrimitive[A](
-          value: A,
-          name: Option[String],
-          standardType: StandardType[A],
-          writer0: FieldWriter
-        ): Unit =
-          (standardType, value) match {
-            case (StandardType.StringType, s: String) =>
-              val buffer = alloc.buffer(s.length)
-              buffer.writeBytes(s.getBytes(StandardCharsets.UTF_8))
-              name.fold(writer0.varChar)(writer0.varChar).writeVarChar(0, s.length, buffer)
-            case (StandardType.BoolType, b: Boolean)  =>
-              name.fold(writer0.bit)(writer0.bit).writeBit(if (b) 1 else 0)
-            case (StandardType.IntType, i: Int)       =>
-              name.fold(writer0.integer)(writer0.integer).writeInt(i)
-            case (StandardType.LongType, l: Long)     =>
-              name.fold(writer0.bigInt)(writer0.bigInt).writeBigInt(l)
-            case (StandardType.FloatType, f: Float)   =>
-              name.fold(writer0.float4)(writer0.float4).writeFloat4(f)
-            case (StandardType.DoubleType, d: Double) =>
-              name.fold(writer0.float8)(writer0.float8).writeFloat8(d)
-            case (other, _)                           =>
-              throw ArrowEncoderError(s"Unsupported ZIO Schema StandardType $other")
-          }
-
+      override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): StructVector =
         schema match {
           case record: Schema.Record[Val] =>
             val vec    = init(alloc)
             val len    = chunk.length
             val writer = vec.getWriter
-            val it     = chunk.iterator
-            var i      = 0
+            val it     = chunk.iterator.zipWithIndex
 
-            while (it.hasNext) {
+            it.foreach { case (v, i) =>
               writer.setPosition(i)
-              encodeCaseClass(it.next(), record.fields, writer)
+              encodeCaseClass(v, record.fields, writer)
               vec.setIndexDefined(i)
-              i += 1
             }
             writer.setValueCount(len)
 
@@ -205,11 +117,74 @@ object ArrowVectorEncoder {
             throw ArrowEncoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
 
-      }
-
       override protected def init(alloc: BufferAllocator): StructVector =
         StructVector.empty("structVector", alloc)
+    }
 
+  private def encodeCaseClass[A](value: A, fields: Chunk[Schema.Field[A, _]], writer0: FieldWriter)(implicit
+    alloc: BufferAllocator
+  ): Unit = {
+    writer0.start()
+    fields.foreach { case Schema.Field(name, schema0, _, _, get, _) =>
+      encodeSchema(get(value), Some(name), schema0.asInstanceOf[Schema[Any]], writer0)
+    }
+    writer0.end()
+  }
+
+  @tailrec
+  private def encodeSchema[A](value: A, name: Option[String], schema0: Schema[A], writer0: FieldWriter)(implicit
+    alloc: BufferAllocator
+  ): Unit =
+    schema0 match {
+      case Schema.Primitive(standardType, _)       =>
+        encodePrimitive(value, name, standardType, writer0)
+      case record: Schema.Record[A]                =>
+        val writer = name.fold[FieldWriter](writer0.struct().asInstanceOf[UnionListWriter])(
+          writer0.struct(_).asInstanceOf[PromotableWriter]
+        )
+        encodeCaseClass(value, record.fields, writer)
+      case Schema.Sequence(elemSchema, _, g, _, _) =>
+        val writer = name.fold(writer0.list)(writer0.list).asInstanceOf[PromotableWriter]
+        encodeSequence(g(value), elemSchema, writer)
+      case lzy: Schema.Lazy[_]                     =>
+        encodeSchema(value, name, lzy.schema, writer0)
+      case other                                   =>
+        throw ArrowEncoderError(s"Unsupported ZIO Schema type $other")
+    }
+
+  private def encodeSequence[A](chunk: Chunk[A], schema0: Schema[A], writer0: FieldWriter)(implicit
+    alloc: BufferAllocator
+  ): Unit = {
+    val it = chunk.iterator
+
+    writer0.startList()
+    it.foreach(encodeSchema(_, None, schema0, writer0))
+    writer0.endList()
+  }
+
+  private def encodePrimitive[A](
+    value: A,
+    name: Option[String],
+    standardType: StandardType[A],
+    writer0: FieldWriter
+  )(implicit alloc: BufferAllocator): Unit =
+    (standardType, value) match {
+      case (StandardType.StringType, s: String) =>
+        val buffer = alloc.buffer(s.length)
+        buffer.writeBytes(s.getBytes(StandardCharsets.UTF_8))
+        name.fold(writer0.varChar)(writer0.varChar).writeVarChar(0, s.length, buffer)
+      case (StandardType.BoolType, b: Boolean)  =>
+        name.fold(writer0.bit)(writer0.bit).writeBit(if (b) 1 else 0)
+      case (StandardType.IntType, i: Int)       =>
+        name.fold(writer0.integer)(writer0.integer).writeInt(i)
+      case (StandardType.LongType, l: Long)     =>
+        name.fold(writer0.bigInt)(writer0.bigInt).writeBigInt(l)
+      case (StandardType.FloatType, f: Float)   =>
+        name.fold(writer0.float4)(writer0.float4).writeFloat4(f)
+      case (StandardType.DoubleType, d: Double) =>
+        name.fold(writer0.float8)(writer0.float8).writeFloat8(d)
+      case (other, _)                           =>
+        throw ArrowEncoderError(s"Unsupported ZIO Schema StandardType $other")
     }
 
 }
