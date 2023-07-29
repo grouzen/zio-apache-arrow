@@ -43,8 +43,8 @@ object ArrowCodecSpec extends ZIOSpecDefault {
       }
     )
 
-  val vectorCodecScalarSpec =
-    suite("ArrowVector Encoder/Decoder scalar")(
+  val vectorCodecPrimitiveSpec =
+    suite("ArrowVector Encoder/Decoder primitive")(
       test("codec - empty") {
         ZIO.scoped(
           for {
@@ -121,7 +121,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
           } yield assert(result)(equalTo(Chunk(List(1L, 2L), List(3L))))
         )
       },
-      test("codec list - list of scalars") {
+      test("codec list - list of primitives") {
         ZIO.scoped(
           for {
             vec    <- ArrowVectorEncoder
@@ -134,12 +134,13 @@ object ArrowCodecSpec extends ZIOSpecDefault {
       test("codec list - list of structs") {
         ZIO.scoped(
           for {
-            vec    <- ArrowVectorEncoder
-                        .list[Scalars, List]
-                        .encodeZIO(Chunk(List(Scalars(1, 2.0, "3"), Scalars(4, 5.0, "6")), List(Scalars(7, 8.0, "9"))))
-            result <- ArrowVectorDecoder.list[Scalars].decodeZIO(vec)
+            vec    <-
+              ArrowVectorEncoder
+                .list[Primitives, List]
+                .encodeZIO(Chunk(List(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), List(Primitives(7, 8.0, "9"))))
+            result <- ArrowVectorDecoder.list[Primitives].decodeZIO(vec)
           } yield assert(result)(
-            equalTo(Chunk(List(Scalars(1, 2.0, "3"), Scalars(4, 5.0, "6")), List(Scalars(7, 8.0, "9"))))
+            equalTo(Chunk(List(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), List(Primitives(7, 8.0, "9"))))
           )
         )
       }
@@ -148,37 +149,37 @@ object ArrowCodecSpec extends ZIOSpecDefault {
   val vectorCodecStructSpec =
     suite("ArrowVector Encoder/Decoder struct")(
       test("codec struct - empty") {
-        val payload = Chunk.empty[Scalars]
+        val payload = Chunk.empty[Primitives]
 
         ZIO.scoped(
           for {
-            vec    <- ArrowVectorEncoder.struct[Scalars].encodeZIO(payload)
-            result <- ArrowVectorDecoder.struct[Scalars].decodeZIO(vec)
+            vec    <- ArrowVectorEncoder.struct[Primitives].encodeZIO(payload)
+            result <- ArrowVectorDecoder.struct[Primitives].decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec struct - scalars") {
-        val payload = Chunk(Scalars(1, 2.0, "3"))
+      test("codec struct - primitives") {
+        val payload = Chunk(Primitives(1, 2.0, "3"))
 
         ZIO.scoped(
           for {
-            vec    <- ArrowVectorEncoder.struct[Scalars].encodeZIO(payload)
-            result <- ArrowVectorDecoder.struct[Scalars].decodeZIO(vec)
+            vec    <- ArrowVectorEncoder.struct[Primitives].encodeZIO(payload)
+            result <- ArrowVectorDecoder.struct[Primitives].decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec struct - struct of scalars") {
-        val payload = Chunk(StructOfScalars(Scalars(1, 2.0, "3")))
+      test("codec struct - struct of primitives") {
+        val payload = Chunk(StructOfPrimitives(Primitives(1, 2.0, "3")))
 
         ZIO.scoped(
           for {
-            vec    <- ArrowVectorEncoder.struct[StructOfScalars].encodeZIO(payload)
-            result <- ArrowVectorDecoder.struct[StructOfScalars].decodeZIO(vec)
+            vec    <- ArrowVectorEncoder.struct[StructOfPrimitives].encodeZIO(payload)
+            result <- ArrowVectorDecoder.struct[StructOfPrimitives].decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       },
       test("codec struct - struct of lists") {
-        val payload = Chunk(StructOfLists(ListOfScalars(List(1, 2, 3))))
+        val payload = Chunk(StructOfLists(ListOfPrimitives(List(1, 2, 3))))
 
         ZIO.scoped(
           for {
@@ -189,7 +190,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
       },
       test("codec struct - struct of structs") {
         val payload =
-          Chunk(StructOfListsOfStructs(ListOfStructs(List(Scalars(1, 2.0, "3"), Scalars(11, 22.0, "33")))))
+          Chunk(StructOfListsOfStructs(ListOfStructs(List(Primitives(1, 2.0, "3"), Primitives(11, 22.0, "33")))))
 
         ZIO.scoped(
           for {
@@ -199,7 +200,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
         )
       },
       test("codec struct - struct of lists of structs") {
-        val payload = Chunk(StructOfStructs(StructOfScalars(Scalars(1, 2.0, "3"))))
+        val payload = Chunk(StructOfStructs(StructOfPrimitives(Primitives(1, 2.0, "3"))))
 
         ZIO.scoped(
           for {
@@ -208,18 +209,18 @@ object ArrowCodecSpec extends ZIOSpecDefault {
           } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec struct - list of scalars") {
-        val payload = Chunk(ListOfScalars(List(1, 2, 3)))
+      test("codec struct - list of primitives") {
+        val payload = Chunk(ListOfPrimitives(List(1, 2, 3)))
 
         ZIO.scoped(
           for {
-            vec    <- ArrowVectorEncoder.struct[ListOfScalars].encodeZIO(payload)
-            result <- ArrowVectorDecoder.struct[ListOfScalars].decodeZIO(vec)
+            vec    <- ArrowVectorEncoder.struct[ListOfPrimitives].encodeZIO(payload)
+            result <- ArrowVectorDecoder.struct[ListOfPrimitives].decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       },
       test("codec struct - list of structs") {
-        val payload = Chunk(ListOfStructs(List(Scalars(1, 2.0, "3"), Scalars(11, 22.0, "33"))))
+        val payload = Chunk(ListOfStructs(List(Primitives(1, 2.0, "3"), Primitives(11, 22.0, "33"))))
 
         ZIO.scoped(
           for {
@@ -240,8 +241,8 @@ object ArrowCodecSpec extends ZIOSpecDefault {
       },
       test("codec struct - list of structs of lists") {
         val payload = Chunk(
-          ListOfStructsOfLists(List(ListOfScalars(List(1, 2)), ListOfScalars(List(3)))),
-          ListOfStructsOfLists(List(ListOfScalars(List(11, 22)), ListOfScalars(List(33))))
+          ListOfStructsOfLists(List(ListOfPrimitives(List(1, 2)), ListOfPrimitives(List(3)))),
+          ListOfStructsOfLists(List(ListOfPrimitives(List(11, 22)), ListOfPrimitives(List(33))))
         )
 
         ZIO.scoped(
@@ -256,7 +257,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
   val vectorCodecSpec =
     suite("ArrowVector Encoder/Decoder")(
       vectorDecoderSpec,
-      vectorCodecScalarSpec,
+      vectorCodecPrimitiveSpec,
       vectorCodecListSpec,
       vectorCodecStructSpec
     )
