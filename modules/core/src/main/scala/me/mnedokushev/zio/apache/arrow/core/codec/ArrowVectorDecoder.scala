@@ -70,87 +70,27 @@ object ArrowVectorDecoder {
   implicit val stringDecoder: ArrowVectorDecoder[VarCharVector, String] =
     ArrowVectorDecoder(vec => idx => new String(vec.get(idx), StandardCharsets.UTF_8))
 
-  implicit val listBooleanDecoder: ArrowVectorDecoder[ListVector, List[Boolean]] =
-    list[Boolean, BitReaderImpl](_.readBoolean())
-  implicit val listIntDecoder: ArrowVectorDecoder[ListVector, List[Int]]         =
-    list[Int, IntReaderImpl](_.readInteger())
-  implicit val listLongDecoder: ArrowVectorDecoder[ListVector, List[Long]]       =
-    list[Long, BigIntReaderImpl](_.readLong())
-
-  private def list[Val, Reader](
-    readVal: Reader => Val
-  )(implicit ev: Reader <:< FieldReader): ArrowVectorDecoder[ListVector, List[Val]] =
+  implicit def list[Val](implicit schema: Schema[Val]): ArrowVectorDecoder[ListVector, List[Val]] =
     ArrowVectorDecoder { vec => idx =>
-      val reader0 = vec.getReader
-      val reader  = reader0.reader().asInstanceOf[Reader]
-      val buffer  = ListBuffer.empty[Val]
+      val reader = vec.getReader
+      val buffer = ListBuffer.empty[Val]
 
-      reader0.setPosition(idx)
-      while (reader0.next())
-        if (reader.isSet)
-          buffer.addOne(readVal(reader))
+      reader.setPosition(idx)
+      while (reader.next())
+        if (reader.isSet) {
+          val dynamicValue = decodeSchema(None, schema, reader)
+
+          dynamicValue.toTypedValue match {
+            case Right(v)      => buffer.addOne(v)
+            case Left(message) => throw ArrowDecoderError(message)
+          }
+        }
 
       buffer.result()
     }
 
-  def struct[Val](implicit schema: Schema[Val]): ArrowVectorDecoder[StructVector, Val] =
+  implicit def struct[Val](implicit schema: Schema[Val]): ArrowVectorDecoder[StructVector, Val] =
     ArrowVectorDecoder { vec => idx =>
-      def decodeCaseClass[A](fields: Chunk[Schema.Field[A, _]], reader0: FieldReader): DynamicValue = {
-        val values = fields.map { case Schema.Field(name, schema0, _, _, _, _) =>
-          val value: DynamicValue = decodeSchema(Some(name), schema0, reader0)
-
-          name -> value
-        }.to(ListMap)
-
-        DynamicValue.Record(TypeId.Structural, values)
-      }
-
-      @tailrec
-      def decodeSchema[A](name: Option[String], schema0: Schema[A], reader0: FieldReader): DynamicValue =
-        schema0 match {
-          case record: Schema.Record[A]                =>
-            val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
-            decodeCaseClass(record.fields, reader)
-          case Schema.Primitive(standardType, _)       =>
-            val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
-            decodePrimitive(standardType, reader)
-          case Schema.Sequence(elemSchema, _, _, _, _) =>
-            val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
-            decodeList(elemSchema, reader)
-          case lzy: Schema.Lazy[_]                     =>
-            decodeSchema(name, lzy.schema, reader0)
-          case other                                   =>
-            throw ArrowDecoderError(s"Unsupported ZIO Schema type $other")
-        }
-
-      def decodeList[A](schema0: Schema[A], reader0: FieldReader): DynamicValue = {
-        val buffer = ListBuffer.empty[DynamicValue]
-
-        while (reader0.next())
-          if (reader0.isSet)
-            buffer.addOne(decodeSchema(None, schema0, reader0))
-
-        DynamicValue.Sequence(Chunk.fromIterable(buffer.result()))
-      }
-
-      def decodePrimitive[A](standardType: StandardType[A], reader0: FieldReader): DynamicValue =
-        standardType match {
-          case StandardType.BoolType   =>
-            DynamicValue.Primitive[Boolean](reader0.readBoolean(), StandardType.BoolType)
-          case StandardType.IntType    =>
-            DynamicValue.Primitive[Int](reader0.readInteger(), StandardType.IntType)
-          case StandardType.LongType   =>
-            DynamicValue.Primitive[Long](reader0.readLong(), StandardType.LongType)
-          case StandardType.FloatType  =>
-            DynamicValue.Primitive[Float](reader0.readFloat(), StandardType.FloatType)
-          case StandardType.DoubleType =>
-            DynamicValue.Primitive[Double](reader0.readDouble(), StandardType.DoubleType)
-          case StandardType.StringType =>
-            DynamicValue.Primitive[String](reader0.readText().toString, StandardType.StringType)
-          case other                   =>
-            throw ArrowDecoderError(s"Unsupported ZIO Schema type $other")
-        }
-
       val dynamicValue = schema match {
         case record: Schema.Record[Val] =>
           val reader = vec.getReader
@@ -165,6 +105,62 @@ object ArrowVectorDecoder {
         case Right(v)      => v
         case Left(message) => throw ArrowDecoderError(message)
       }
+    }
+
+  @tailrec
+  private def decodeSchema[A](name: Option[String], schema0: Schema[A], reader0: FieldReader): DynamicValue =
+    schema0 match {
+      case record: Schema.Record[A]                =>
+        val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
+        decodeCaseClass(record.fields, reader)
+      case Schema.Primitive(standardType, _)       =>
+        val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
+        decodePrimitive(standardType, reader)
+      case Schema.Sequence(elemSchema, _, _, _, _) =>
+        val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
+        decodeSequence(elemSchema, reader)
+      case lzy: Schema.Lazy[_]                     =>
+        decodeSchema(name, lzy.schema, reader0)
+      case other                                   =>
+        throw ArrowDecoderError(s"Unsupported ZIO Schema type $other")
+    }
+
+  private def decodeCaseClass[A](fields: Chunk[Schema.Field[A, _]], reader0: FieldReader): DynamicValue = {
+    val values = fields.map { case Schema.Field(name, schema0, _, _, _, _) =>
+      val value: DynamicValue = decodeSchema(Some(name), schema0, reader0)
+
+      name -> value
+    }.to(ListMap)
+
+    DynamicValue.Record(TypeId.Structural, values)
+  }
+
+  private def decodeSequence[A](schema0: Schema[A], reader0: FieldReader): DynamicValue = {
+    val buffer = ListBuffer.empty[DynamicValue]
+
+    while (reader0.next())
+      if (reader0.isSet)
+        buffer.addOne(decodeSchema(None, schema0, reader0))
+
+    DynamicValue.Sequence(Chunk.fromIterable(buffer.result()))
+  }
+
+  private def decodePrimitive[A](standardType: StandardType[A], reader0: FieldReader): DynamicValue =
+    standardType match {
+      case t: StandardType.BoolType.type   =>
+        DynamicValue.Primitive[Boolean](reader0.readBoolean(), t)
+      case t: StandardType.IntType.type    =>
+        DynamicValue.Primitive[Int](reader0.readInteger(), t)
+      case t: StandardType.LongType.type   =>
+        DynamicValue.Primitive[Long](reader0.readLong(), t)
+      case t: StandardType.FloatType.type  =>
+        DynamicValue.Primitive[Float](reader0.readFloat(), t)
+      case t: StandardType.DoubleType.type =>
+        DynamicValue.Primitive[Double](reader0.readDouble(), t)
+      case t: StandardType.StringType.type =>
+        DynamicValue.Primitive[String](reader0.readText().toString, t)
+      case other                           =>
+        throw ArrowDecoderError(s"Unsupported ZIO Schema type $other")
     }
 
 }

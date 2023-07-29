@@ -93,7 +93,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
         ZIO.scoped(
           for {
             vec    <- ArrowVectorEncoder.list[Int, List].encodeZIO(Chunk.empty)
-            result <- ArrowVectorDecoder[ListVector, List[Int]].decodeZIO(vec)
+            result <- ArrowVectorDecoder.list[Int].decodeZIO(vec)
           } yield assertTrue(result.isEmpty)
         )
       },
@@ -101,7 +101,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
         ZIO.scoped(
           for {
             vec    <- ArrowVectorEncoder.list[Boolean, Set].encodeZIO(Chunk(Set(true), Set(false, true)))
-            result <- ArrowVectorDecoder[ListVector, List[Boolean]].decodeZIO(vec)
+            result <- ArrowVectorDecoder.list[Boolean].decodeZIO(vec)
           } yield assert(result)(equalTo(Chunk(List(true), List(false, true))))
         )
       },
@@ -109,7 +109,7 @@ object ArrowCodecSpec extends ZIOSpecDefault {
         ZIO.scoped(
           for {
             vec    <- ArrowVectorEncoder.list[Int, Set].encodeZIO(Chunk(Set(1, 2), Set(3)))
-            result <- ArrowVectorDecoder[ListVector, List[Int]].decodeZIO(vec)
+            result <- ArrowVectorDecoder.list[Int].decodeZIO(vec)
           } yield assert(result)(equalTo(Chunk(List(1, 2), List(3))))
         )
       },
@@ -117,26 +117,30 @@ object ArrowCodecSpec extends ZIOSpecDefault {
         ZIO.scoped(
           for {
             vec    <- ArrowVectorEncoder.list[Long, Set].encodeZIO(Chunk(Set(1L, 2L), Set(3L)))
-            result <- ArrowVectorDecoder[ListVector, List[Long]].decodeZIO(vec)
+            result <- ArrowVectorDecoder.list[Long].decodeZIO(vec)
           } yield assert(result)(equalTo(Chunk(List(1L, 2L), List(3L))))
         )
       },
       test("codec list - list of scalars") {
         ZIO.scoped(
           for {
-            vec <- ArrowVectorEncoder
-                     .list[List[Int], List]
-                     .encodeZIO(Chunk(List(List(1, 2), List(3)), List(List(4), List(5, 6))))
-          } yield assertTrue(true)
+            vec    <- ArrowVectorEncoder
+                        .list[List[Int], List]
+                        .encodeZIO(Chunk(List(List(1, 2), List(3)), List(List(4), List(5, 6))))
+            result <- ArrowVectorDecoder.list[List[Int]].decodeZIO(vec)
+          } yield assert(result)(equalTo(Chunk(List(List(1, 2), List(3)), List(List(4), List(5, 6)))))
         )
       },
       test("codec list - list of structs") {
         ZIO.scoped(
           for {
-            vec <- ArrowVectorEncoder
-                     .list[Scalars, List]
-                     .encodeZIO(Chunk(List(Scalars(1, 2.0, "3"), Scalars(4, 5.0, "6")), List(Scalars(7, 8.0, "9"))))
-          } yield assertTrue(true)
+            vec    <- ArrowVectorEncoder
+                        .list[Scalars, List]
+                        .encodeZIO(Chunk(List(Scalars(1, 2.0, "3"), Scalars(4, 5.0, "6")), List(Scalars(7, 8.0, "9"))))
+            result <- ArrowVectorDecoder.list[Scalars].decodeZIO(vec)
+          } yield assert(result)(
+            equalTo(Chunk(List(Scalars(1, 2.0, "3"), Scalars(4, 5.0, "6")), List(Scalars(7, 8.0, "9"))))
+          )
         )
       }
     )
