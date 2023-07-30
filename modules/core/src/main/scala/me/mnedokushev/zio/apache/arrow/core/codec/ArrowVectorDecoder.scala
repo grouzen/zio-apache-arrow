@@ -73,12 +73,14 @@ object ArrowVectorDecoder {
         }
     }
 
-  implicit def list[Val](implicit schema: Schema[Val]): ArrowVectorDecoder[ListVector, List[Val]] =
-    new ArrowVectorDecoder[ListVector, List[Val]] {
-      override protected def decodeUnsafe(from: ListVector): Chunk[List[Val]] = {
+  implicit def list[Val, Col[x] <: Iterable[x]](implicit
+    schema: Schema[Val]
+  ): ArrowVectorDecoder[ListVector, Col[Val]] =
+    new ArrowVectorDecoder[ListVector, Col[Val]] {
+      override protected def decodeUnsafe(from: ListVector): Chunk[Col[Val]] = {
         var idx        = 0
         val valueCount = from.getValueCount
-        val builder    = ChunkBuilder.make[List[Val]](valueCount)
+        val builder    = ChunkBuilder.make[Col[Val]](valueCount)
         val reader     = from.getReader
 
         while (idx < valueCount) {
@@ -95,7 +97,7 @@ object ArrowVectorDecoder {
               }
             }
 
-          builder.addOne(buffer.result())
+          builder.addOne(buffer.result().asInstanceOf[Col[Val]])
           idx += 1
         }
 
@@ -161,13 +163,13 @@ object ArrowVectorDecoder {
   }
 
   private def decodeSequence[A](schema0: Schema[A], reader0: FieldReader): DynamicValue = {
-    val buffer = ListBuffer.empty[DynamicValue]
+    val builder = ChunkBuilder.make[DynamicValue]()
 
     while (reader0.next())
       if (reader0.isSet)
-        buffer.addOne(decodeSchema(None, schema0, reader0))
+        builder.addOne(decodeSchema(None, schema0, reader0))
 
-    DynamicValue.Sequence(Chunk.fromIterable(buffer.result()))
+    DynamicValue.Sequence(builder.result())
   }
 
   private def decodePrimitive[A](standardType: StandardType[A], reader0: FieldReader): DynamicValue =
