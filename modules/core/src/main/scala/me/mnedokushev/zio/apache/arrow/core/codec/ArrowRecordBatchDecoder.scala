@@ -14,7 +14,7 @@ trait ArrowRecordBatchDecoder[+Val] extends ArrowDecoder[VectorSchemaRoot, Val] 
       val builder  = ChunkBuilder.make[Val](rowCount)
 
       while (idx <= rowCount) {
-        builder.addOne(decodeOne(from, idx))
+        builder.addOne(decodeUnsafe(from, idx))
         idx += 1
       }
 
@@ -23,16 +23,18 @@ trait ArrowRecordBatchDecoder[+Val] extends ArrowDecoder[VectorSchemaRoot, Val] 
       case ex: ArrowDecoderError => Left(ex)
     }
 
-  override def flatMap[B](f: Val => ArrowDecoder[VectorSchemaRoot, B]): ArrowDecoder[VectorSchemaRoot, B] =
+  protected def decodeUnsafe(from: VectorSchemaRoot, idx: Int): Val
+
+  def flatMap[B](f: Val => ArrowRecordBatchDecoder[B]): ArrowRecordBatchDecoder[B] =
     new ArrowRecordBatchDecoder[B] {
-      override def decodeOne(from: VectorSchemaRoot, idx: Int): B =
-        f(self.decodeOne(from, idx)).decodeOne(from, idx)
+      override def decodeUnsafe(from: VectorSchemaRoot, idx: Int): B =
+        f(self.decodeUnsafe(from, idx)).decodeUnsafe(from, idx)
     }
 
-  override def map[B](f: Val => B): ArrowDecoder[VectorSchemaRoot, B] =
+  def map[B](f: Val => B): ArrowRecordBatchDecoder[B] =
     new ArrowRecordBatchDecoder[B] {
-      override def decodeOne(from: VectorSchemaRoot, idx: Int): B =
-        f(self.decodeOne(from, idx))
+      override def decodeUnsafe(from: VectorSchemaRoot, idx: Int): B =
+        f(self.decodeUnsafe(from, idx))
     }
 
 }
@@ -41,7 +43,7 @@ object ArrowRecordBatchDecoder {
 
   def apply[To](getIdx: VectorSchemaRoot => Int => To): ArrowRecordBatchDecoder[To] =
     new ArrowRecordBatchDecoder[To] {
-      override def decodeOne(from: VectorSchemaRoot, idx: Int): To =
+      override def decodeUnsafe(from: VectorSchemaRoot, idx: Int): To =
         try getIdx(from)(idx)
         catch {
           case NonFatal(ex) => throw ArrowDecoderError("Error decoding vector", Some(ex))

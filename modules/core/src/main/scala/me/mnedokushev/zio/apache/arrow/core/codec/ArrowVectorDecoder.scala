@@ -22,7 +22,7 @@ trait ArrowVectorDecoder[Vector <: ValueVector, +Val] extends ArrowDecoder[Vecto
       val builder    = ChunkBuilder.make[Val](valueCount)
 
       while (idx < valueCount) {
-        builder.addOne(decodeOne(from, idx))
+        builder.addOne(decodeUnsafe(from, idx))
         idx += 1
       }
 
@@ -31,16 +31,18 @@ trait ArrowVectorDecoder[Vector <: ValueVector, +Val] extends ArrowDecoder[Vecto
       case ex: ArrowDecoderError => Left(ex)
     }
 
-  override def flatMap[B](f: Val => ArrowDecoder[Vector, B]): ArrowDecoder[Vector, B] =
+  protected def decodeUnsafe(from: Vector, idx: Int): Val
+
+  def flatMap[B](f: Val => ArrowVectorDecoder[Vector, B]): ArrowVectorDecoder[Vector, B] =
     new ArrowVectorDecoder[Vector, B] {
-      override protected[core] def decodeOne(from: Vector, idx: Int): B =
-        f(self.decodeOne(from, idx)).decodeOne(from, idx)
+      override protected[core] def decodeUnsafe(from: Vector, idx: Int): B =
+        f(self.decodeUnsafe(from, idx)).decodeUnsafe(from, idx)
     }
 
-  override def map[B](f: Val => B): ArrowDecoder[Vector, B] =
+  def map[B](f: Val => B): ArrowVectorDecoder[Vector, B] =
     new ArrowVectorDecoder[Vector, B] {
-      override protected[core] def decodeOne(from: Vector, idx: Int): B =
-        f(self.decodeOne(from, idx))
+      override protected[core] def decodeUnsafe(from: Vector, idx: Int): B =
+        f(self.decodeUnsafe(from, idx))
     }
 
 }
@@ -54,7 +56,7 @@ object ArrowVectorDecoder {
 
   def apply[Vector <: ValueVector, Val](getIdx: Vector => Int => Val): ArrowVectorDecoder[Vector, Val] =
     new ArrowVectorDecoder[Vector, Val] {
-      override protected[core] def decodeOne(from: Vector, idx: Int): Val =
+      override protected[core] def decodeUnsafe(from: Vector, idx: Int): Val =
         try getIdx(from)(idx)
         catch {
           case NonFatal(ex) => throw ArrowDecoderError("Error decoding vector", Some(ex))

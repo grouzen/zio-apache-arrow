@@ -46,7 +46,7 @@ object ArrowVectorEncoder {
   def primitive[Val, Vector <: ValueVector](initVec: BufferAllocator => Vector)(allocNew: Vector => Int => Unit)(
     setVal: Vector => (Int, Val) => Unit
   ): ArrowVectorEncoder[Val, Vector] =
-    new ArrowVectorEncoder[Val, Vector] { self =>
+    new ArrowVectorEncoder[Val, Vector] {
       override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector = {
         val vec = initVec(alloc)
         val len = chunk.length
