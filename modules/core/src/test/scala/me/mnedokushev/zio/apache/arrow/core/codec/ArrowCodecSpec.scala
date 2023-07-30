@@ -3,9 +3,7 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import me.mnedokushev.zio.apache.arrow.core.ArrowAllocator
 import me.mnedokushev.zio.apache.arrow.core.codec.Fixtures._
 import org.apache.arrow.vector._
-import org.apache.arrow.vector.complex.ListVector
 import zio._
-import zio.schema._
 import zio.test.Assertion._
 import zio.test._
 
