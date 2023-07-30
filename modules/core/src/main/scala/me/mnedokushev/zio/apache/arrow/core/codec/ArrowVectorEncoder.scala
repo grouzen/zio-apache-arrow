@@ -186,6 +186,7 @@ object ArrowVectorEncoder {
         val buffer = alloc.buffer(s.length)
         buffer.writeBytes(s.getBytes(StandardCharsets.UTF_8))
         name.fold(writer0.varChar)(writer0.varChar).writeVarChar(0, s.length, buffer)
+        buffer.close()
       case (StandardType.BoolType, b: Boolean)  =>
         name.fold(writer0.bit)(writer0.bit).writeBit(if (b) 1 else 0)
       case (StandardType.IntType, i: Int)       =>
