@@ -32,36 +32,60 @@ object ArrowVectorEncoder {
   ): ArrowVectorEncoder[Val, Vector] =
     encoder
 
-  implicit val booleanEncoder: ArrowVectorEncoder[Boolean, BitVector]   =
-    primitive(new BitVector("bitVector", _))(_.allocateNew)(vec => (i, v) => vec.set(i, if (v) 1 else 0))
-  implicit val intEncoder: ArrowVectorEncoder[Int, IntVector]           =
-    primitive(new IntVector("intVector", _))(_.allocateNew)(_.set)
-  implicit val longEncoder: ArrowVectorEncoder[Long, BigIntVector]      =
-    primitive(new BigIntVector("longVector", _))(_.allocateNew)(_.set)
-  implicit val stringEncoder: ArrowVectorEncoder[String, VarCharVector] =
-    primitive(new VarCharVector("stringVector", _))(_.allocateNew)(vec =>
-      (i, v) => vec.set(i, v.getBytes(StandardCharsets.UTF_8))
-    )
-
-  def primitive[Val, Vector <: ValueVector](initVec: BufferAllocator => Vector)(allocNew: Vector => Int => Unit)(
-    setVal: Vector => (Int, Val) => Unit
+  implicit def primitive[Val, Vector <: ValueVector](implicit
+    schema: Schema[Val]
   ): ArrowVectorEncoder[Val, Vector] =
     new ArrowVectorEncoder[Val, Vector] {
       override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector = {
-        val vec = initVec(alloc)
-        val len = chunk.length
-
-        if (chunk.nonEmpty) {
-          val it = chunk.iterator.zipWithIndex
-
-          allocNew(vec)(len)
-          it.foreach { case (v, i) =>
-            setVal(vec)(i, v)
+        def allocate(standardType: StandardType[Val]): Vector = {
+          val vec = standardType match {
+            case StandardType.BoolType   =>
+              new BitVector("bitVector", alloc)
+            case StandardType.IntType    =>
+              new IntVector("intVector", alloc)
+            case StandardType.LongType   =>
+              new BigIntVector("longVector", alloc)
+            case StandardType.StringType =>
+              new VarCharVector("stringVector", alloc)
+            case other                   =>
+              throw ArrowEncoderError(s"Unsupported ZIO Schema StandardType $other")
           }
+
+          vec.allocateNew()
+          vec.asInstanceOf[Vector]
         }
 
-        vec.setValueCount(len)
-        vec
+        schema match {
+          case Schema.Primitive(standardType, _) =>
+            val vec0 = allocate(standardType)
+            val len  = chunk.length
+            val it   = chunk.iterator.zipWithIndex
+
+            it.foreach { case (v, i) =>
+              (standardType, vec0, v) match {
+                case (StandardType.StringType, vec: VarCharVector, s: String) =>
+                  vec.set(i, s.getBytes(StandardCharsets.UTF_8))
+                case (StandardType.BoolType, vec: BitVector, b: Boolean)      =>
+                  vec.set(i, if (b) 1 else 0)
+                case (StandardType.IntType, vec: IntVector, ii: Int)          =>
+                  vec.set(i, ii)
+                case (StandardType.LongType, vec: BigIntVector, l: Long)      =>
+                  vec.set(i, l)
+                case (StandardType.FloatType, vec: Float4Vector, f: Float)    =>
+                  vec.set(i, f)
+                case (StandardType.DoubleType, vec: Float8Vector, d: Double)  =>
+                  vec.set(i, d)
+                case (other, _, _)                                            =>
+                  throw ArrowEncoderError(s"Unsupported ZIO Schema StandardType $other")
+              }
+            }
+
+            vec0.setValueCount(len)
+            vec0
+          case _                                 =>
+            throw ArrowEncoderError(s"Given ZIO schema must be of type Schema.Primitive[Val]")
+
+        }
       }
     }
 
