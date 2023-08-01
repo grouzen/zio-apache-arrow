@@ -2,7 +2,6 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.{ ListVector, StructVector }
-import org.apache.arrow.vector.complex.impl._
 import org.apache.arrow.vector.complex.reader.FieldReader
 import zio._
 import zio.schema._
@@ -137,12 +136,12 @@ object ArrowVectorDecoder {
   @tailrec
   private def decodeSchema[A](name: Option[String], schema0: Schema[A], reader0: FieldReader): DynamicValue =
     schema0 match {
-      case record: Schema.Record[A]                =>
-        val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
-        decodeCaseClass(record.fields, reader)
       case Schema.Primitive(standardType, _)       =>
         val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
         decodePrimitive(standardType, reader)
+      case record: Schema.Record[A]                =>
+        val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
+        decodeCaseClass(record.fields, reader)
       case Schema.Sequence(elemSchema, _, _, _, _) =>
         val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
         decodeSequence(elemSchema, reader)
