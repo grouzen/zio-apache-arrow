@@ -12,14 +12,14 @@ import java.nio.charset.StandardCharsets
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
-trait ArrowVectorEncoder[-Val, Vector <: ValueVector] extends ArrowEncoder[Val, Vector] {
+trait ValueVectorEncoder[-Val, Vector <: ValueVector] extends Encoder[Val, Vector] {
 
   override def encode(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Either[Throwable, Vector] =
     try
       Right(encodeUnsafe(chunk))
     catch {
-      case encoderError: ArrowEncoderError => Left(encoderError)
-      case NonFatal(ex)                    => Left(ArrowEncoderError("Error encoding vector", Some(ex)))
+      case encoderError: EncoderError => Left(encoderError)
+      case NonFatal(ex)               => Left(EncoderError("Error encoding vector", Some(ex)))
 
     }
 
@@ -27,17 +27,17 @@ trait ArrowVectorEncoder[-Val, Vector <: ValueVector] extends ArrowEncoder[Val, 
 
 }
 
-object ArrowVectorEncoder {
+object ValueVectorEncoder {
 
   def apply[Val, Vector <: ValueVector](implicit
-    encoder: ArrowVectorEncoder[Val, Vector]
-  ): ArrowVectorEncoder[Val, Vector] =
+    encoder: ValueVectorEncoder[Val, Vector]
+  ): ValueVectorEncoder[Val, Vector] =
     encoder
 
   implicit def primitive[Val, Vector <: ValueVector](implicit
     schema: Schema[Val]
-  ): ArrowVectorEncoder[Val, Vector] =
-    new ArrowVectorEncoder[Val, Vector] {
+  ): ValueVectorEncoder[Val, Vector] =
+    new ValueVectorEncoder[Val, Vector] {
       override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector = {
         def allocate(standardType: StandardType[Val]): Vector = {
           val vec = standardType match {
@@ -50,7 +50,7 @@ object ArrowVectorEncoder {
             case StandardType.StringType =>
               new VarCharVector("stringVector", alloc)
             case other                   =>
-              throw ArrowEncoderError(s"Unsupported ZIO Schema StandardType $other")
+              throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
           }
 
           vec.allocateNew()
@@ -78,14 +78,14 @@ object ArrowVectorEncoder {
                 case (StandardType.DoubleType, vec: Float8Vector, d: Double)  =>
                   vec.set(i, d)
                 case (other, _, _)                                            =>
-                  throw ArrowEncoderError(s"Unsupported ZIO Schema StandardType $other")
+                  throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
               }
             }
 
             vec0.setValueCount(len)
             vec0
           case _                                 =>
-            throw ArrowEncoderError(s"Given ZIO schema must be of type Schema.Primitive[Val]")
+            throw EncoderError(s"Given ZIO schema must be of type Schema.Primitive[Val]")
 
         }
       }
@@ -93,8 +93,8 @@ object ArrowVectorEncoder {
 
   implicit def list[Val, Col[x] <: Iterable[x]](implicit
     schema: Schema[Val]
-  ): ArrowVectorEncoder[Col[Val], ListVector] =
-    new ArrowVectorEncoder[Col[Val], ListVector] {
+  ): ValueVectorEncoder[Col[Val], ListVector] =
+    new ValueVectorEncoder[Col[Val], ListVector] {
       override protected def encodeUnsafe(chunk: Chunk[Col[Val]])(implicit alloc: BufferAllocator): ListVector = {
         val vec    = ListVector.empty("listVector", alloc)
         val len    = chunk.length
@@ -113,8 +113,8 @@ object ArrowVectorEncoder {
       }
     }
 
-  implicit def struct[Val](implicit schema: Schema[Val]): ArrowVectorEncoder[Val, StructVector] =
-    new ArrowVectorEncoder[Val, StructVector] {
+  implicit def struct[Val](implicit schema: Schema[Val]): ValueVectorEncoder[Val, StructVector] =
+    new ValueVectorEncoder[Val, StructVector] {
       override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): StructVector =
         schema match {
           case record: Schema.Record[Val] =>
@@ -132,7 +132,7 @@ object ArrowVectorEncoder {
 
             vec
           case _                          =>
-            throw ArrowEncoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
+            throw EncoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
     }
 
@@ -164,7 +164,7 @@ object ArrowVectorEncoder {
       case lzy: Schema.Lazy[_]                     =>
         encodeSchema(value, name, lzy.schema, writer0)
       case other                                   =>
-        throw ArrowEncoderError(s"Unsupported ZIO Schema type $other")
+        throw EncoderError(s"Unsupported ZIO Schema type $other")
     }
 
   private def encodeSequence[A](chunk: Chunk[A], schema0: Schema[A], writer0: FieldWriter)(implicit
@@ -200,7 +200,7 @@ object ArrowVectorEncoder {
       case (StandardType.DoubleType, d: Double) =>
         name.fold(writer0.float8)(writer0.float8).writeFloat8(d)
       case (other, _)                           =>
-        throw ArrowEncoderError(s"Unsupported ZIO Schema StandardType $other")
+        throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
     }
 
 }

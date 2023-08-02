@@ -3,7 +3,7 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import org.apache.arrow.memory.BufferAllocator
 import zio._
 
-trait ArrowEncoder[-Val, Vector <: AutoCloseable] {
+trait Encoder[-Val, Vector <: AutoCloseable] {
 
   def encode(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Either[Throwable, Vector]
 

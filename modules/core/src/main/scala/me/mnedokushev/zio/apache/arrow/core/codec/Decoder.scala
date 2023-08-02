@@ -2,7 +2,7 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 
 import zio._
 
-trait ArrowDecoder[Vector, +Val] { self =>
+trait Decoder[Vector, +Val] { self =>
 
   def decode(from: Vector): Either[Throwable, Chunk[Val]]
 

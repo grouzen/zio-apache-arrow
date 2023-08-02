@@ -8,7 +8,7 @@ import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
 import scala.util.control.NonFatal
 
-object ArrowSchemaEncoder {
+object SchemaEncoder {
 
   def encodeFlat[Val](implicit schema: ZSchema[Val]): Either[Throwable, Schema] = {
 
@@ -26,7 +26,7 @@ object ArrowSchemaEncoder {
         case lzy: ZSchema.Lazy[_]               =>
           encodeSchema(name, lzy.schema, nullable)
         case other                              =>
-          throw ArrowEncoderError(s"Unsupported ZIO Schema type $other")
+          throw EncoderError(s"Unsupported ZIO Schema type $other")
       }
 
     try {
@@ -36,13 +36,13 @@ object ArrowSchemaEncoder {
             encodeSchema(name, schemaField, nullable = false)
           }
         case _                           =>
-          throw ArrowEncoderError(s"Given ZIO schema mut be of type Schema.Record[Val]")
+          throw EncoderError(s"Given ZIO schema mut be of type Schema.Record[Val]")
       }
 
       Right(new Schema(fields.toList.asJava))
     } catch {
-      case encodeError: ArrowEncoderError => Left(encodeError)
-      case NonFatal(ex)                   => Left(ArrowEncoderError("Error encoding schema", Some(ex)))
+      case encodeError: EncoderError => Left(encodeError)
+      case NonFatal(ex)              => Left(EncoderError("Error encoding schema", Some(ex)))
     }
   }
 
@@ -62,7 +62,7 @@ object ArrowSchemaEncoder {
       case StandardType.StringType =>
         field0(new ArrowType.Utf8)
       case other                   =>
-        throw ArrowEncoderError(s"Unsupported ZIO Schema StandardType $other")
+        throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
     }
   }
 

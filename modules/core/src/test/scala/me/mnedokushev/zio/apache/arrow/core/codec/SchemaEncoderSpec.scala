@@ -1,6 +1,6 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
-import me.mnedokushev.zio.apache.arrow.core.ArrowAllocator
+import me.mnedokushev.zio.apache.arrow.core.Allocator
 import me.mnedokushev.zio.apache.arrow.core.codec.Fixtures.{
   ListOfPrimitives,
   NullablePrimitives,
@@ -15,12 +15,12 @@ import zio.test._
 
 import scala.jdk.CollectionConverters._
 
-object ArrowSchemaEncoderSpec extends ZIOSpecDefault {
+object SchemaEncoderSpec extends ZIOSpecDefault {
 
-  import ArrowSchemaEncoder._
+  import SchemaEncoder._
 
   override def spec: Spec[TestEnvironment with Scope, Any] =
-    suite("ArrowSchemaEncoder")(
+    suite("SchemaEncoder")(
       encodeFlatSpec
     )
 

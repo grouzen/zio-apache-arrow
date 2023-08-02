@@ -11,14 +11,14 @@ import scala.collection.immutable.ListMap
 import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
-trait ArrowVectorDecoder[Vector <: ValueVector, +Val] extends ArrowDecoder[Vector, Val] { self =>
+trait ValueVectorDecoder[Vector <: ValueVector, +Val] extends Decoder[Vector, Val] { self =>
 
   override final def decode(from: Vector): Either[Throwable, Chunk[Val]] =
     try
       Right(decodeUnsafe(from))
     catch {
-      case decoderError: ArrowDecoderError => Left(decoderError)
-      case NonFatal(ex)                    => Left(ArrowDecoderError("Error decoding vector", Some(ex)))
+      case decoderError: DecoderError => Left(decoderError)
+      case NonFatal(ex)               => Left(DecoderError("Error decoding vector", Some(ex)))
     }
 
   protected def decodeUnsafe(from: Vector): Chunk[Val]
@@ -37,15 +37,15 @@ trait ArrowVectorDecoder[Vector <: ValueVector, +Val] extends ArrowDecoder[Vecto
 
 }
 
-object ArrowVectorDecoder {
+object ValueVectorDecoder {
 
   def apply[Vector <: ValueVector, Val](implicit
-    decoder: ArrowVectorDecoder[Vector, Val]
-  ): ArrowVectorDecoder[Vector, Val] =
+    decoder: ValueVectorDecoder[Vector, Val]
+  ): ValueVectorDecoder[Vector, Val] =
     decoder
 
-  implicit def primitive[Vector <: ValueVector, Val](implicit schema: Schema[Val]): ArrowVectorDecoder[Vector, Val] =
-    new ArrowVectorDecoder[Vector, Val] {
+  implicit def primitive[Vector <: ValueVector, Val](implicit schema: Schema[Val]): ValueVectorDecoder[Vector, Val] =
+    new ValueVectorDecoder[Vector, Val] {
       override protected def decodeUnsafe(from: Vector): Chunk[Val] =
         schema match {
           case Schema.Primitive(standardType, _) =>
@@ -63,20 +63,20 @@ object ArrowVectorDecoder {
                   builder.addOne(v)
                   idx += 1
                 case Left(message) =>
-                  throw ArrowDecoderError(message)
+                  throw DecoderError(message)
               }
             }
 
             builder.result()
           case _                                 =>
-            throw ArrowDecoderError(s"Given ZIO schema must be of type Schema.Primitive[Val]")
+            throw DecoderError(s"Given ZIO schema must be of type Schema.Primitive[Val]")
         }
     }
 
   implicit def list[Val, Col[x] <: Iterable[x]](implicit
     schema: Schema[Val]
-  ): ArrowVectorDecoder[ListVector, Col[Val]] =
-    new ArrowVectorDecoder[ListVector, Col[Val]] {
+  ): ValueVectorDecoder[ListVector, Col[Val]] =
+    new ValueVectorDecoder[ListVector, Col[Val]] {
       override protected def decodeUnsafe(from: ListVector): Chunk[Col[Val]] = {
         var idx        = 0
         val valueCount = from.getValueCount
@@ -93,7 +93,7 @@ object ArrowVectorDecoder {
 
               dynamicValue.toTypedValue match {
                 case Right(v)      => buffer.addOne(v)
-                case Left(message) => throw ArrowDecoderError(message)
+                case Left(message) => throw DecoderError(message)
               }
             }
 
@@ -105,8 +105,8 @@ object ArrowVectorDecoder {
       }
     }
 
-  implicit def struct[Val](implicit schema: Schema[Val]): ArrowVectorDecoder[StructVector, Val] =
-    new ArrowVectorDecoder[StructVector, Val] {
+  implicit def struct[Val](implicit schema: Schema[Val]): ValueVectorDecoder[StructVector, Val] =
+    new ValueVectorDecoder[StructVector, Val] {
       override protected def decodeUnsafe(from: StructVector): Chunk[Val] =
         schema match {
           case record: Schema.Record[Val] =>
@@ -124,13 +124,13 @@ object ArrowVectorDecoder {
                   builder.addOne(v)
                   idx += 1
                 case Left(message) =>
-                  throw ArrowDecoderError(message)
+                  throw DecoderError(message)
               }
             }
 
             builder.result()
           case _                          =>
-            throw ArrowDecoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
+            throw DecoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
     }
 
@@ -149,7 +149,7 @@ object ArrowVectorDecoder {
       case lzy: Schema.Lazy[_]                     =>
         decodeSchema(name, lzy.schema, reader0)
       case other                                   =>
-        throw ArrowDecoderError(s"Unsupported ZIO Schema type $other")
+        throw DecoderError(s"Unsupported ZIO Schema type $other")
     }
 
   private def decodeCaseClass[A](fields: Chunk[Schema.Field[A, _]], reader0: FieldReader): DynamicValue = {
@@ -187,7 +187,7 @@ object ArrowVectorDecoder {
       case t: StandardType.StringType.type =>
         DynamicValue.Primitive[String](reader0.readText().toString, t)
       case other                           =>
-        throw ArrowDecoderError(s"Unsupported ZIO Schema type $other")
+        throw DecoderError(s"Unsupported ZIO Schema type $other")
     }
 
 }

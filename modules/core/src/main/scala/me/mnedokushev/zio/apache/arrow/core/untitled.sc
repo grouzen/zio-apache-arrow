@@ -1,5 +1,5 @@
-import me.mnedokushev.zio.apache.arrow.core.codec.{ ArrowVectorDecoder, ArrowVectorEncoder }
-import me.mnedokushev.zio.apache.arrow.core.ArrowAllocator
+import me.mnedokushev.zio.apache.arrow.core.codec.{ ValueVectorDecoder, ValueVectorEncoder }
+import me.mnedokushev.zio.apache.arrow.core.Allocator
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.IntVector
 import org.apache.arrow.vector.complex.{ ListVector, StructVector }
