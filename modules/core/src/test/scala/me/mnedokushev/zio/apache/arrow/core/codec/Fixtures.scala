@@ -9,6 +9,11 @@ object Fixtures {
     implicit val schema: Schema[Primitives] = DeriveSchema.gen[Primitives]
   }
 
+  final case class NullablePrimitives(a: Option[Int], b: Option[Double])
+  object NullablePrimitives {
+    implicit val schema: Schema[NullablePrimitives] = DeriveSchema.gen[NullablePrimitives]
+  }
+
   final case class StructOfPrimitives(struct: Primitives)
   object StructOfPrimitives {
     implicit val schema: Schema[StructOfPrimitives] = DeriveSchema.gen[StructOfPrimitives]

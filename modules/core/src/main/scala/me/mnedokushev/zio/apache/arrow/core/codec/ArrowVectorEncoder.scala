@@ -18,7 +18,9 @@ trait ArrowVectorEncoder[-Val, Vector <: ValueVector] extends ArrowEncoder[Val, 
     try
       Right(encodeUnsafe(chunk))
     catch {
-      case NonFatal(ex) => Left(ArrowEncoderError("Error encoding vector", Some(ex)))
+      case encoderError: ArrowEncoderError => Left(encoderError)
+      case NonFatal(ex)                    => Left(ArrowEncoderError("Error encoding vector", Some(ex)))
+
     }
 
   protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector

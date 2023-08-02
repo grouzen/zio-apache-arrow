@@ -17,7 +17,8 @@ trait ArrowVectorDecoder[Vector <: ValueVector, +Val] extends ArrowDecoder[Vecto
     try
       Right(decodeUnsafe(from))
     catch {
-      case NonFatal(ex) => Left(ArrowDecoderError("Error decoding vector", Some(ex)))
+      case decoderError: ArrowDecoderError => Left(decoderError)
+      case NonFatal(ex)                    => Left(ArrowDecoderError("Error decoding vector", Some(ex)))
     }
 
   protected def decodeUnsafe(from: Vector): Chunk[Val]
