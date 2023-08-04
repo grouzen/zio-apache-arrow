@@ -1,6 +1,6 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
-import me.mnedokushev.zio.apache.arrow.core.Allocator
+import me.mnedokushev.zio.apache.arrow.core.{ Allocator, TabularData }
 import me.mnedokushev.zio.apache.arrow.core.codec.Fixtures._
 import org.apache.arrow.vector._
 import zio._
@@ -252,12 +252,28 @@ object CodecSpec extends ZIOSpecDefault {
       }
     )
 
+  val vectorSchemaRootCodecSpec =
+    suite("VectorSchemaRoot Encoder/Decoder")(
+      test("codec - primitives") {
+        ZIO.scoped(
+          for {
+            rootVec <- TabularData.root[Primitives]
+            _       <- VectorSchemaRootEncoder
+                         .schema[Primitives]
+                         .encodeZIO(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), rootVec)
+            result  <- VectorSchemaRootDecoder.schema[Primitives].decodeZIO(rootVec)
+          } yield assert(result)(equalTo(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))))
+        )
+      }
+    )
+
   val valueVectorCodecSpec =
     suite("ValueVector Encoder/Decoder")(
 //      vectorDecoderSpec,
       valueVectorCodecPrimitiveSpec,
       valueVectorCodecListSpec,
-      valueVectorCodecStructSpec
+      valueVectorCodecStructSpec,
+      vectorSchemaRootCodecSpec
     )
 
 }

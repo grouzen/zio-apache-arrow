@@ -5,16 +5,23 @@ import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import org.apache.arrow.vector.complex.impl.{ PromotableWriter, UnionListWriter }
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.writer.FieldWriter
-import zio.Chunk
+import zio._
 import zio.schema._
 
 import java.nio.charset.StandardCharsets
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
-trait ValueVectorEncoder[-Val, Vector <: ValueVector] extends Encoder[Val, Vector] {
+trait ValueVectorEncoder[-Val, Vector <: ValueVector] {
 
-  override def encode(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Either[Throwable, Vector] =
+  final def encodeZIO(chunk: Chunk[Val]): RIO[Scope with BufferAllocator, Vector] =
+    ZIO.fromAutoCloseable(
+      ZIO.serviceWithZIO[BufferAllocator] { implicit alloc =>
+        ZIO.fromEither(encode(chunk))
+      }
+    )
+
+  final def encode(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Either[Throwable, Vector] =
     try
       Right(encodeUnsafe(chunk))
     catch {
@@ -64,22 +71,7 @@ object ValueVectorEncoder {
             val it   = chunk.iterator.zipWithIndex
 
             it.foreach { case (v, i) =>
-              (standardType, vec0, v) match {
-                case (StandardType.StringType, vec: VarCharVector, s: String) =>
-                  vec.set(i, s.getBytes(StandardCharsets.UTF_8))
-                case (StandardType.BoolType, vec: BitVector, b: Boolean)      =>
-                  vec.set(i, if (b) 1 else 0)
-                case (StandardType.IntType, vec: IntVector, ii: Int)          =>
-                  vec.set(i, ii)
-                case (StandardType.LongType, vec: BigIntVector, l: Long)      =>
-                  vec.set(i, l)
-                case (StandardType.FloatType, vec: Float4Vector, f: Float)    =>
-                  vec.set(i, f)
-                case (StandardType.DoubleType, vec: Float8Vector, d: Double)  =>
-                  vec.set(i, d)
-                case (other, _, _)                                            =>
-                  throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
-              }
+              encodePrimitive(v, standardType, vec0, i)
             }
 
             vec0.setValueCount(len)
@@ -136,20 +128,13 @@ object ValueVectorEncoder {
         }
     }
 
-  private def encodeCaseClass[A](value: A, fields: Chunk[Schema.Field[A, _]], writer0: FieldWriter)(implicit
-    alloc: BufferAllocator
-  ): Unit = {
-    writer0.start()
-    fields.foreach { case Schema.Field(name, schema0, _, _, get, _) =>
-      encodeSchema(get(value), Some(name), schema0.asInstanceOf[Schema[Any]], writer0)
-    }
-    writer0.end()
-  }
-
   @tailrec
-  private def encodeSchema[A](value: A, name: Option[String], schema0: Schema[A], writer0: FieldWriter)(implicit
-    alloc: BufferAllocator
-  ): Unit =
+  private[codec] def encodeSchema[A](
+    value: A,
+    name: Option[String],
+    schema0: Schema[A],
+    writer0: FieldWriter
+  )(implicit alloc: BufferAllocator): Unit =
     schema0 match {
       case Schema.Primitive(standardType, _)       =>
         encodePrimitive(value, name, standardType, writer0)
@@ -167,9 +152,23 @@ object ValueVectorEncoder {
         throw EncoderError(s"Unsupported ZIO Schema type $other")
     }
 
-  private def encodeSequence[A](chunk: Chunk[A], schema0: Schema[A], writer0: FieldWriter)(implicit
-    alloc: BufferAllocator
-  ): Unit = {
+  private[codec] def encodeCaseClass[A](
+    value: A,
+    fields: Chunk[Schema.Field[A, _]],
+    writer0: FieldWriter
+  )(implicit alloc: BufferAllocator): Unit = {
+    writer0.start()
+    fields.foreach { case Schema.Field(name, schema0, _, _, get, _) =>
+      encodeSchema(get(value), Some(name), schema0.asInstanceOf[Schema[Any]], writer0)
+    }
+    writer0.end()
+  }
+
+  private[codec] def encodeSequence[A](
+    chunk: Chunk[A],
+    schema0: Schema[A],
+    writer0: FieldWriter
+  )(implicit alloc: BufferAllocator): Unit = {
     val it = chunk.iterator
 
     writer0.startList()
@@ -177,7 +176,7 @@ object ValueVectorEncoder {
     writer0.endList()
   }
 
-  private def encodePrimitive[A](
+  private[codec] def encodePrimitive[A](
     value: A,
     name: Option[String],
     standardType: StandardType[A],
@@ -200,6 +199,29 @@ object ValueVectorEncoder {
       case (StandardType.DoubleType, d: Double) =>
         name.fold(writer0.float8)(writer0.float8).writeFloat8(d)
       case (other, _)                           =>
+        throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
+    }
+
+  private[codec] def encodePrimitive[A, V <: ValueVector](
+    value: A,
+    standardType: StandardType[A],
+    vec: V,
+    idx: Int
+  ): Unit =
+    (standardType, vec, value) match {
+      case (StandardType.StringType, vec: VarCharVector, s: String) =>
+        vec.set(idx, s.getBytes(StandardCharsets.UTF_8))
+      case (StandardType.BoolType, vec: BitVector, b: Boolean)      =>
+        vec.set(idx, if (b) 1 else 0)
+      case (StandardType.IntType, vec: IntVector, ii: Int)          =>
+        vec.set(idx, ii)
+      case (StandardType.LongType, vec: BigIntVector, l: Long)      =>
+        vec.set(idx, l)
+      case (StandardType.FloatType, vec: Float4Vector, f: Float)    =>
+        vec.set(idx, f)
+      case (StandardType.DoubleType, vec: Float8Vector, d: Double)  =>
+        vec.set(idx, d)
+      case (other, _, _)                                            =>
         throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
     }
 

@@ -1,0 +1,116 @@
+package me.mnedokushev.zio.apache.arrow.core.codec
+
+import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.complex.writer.FieldWriter
+import org.apache.arrow.vector.{ FieldVector, VectorSchemaRoot }
+import org.apache.arrow.vector.complex.{ ListVector, StructVector }
+import zio._
+import zio.schema.Schema
+
+import scala.annotation.tailrec
+import scala.util.control.NonFatal
+
+trait VectorSchemaRootEncoder[-Val] {
+
+  final def encodeZIO(chunk: Chunk[Val], root: VectorSchemaRoot): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
+    ZIO.fromAutoCloseable(
+      ZIO.serviceWithZIO[BufferAllocator] { implicit alloc =>
+        ZIO.fromEither(encode(chunk, root))
+      }
+    )
+
+  final def encode(
+    chunk: Chunk[Val],
+    root: VectorSchemaRoot
+  )(implicit alloc: BufferAllocator): Either[Throwable, VectorSchemaRoot] =
+    try
+      Right(encodeUnsafe(chunk, root))
+    catch {
+      case encoderError: EncoderError => Left(encoderError)
+      case NonFatal(ex)               => Left(EncoderError("Error encoding vector schema root", Some(ex)))
+    }
+
+  protected def encodeUnsafe(
+    chunk: Chunk[Val],
+    root: VectorSchemaRoot
+  )(implicit alloc: BufferAllocator): VectorSchemaRoot
+
+}
+
+object VectorSchemaRootEncoder {
+
+  implicit def schema[Val](implicit schema: Schema[Val]): VectorSchemaRootEncoder[Val] =
+    new VectorSchemaRootEncoder[Val] {
+      override protected def encodeUnsafe(
+        chunk: Chunk[Val],
+        root: VectorSchemaRoot
+      )(implicit alloc: BufferAllocator): VectorSchemaRoot = {
+        @tailrec
+        def encodeField[A](
+          fieldSchema: Schema[A],
+          name: String,
+          vec: FieldVector,
+          writer: FieldWriter,
+          value: A,
+          idx: Int
+        ): Unit =
+          fieldSchema match {
+            case Schema.Primitive(standardType, _)          =>
+              ValueVectorEncoder.encodePrimitive(value, standardType, vec, idx)
+            case record: Schema.Record[_]                   =>
+              ValueVectorEncoder.encodeCaseClass(value, record.fields, writer)
+            case Schema.Sequence(elementSchema, _, g, _, _) =>
+              ValueVectorEncoder.encodeSequence(g(value), elementSchema, writer)
+            case lzy: Schema.Lazy[_]                        =>
+              encodeField(lzy.schema, name, vec, writer, value, idx)
+            case other                                      =>
+              throw EncoderError(s"Unsupported ZIO Schema type $other")
+          }
+
+        schema match {
+          case record: Schema.Record[Val] =>
+            // TODO: cache result of `schemaRoot` for better performance
+            SchemaEncoder.schemaRoot[Val] match {
+              case Right(s) if s == root.getSchema =>
+                val fields = record.fields.map { case Schema.Field(name, fieldSchema, _, _, g, _) =>
+                  val vec = Option(root.getVector(name))
+                    .getOrElse(throw EncoderError(s"Couldn't find vector by name $name"))
+
+                  vec.reset()
+
+                  val writer: FieldWriter = (fieldSchema, vec) match {
+                    case (_: Schema.Record[_], vec0: StructVector)       => vec0.getWriter
+                    case (_: Schema.Sequence[_, _, _], vec0: ListVector) => vec0.getWriter
+                    case _                                               => null
+                  }
+
+                  (fieldSchema, name, vec, writer, g)
+                }
+
+                val len = chunk.length
+                val it  = chunk.iterator.zipWithIndex
+
+                it.foreach { case (v, i) =>
+                  fields.foreach { case (fieldSchema, name, vec, writer, get) =>
+                    encodeField(fieldSchema.asInstanceOf[Schema[Any]], name, vec, writer, get(v), i)
+                  }
+                }
+
+                fields.foreach { case (_, _, vec, _, _) =>
+                  vec.setValueCount(len)
+                }
+
+                root.setRowCount(len)
+                root
+              case Right(s)                        =>
+                throw EncoderError(s"Schemas are not equal $s != ${root.getSchema}")
+              case Left(error)                     =>
+                throw error
+            }
+          case _                          =>
+            throw EncoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
+        }
+      }
+    }
+
+}

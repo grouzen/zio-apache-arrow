@@ -28,7 +28,7 @@ object SchemaEncoderSpec extends ZIOSpecDefault {
     suite("encodeFlat")(
       test("primitive") {
         for {
-          result <- encodeFlat[Primitives]
+          result <- schemaRoot[Primitives]
           fields  = getFields(result)
         } yield assert(fields)(contains(fieldNotNullable("a", new ArrowType.Int(32, true)))) &&
           assert(fields)(contains(fieldNotNullable("b", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)))) &&
@@ -36,19 +36,19 @@ object SchemaEncoderSpec extends ZIOSpecDefault {
       },
       test("struct") {
         for {
-          result <- encodeFlat[StructOfPrimitives]
+          result <- schemaRoot[StructOfPrimitives]
           fields  = getFields(result)
         } yield assert(fields)(contains(fieldNotNullable("struct", new ArrowType.Struct)))
       },
       test("list") {
         for {
-          result <- encodeFlat[ListOfPrimitives]
+          result <- schemaRoot[ListOfPrimitives]
           fields  = getFields(result)
         } yield assert(fields)(contains(fieldNotNullable("list", new ArrowType.List)))
       },
       test("nullable primitives") {
         for {
-          result <- encodeFlat[NullablePrimitives]
+          result <- schemaRoot[NullablePrimitives]
           fields  = getFields(result)
         } yield assert(fields)(contains(fieldNullable("a", new ArrowType.Int(32, true)))) &&
           assert(fields)(contains(fieldNullable("b", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))))

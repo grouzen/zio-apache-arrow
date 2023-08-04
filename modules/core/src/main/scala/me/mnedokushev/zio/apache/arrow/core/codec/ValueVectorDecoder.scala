@@ -11,17 +11,20 @@ import scala.collection.immutable.ListMap
 import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
-trait ValueVectorDecoder[Vector <: ValueVector, +Val] extends Decoder[Vector, Val] { self =>
+trait ValueVectorDecoder[Vector <: ValueVector, +Val] { self =>
 
-  override final def decode(from: Vector): Either[Throwable, Chunk[Val]] =
+  final def decodeZIO(vec: Vector): Task[Chunk[Val]] =
+    ZIO.fromEither(decode(vec))
+
+  final def decode(vec: Vector): Either[Throwable, Chunk[Val]] =
     try
-      Right(decodeUnsafe(from))
+      Right(decodeUnsafe(vec))
     catch {
       case decoderError: DecoderError => Left(decoderError)
       case NonFatal(ex)               => Left(DecoderError("Error decoding vector", Some(ex)))
     }
 
-  protected def decodeUnsafe(from: Vector): Chunk[Val]
+  protected def decodeUnsafe(vec: Vector): Chunk[Val]
 
 //  def flatMap[B](f: Val => ArrowVectorDecoder[Vector, B]): ArrowVectorDecoder[Vector, B] =
 //    new ArrowVectorDecoder[Vector, B] {
@@ -46,15 +49,15 @@ object ValueVectorDecoder {
 
   implicit def primitive[Vector <: ValueVector, Val](implicit schema: Schema[Val]): ValueVectorDecoder[Vector, Val] =
     new ValueVectorDecoder[Vector, Val] {
-      override protected def decodeUnsafe(from: Vector): Chunk[Val] =
+      override protected def decodeUnsafe(vec: Vector): Chunk[Val] =
         schema match {
           case Schema.Primitive(standardType, _) =>
-            var idx        = 0
-            val valueCount = from.getValueCount
-            val builder    = ChunkBuilder.make[Val](valueCount)
-            val reader     = from.getReader
+            var idx     = 0
+            val len     = vec.getValueCount
+            val builder = ChunkBuilder.make[Val](len)
+            val reader  = vec.getReader
 
-            while (idx < valueCount) {
+            while (idx < len) {
               reader.setPosition(idx)
               val dynamicValue = decodePrimitive(standardType, reader)
 
@@ -77,13 +80,13 @@ object ValueVectorDecoder {
     schema: Schema[Val]
   ): ValueVectorDecoder[ListVector, Col[Val]] =
     new ValueVectorDecoder[ListVector, Col[Val]] {
-      override protected def decodeUnsafe(from: ListVector): Chunk[Col[Val]] = {
-        var idx        = 0
-        val valueCount = from.getValueCount
-        val builder    = ChunkBuilder.make[Col[Val]](valueCount)
-        val reader     = from.getReader
+      override protected def decodeUnsafe(vec: ListVector): Chunk[Col[Val]] = {
+        var idx     = 0
+        val len     = vec.getValueCount
+        val builder = ChunkBuilder.make[Col[Val]](len)
+        val reader  = vec.getReader
 
-        while (idx < valueCount) {
+        while (idx < len) {
           val buffer = ListBuffer.empty[Val]
 
           reader.setPosition(idx)
@@ -107,15 +110,15 @@ object ValueVectorDecoder {
 
   implicit def struct[Val](implicit schema: Schema[Val]): ValueVectorDecoder[StructVector, Val] =
     new ValueVectorDecoder[StructVector, Val] {
-      override protected def decodeUnsafe(from: StructVector): Chunk[Val] =
+      override protected def decodeUnsafe(vec: StructVector): Chunk[Val] =
         schema match {
           case record: Schema.Record[Val] =>
-            var idx        = 0
-            val valueCount = from.getValueCount
-            val builder    = ChunkBuilder.make[Val](valueCount)
-            val reader     = from.getReader
+            var idx     = 0
+            val len     = vec.getValueCount
+            val builder = ChunkBuilder.make[Val](len)
+            val reader  = vec.getReader
 
-            while (idx < valueCount) {
+            while (idx < len) {
               reader.setPosition(idx)
               val dynamicValue = decodeCaseClass(record.fields, reader)
 
@@ -135,24 +138,24 @@ object ValueVectorDecoder {
     }
 
   @tailrec
-  private def decodeSchema[A](name: Option[String], schema0: Schema[A], reader0: FieldReader): DynamicValue =
+  private[codec] def decodeSchema[A](name: Option[String], schema0: Schema[A], reader0: FieldReader): DynamicValue = {
+    val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
+
     schema0 match {
       case Schema.Primitive(standardType, _)       =>
-        val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
         decodePrimitive(standardType, reader)
       case record: Schema.Record[A]                =>
-        val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
         decodeCaseClass(record.fields, reader)
       case Schema.Sequence(elemSchema, _, _, _, _) =>
-        val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
         decodeSequence(elemSchema, reader)
       case lzy: Schema.Lazy[_]                     =>
         decodeSchema(name, lzy.schema, reader0)
       case other                                   =>
         throw DecoderError(s"Unsupported ZIO Schema type $other")
     }
+  }
 
-  private def decodeCaseClass[A](fields: Chunk[Schema.Field[A, _]], reader0: FieldReader): DynamicValue = {
+  private[codec] def decodeCaseClass[A](fields: Chunk[Schema.Field[A, _]], reader0: FieldReader): DynamicValue = {
     val values = fields.map { case Schema.Field(name, schema0, _, _, _, _) =>
       val value: DynamicValue = decodeSchema(Some(name), schema0, reader0)
 
@@ -162,7 +165,7 @@ object ValueVectorDecoder {
     DynamicValue.Record(TypeId.Structural, values)
   }
 
-  private def decodeSequence[A](schema0: Schema[A], reader0: FieldReader): DynamicValue = {
+  private[codec] def decodeSequence[A](schema0: Schema[A], reader0: FieldReader): DynamicValue = {
     val builder = ChunkBuilder.make[DynamicValue]()
 
     while (reader0.next())
@@ -172,7 +175,7 @@ object ValueVectorDecoder {
     DynamicValue.Sequence(builder.result())
   }
 
-  private def decodePrimitive[A](standardType: StandardType[A], reader0: FieldReader): DynamicValue =
+  private[codec] def decodePrimitive[A](standardType: StandardType[A], reader0: FieldReader): DynamicValue =
     standardType match {
       case t: StandardType.BoolType.type   =>
         DynamicValue.Primitive[Boolean](reader0.readBoolean(), t)

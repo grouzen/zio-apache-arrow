@@ -10,7 +10,7 @@ import scala.util.control.NonFatal
 
 object SchemaEncoder {
 
-  def encodeFlat[Val](implicit schema: ZSchema[Val]): Either[Throwable, Schema] = {
+  def schemaRoot[Val](implicit schema: ZSchema[Val]): Either[Throwable, Schema] = {
 
     @tailrec
     def encodeSchema[A](name: String, schemaField: ZSchema[A], nullable: Boolean): Field =
