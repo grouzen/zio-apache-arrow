@@ -1,5 +1,6 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
+import me.mnedokushev.zio.apache.arrow.core._
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.complex.reader.FieldReader
 import zio._
@@ -61,44 +62,39 @@ object VectorSchemaRootDecoder {
 
         schema match {
           case record: Schema.Record[Val] =>
-            SchemaEncoder.schemaRoot[Val] match {
-              case Right(s) if s == rootVec.getSchema =>
-                val fields = record.fields.map { case Schema.Field(name, fieldSchema, _, _, _, _) =>
-                  val vec    = Option(rootVec.getVector(name))
-                    .getOrElse(throw DecoderError(s"Couldn't get vector by name $name"))
-                  val reader = vec.getReader
+            validateSchema(rootVec.getSchema) {
+              val fields = record.fields.map { case Schema.Field(name, fieldSchema, _, _, _, _) =>
+                val vec    = Option(rootVec.getVector(name))
+                  .getOrElse(throw DecoderError(s"Couldn't get vector by name $name"))
+                val reader = vec.getReader
 
-                  (fieldSchema, name, reader)
+                (fieldSchema, name, reader)
+              }
+
+              var idx     = 0
+              val len     = rootVec.getRowCount
+              val builder = ChunkBuilder.make[Val]()
+
+              while (idx < len) {
+                val values = fields.map { case (fieldSchema, name, reader) =>
+                  reader.setPosition(idx)
+                  val value = decodeField(fieldSchema, reader)
+
+                  name -> value
+                }.to(ListMap)
+
+                DynamicValue.Record(TypeId.Structural, values).toTypedValue match {
+                  case Right(v)      =>
+                    builder.addOne(v)
+                    idx += 1
+                  case Left(message) =>
+                    throw DecoderError(message)
                 }
+              }
 
-                var idx     = 0
-                val len     = rootVec.getRowCount
-                val builder = ChunkBuilder.make[Val]()
-
-                while (idx < len) {
-                  val values = fields.map { case (fieldSchema, name, reader) =>
-                    reader.setPosition(idx)
-                    val value = decodeField(fieldSchema, reader)
-
-                    name -> value
-                  }.to(ListMap)
-
-                  DynamicValue.Record(TypeId.Structural, values).toTypedValue match {
-                    case Right(v)      =>
-                      builder.addOne(v)
-                      idx += 1
-                    case Left(message) =>
-                      throw DecoderError(message)
-                  }
-                }
-
-                builder.result()
-              case Right(s)                           =>
-                throw DecoderError(s"Schemas are not equal $s != ${rootVec.getSchema}")
-              case Left(error)                        =>
-                throw error
+              builder.result()
             }
-          case _                          =>
+          case _ =>
             throw DecoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
       }

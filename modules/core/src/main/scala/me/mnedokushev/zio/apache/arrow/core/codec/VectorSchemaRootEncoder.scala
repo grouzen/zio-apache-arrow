@@ -1,5 +1,6 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
+import me.mnedokushev.zio.apache.arrow.core._
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.complex.writer.FieldWriter
 import org.apache.arrow.vector.{ FieldVector, VectorSchemaRoot }
@@ -69,45 +70,39 @@ object VectorSchemaRootEncoder {
 
         schema match {
           case record: Schema.Record[Val] =>
-            // TODO: cache result of `schemaRoot` for better performance
-            SchemaEncoder.schemaRoot[Val] match {
-              case Right(s) if s == root.getSchema =>
-                val fields = record.fields.map { case Schema.Field(name, fieldSchema, _, _, g, _) =>
-                  val vec = Option(root.getVector(name))
-                    .getOrElse(throw EncoderError(s"Couldn't find vector by name $name"))
+            validateSchema(root.getSchema) {
+              val fields = record.fields.map { case Schema.Field(name, fieldSchema, _, _, g, _) =>
+                val vec = Option(root.getVector(name))
+                  .getOrElse(throw EncoderError(s"Couldn't find vector by name $name"))
 
-                  vec.reset()
+                vec.reset()
 
-                  val writer: FieldWriter = (fieldSchema, vec) match {
-                    case (_: Schema.Record[_], vec0: StructVector)       => vec0.getWriter
-                    case (_: Schema.Sequence[_, _, _], vec0: ListVector) => vec0.getWriter
-                    case _                                               => null
-                  }
-
-                  (fieldSchema, name, vec, writer, g)
+                val writer: FieldWriter = (fieldSchema, vec) match {
+                  case (_: Schema.Record[_], vec0: StructVector)       => vec0.getWriter
+                  case (_: Schema.Sequence[_, _, _], vec0: ListVector) => vec0.getWriter
+                  case _                                               => null
                 }
 
-                val len = chunk.length
-                val it  = chunk.iterator.zipWithIndex
+                (fieldSchema, name, vec, writer, g)
+              }
 
-                it.foreach { case (v, i) =>
-                  fields.foreach { case (fieldSchema, name, vec, writer, get) =>
-                    encodeField(fieldSchema.asInstanceOf[Schema[Any]], name, vec, writer, get(v), i)
-                  }
+              val len = chunk.length
+              val it  = chunk.iterator.zipWithIndex
+
+              it.foreach { case (v, i) =>
+                fields.foreach { case (fieldSchema, name, vec, writer, get) =>
+                  encodeField(fieldSchema.asInstanceOf[Schema[Any]], name, vec, writer, get(v), i)
                 }
+              }
 
-                fields.foreach { case (_, _, vec, _, _) =>
-                  vec.setValueCount(len)
-                }
+              fields.foreach { case (_, _, vec, _, _) =>
+                vec.setValueCount(len)
+              }
 
-                root.setRowCount(len)
-                root
-              case Right(s)                        =>
-                throw EncoderError(s"Schemas are not equal $s != ${root.getSchema}")
-              case Left(error)                     =>
-                throw error
+              root.setRowCount(len)
+              root
             }
-          case _                          =>
+          case _ =>
             throw EncoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
       }
