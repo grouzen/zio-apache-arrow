@@ -1,0 +1,28 @@
+package me.mnedokushev.zio.apache.arrow.core.ipc
+
+import me.mnedokushev.zio.apache.arrow.core.Allocator
+import me.mnedokushev.zio.apache.arrow.core.codec.Fixtures.Primitives
+import me.mnedokushev.zio.apache.arrow.core.codec.VectorSchemaRootDecoder
+import zio.test._
+import zio._
+import zio.stream.ZStream
+import zio.test.Assertion._
+
+import java.io.ByteArrayInputStream
+
+object IpcSpec extends ZIOSpecDefault {
+  override def spec: Spec[TestEnvironment with Scope, Any] =
+    suite("IPC")(
+      test("streaming") {
+        val payload = (1 to 1024000).map(i => Primitives(i, i.toDouble, i.toString))
+
+        ZIO.scoped(
+          for {
+            out    <- writeStreaming[Any, Primitives](ZStream.from(payload))
+            result <- readStreaming[Primitives](new ByteArrayInputStream(out.toByteArray)).runCollect
+          } yield assert(result)(equalTo(Chunk.fromIterable(payload)))
+        )
+      }
+    ) provideLayerShared (Allocator.rootLayer())
+
+}

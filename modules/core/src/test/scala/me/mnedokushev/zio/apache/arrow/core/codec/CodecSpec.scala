@@ -1,6 +1,6 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
-import me.mnedokushev.zio.apache.arrow.core.{ Allocator, TabularData }
+import me.mnedokushev.zio.apache.arrow.core.{ Allocator, Tabular }
 import me.mnedokushev.zio.apache.arrow.core.codec.Fixtures._
 import org.apache.arrow.vector._
 import zio._
@@ -11,7 +11,8 @@ object CodecSpec extends ZIOSpecDefault {
 
   override def spec: Spec[TestEnvironment with Scope, Any] =
     suite("Codec")(
-      valueVectorCodecSpec
+      valueVectorCodecSpec,
+      vectorSchemaRootCodecSpec
     ).provideLayerShared(Allocator.rootLayer())
 
 //  val vectorDecoderSpec =
@@ -46,7 +47,7 @@ object CodecSpec extends ZIOSpecDefault {
       test("codec - empty") {
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder[Int, IntVector].encodeZIO(Chunk.empty)
+            vec    <- ValueVectorEncoder.primitive[Int, IntVector].encodeZIO(Chunk.empty)
             result <- ValueVectorDecoder.primitive[IntVector, Int].decodeZIO(vec)
           } yield assertTrue(result.isEmpty)
         )
@@ -54,7 +55,7 @@ object CodecSpec extends ZIOSpecDefault {
       test("codec - boolean") {
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder[Boolean, BitVector].encodeZIO(Chunk(true, true, false))
+            vec    <- ValueVectorEncoder.primitive[Boolean, BitVector].encodeZIO(Chunk(true, true, false))
             result <- ValueVectorDecoder.primitive[BitVector, Boolean].decodeZIO(vec)
           } yield assert(result)(equalTo(Chunk(true, true, false)))
         )
@@ -257,7 +258,7 @@ object CodecSpec extends ZIOSpecDefault {
       test("codec - primitives") {
         ZIO.scoped(
           for {
-            rootVec <- TabularData.root[Primitives]
+            rootVec <- Tabular.empty[Primitives]
             _       <- VectorSchemaRootEncoder
                          .schema[Primitives]
                          .encodeZIO(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), rootVec)
@@ -272,8 +273,7 @@ object CodecSpec extends ZIOSpecDefault {
 //      vectorDecoderSpec,
       valueVectorCodecPrimitiveSpec,
       valueVectorCodecListSpec,
-      valueVectorCodecStructSpec,
-      vectorSchemaRootCodecSpec
+      valueVectorCodecStructSpec
     )
 
 }

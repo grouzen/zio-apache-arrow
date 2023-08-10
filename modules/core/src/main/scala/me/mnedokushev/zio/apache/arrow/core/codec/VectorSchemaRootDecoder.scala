@@ -10,7 +10,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 import scala.util.control.NonFatal
 
-trait VectorSchemaRootDecoder[+Val] { self =>
+trait VectorSchemaRootDecoder[Val] { self =>
 
   final def decodeZIO(root: VectorSchemaRoot): Task[Chunk[Val]] =
     ZIO.fromEither(decode(root))

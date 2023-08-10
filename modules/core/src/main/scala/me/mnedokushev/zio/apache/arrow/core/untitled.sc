@@ -1,34 +1,45 @@
-import me.mnedokushev.zio.apache.arrow.core.codec.{ ValueVectorDecoder, ValueVectorEncoder }
+import me.mnedokushev.zio.apache.arrow.core.codec.{ValueVectorDecoder, ValueVectorEncoder}
 import me.mnedokushev.zio.apache.arrow.core.Allocator
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.IntVector
-import org.apache.arrow.vector.complex.{ ListVector, StructVector }
-import org.apache.arrow.vector.complex.impl.{ IntReaderImpl, UnionListReader }
-import org.apache.arrow.vector.types.pojo.{ ArrowType, FieldType }
+import org.apache.arrow.vector.complex.{ListVector, StructVector}
+import org.apache.arrow.vector.complex.impl.{IntReaderImpl, UnionListReader}
+import org.apache.arrow.vector.types.pojo.{ArrowType, FieldType}
 import zio._
 import zio.schema._
+import zio.stream.ZStream
 
 import scala.collection.mutable.ListBuffer
 
+val eff =
+  ZStream
+    .fromZIO(ZIO.succeed(1))
+    .takeUntilZIO(_ => ZIO.attempt(true))
+    .runCollect
 
 
 
-trait Base
-case class BString(v: String) extends Base
-case class BInt(v: Int)       extends Base
-
-trait Enc[A] { self =>
-  type B
-  def encode(chunk: A): self.B
+Unsafe.unsafe { implicit unsafe =>
+  Runtime.default.unsafe.run(eff)
 }
 
-val stringEnc: Enc[String] = new Enc[String] {
-  type B = BString
-  override def encode(chunk: String): BString =
-    BString(chunk)
-}
-
-stringEnc.encode("foo")
+//
+//trait Base
+//case class BString(v: String) extends Base
+//case class BInt(v: Int)       extends Base
+//
+//trait Enc[A] { self =>
+//  type B
+//  def encode(chunk: A): self.B
+//}
+//
+//val stringEnc: Enc[String] = new Enc[String] {
+//  type B = BString
+//  override def encode(chunk: String): BString =
+//    BString(chunk)
+//}
+//
+//stringEnc.encode("foo")
 
 //
 //trait Encoder[A, B] {
@@ -49,15 +60,15 @@ stringEnc.encode("foo")
 // Fixtures
 //////////////////////////////////
 
-final case class ListOfScalars(list: List[Int])
-object ListOfScalars {
-  implicit val schema: Schema[ListOfScalars] = DeriveSchema.gen[ListOfScalars]
-}
-
-final case class StructOfScalars(a: Int, b: String)
-object StructOfScalars {
-  implicit val schema: Schema[StructOfScalars] = DeriveSchema.gen[StructOfScalars]
-}
+//final case class ListOfScalars(list: List[Int])
+//object ListOfScalars {
+//  implicit val schema: Schema[ListOfScalars] = DeriveSchema.gen[ListOfScalars]
+//}
+//
+//final case class StructOfScalars(a: Int, b: String)
+//object StructOfScalars {
+//  implicit val schema: Schema[StructOfScalars] = DeriveSchema.gen[StructOfScalars]
+//}
 //////////////////////////////////
 // Allocator
 //////////////////////////////////
@@ -69,26 +80,26 @@ implicit val alloc = new RootAllocator()
 //////////////////////////////////
 
 // List
-val listVec = ListVector.empty("listVec", alloc)
-
-val writer     = listVec.getWriter
-val writerList = writer.list()
-val writerStruct = writer.struct()
-
-writer.startList()
-writerStruct.start()
-writerStruct.integer("a").writeInt(1)
-writerStruct.bit("b").writeBit(0)
-writerStruct.end()
-writer.endList()
-
-writer.startList()
-writerStruct.start()
-writerStruct.integer("a").writeInt(2)
-writerStruct.bit("b").writeBit(1)
-writerStruct.bigInt("c").writeBigInt(3)
-writerStruct.end()
-writer.endList()
+//val listVec = ListVector.empty("listVec", alloc)
+//
+//val writer     = listVec.getWriter
+//val writerList = writer.list()
+//val writerStruct = writer.struct()
+//
+//writer.startList()
+//writerStruct.start()
+//writerStruct.integer("a").writeInt(1)
+//writerStruct.bit("b").writeBit(0)
+//writerStruct.end()
+//writer.endList()
+//
+//writer.startList()
+//writerStruct.start()
+//writerStruct.integer("a").writeInt(2)
+//writerStruct.bit("b").writeBit(1)
+//writerStruct.bigInt("c").writeBigInt(3)
+//writerStruct.end()
+//writer.endList()
 
 //writerList.startList()
 //writerList.integer().writeInt(1)
@@ -114,9 +125,9 @@ writer.endList()
 
 //writerList.getPosition
 
-listVec.setValueCount(2)
-
-listVec
+//listVec.setValueCount(2)
+//
+//listVec
 
 // Struct
 //val structVec = StructVector.empty("structVector", alloc)

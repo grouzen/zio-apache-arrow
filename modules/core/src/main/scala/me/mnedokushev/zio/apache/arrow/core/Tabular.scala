@@ -8,9 +8,9 @@ import zio.schema.{ Schema => ZSchema }
 import scala.jdk.CollectionConverters._
 import org.apache.arrow.vector.types.pojo.Schema
 
-object TabularData {
+object Tabular {
 
-  def root[Val](implicit schema: ZSchema[Val]): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
+  def empty[Val](implicit schema: ZSchema[Val]): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
     ZIO.fromAutoCloseable(
       ZIO.serviceWithZIO[BufferAllocator] { implicit alloc =>
         for {
