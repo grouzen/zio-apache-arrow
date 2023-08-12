@@ -27,6 +27,21 @@ object CodecSpec extends ZIOSpecDefault {
       }
     )
 
+  val valueVectorEncoderSpec =
+    suite("ValueVectorEncoder")(
+      test("contramap") {
+        ZIO.scoped(
+          for {
+            intVec <- ValueVectorEncoder
+                        .primitive[Int, IntVector]
+                        .contramap[String](s => s.toInt)
+                        .encodeZIO(Chunk("1", "2", "3"))
+            result <- ValueVectorDecoder.primitive[IntVector, Int].decodeZIO(intVec)
+          } yield assert(result)(equalTo(Chunk(1, 2, 3)))
+        )
+      }
+    )
+
   val valueVectorCodecPrimitiveSpec =
     suite("ValueVector Encoder/Decoder primitive")(
       test("codec - empty") {
@@ -241,6 +256,7 @@ object CodecSpec extends ZIOSpecDefault {
   val valueVectorCodecSpec =
     suite("ValueVector Encoder/Decoder")(
       valueVectorDecoderSpec,
+      valueVectorEncoderSpec,
       valueVectorCodecPrimitiveSpec,
       valueVectorCodecListSpec,
       valueVectorCodecStructSpec
@@ -259,9 +275,26 @@ object CodecSpec extends ZIOSpecDefault {
       }
     )
 
+  val vectorSchemaRootEncoderSpec =
+    suite("VectorSchemaRootEncoder")(
+      test("contramap") {
+        ZIO.scoped(
+          for {
+            root   <- Tabular.empty[Primitives]
+            _      <- VectorSchemaRootEncoder
+                        .schema[Primitives]
+                        .contramap[String](s => Primitives(s.toInt, s.toDouble, s))
+                        .encodeZIO(Chunk("1", "2"), root)
+            result <- VectorSchemaRootDecoder.schema[Primitives].decodeZIO(root)
+          } yield assert(result)(equalTo(Chunk(Primitives(1, 1.0, "1"), Primitives(2, 2.0, "2"))))
+        )
+      }
+    )
+
   val vectorSchemaRootCodecSpec =
     suite("VectorSchemaRoot Encoder/Decoder")(
       vectorSchemaRootDecoderSpec,
+      vectorSchemaRootEncoderSpec,
       test("codec - primitives") {
         ZIO.scoped(
           for {

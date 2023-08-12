@@ -26,7 +26,7 @@ trait ValueVectorDecoder[Vector <: ValueVector, +Val] { self =>
 
   protected def decodeUnsafe(vec: Vector): Chunk[Val]
 
-  def map[B](f: Val => B): ValueVectorDecoder[Vector, B] =
+  final def map[B](f: Val => B): ValueVectorDecoder[Vector, B] =
     new ValueVectorDecoder[Vector, B] {
       override protected def decodeUnsafe(vec: Vector): Chunk[B] =
         self.decodeUnsafe(vec).map(f)

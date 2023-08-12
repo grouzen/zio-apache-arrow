@@ -11,7 +11,7 @@ import zio.schema.Schema
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
-trait VectorSchemaRootEncoder[-Val] {
+trait VectorSchemaRootEncoder[-Val] { self =>
 
   final def encodeZIO(chunk: Chunk[Val], root: VectorSchemaRoot): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
     ZIO.fromAutoCloseable(
@@ -35,6 +35,14 @@ trait VectorSchemaRootEncoder[-Val] {
     chunk: Chunk[Val],
     root: VectorSchemaRoot
   )(implicit alloc: BufferAllocator): VectorSchemaRoot
+
+  final def contramap[B](f: B => Val): VectorSchemaRootEncoder[B] =
+    new VectorSchemaRootEncoder[B] {
+      override protected def encodeUnsafe(chunk: Chunk[B], root: VectorSchemaRoot)(implicit
+        alloc: BufferAllocator
+      ): VectorSchemaRoot =
+        self.encodeUnsafe(chunk.map(f), root)
+    }
 
 }
 
@@ -102,7 +110,7 @@ object VectorSchemaRootEncoder {
               root.setRowCount(len)
               root
             }
-          case _ =>
+          case _                          =>
             throw EncoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
       }

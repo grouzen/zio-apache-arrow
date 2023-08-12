@@ -12,7 +12,7 @@ import java.nio.charset.StandardCharsets
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
-trait ValueVectorEncoder[-Val, Vector <: ValueVector] {
+trait ValueVectorEncoder[-Val, Vector <: ValueVector] { self =>
 
   final def encodeZIO(chunk: Chunk[Val]): RIO[Scope with BufferAllocator, Vector] =
     ZIO.fromAutoCloseable(
@@ -31,6 +31,12 @@ trait ValueVectorEncoder[-Val, Vector <: ValueVector] {
     }
 
   protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector
+
+  final def contramap[B](f: B => Val): ValueVectorEncoder[B, Vector] =
+    new ValueVectorEncoder[B, Vector] {
+      override protected def encodeUnsafe(chunk: Chunk[B])(implicit alloc: BufferAllocator): Vector =
+        self.encodeUnsafe(chunk.map(f))
+    }
 
 }
 
