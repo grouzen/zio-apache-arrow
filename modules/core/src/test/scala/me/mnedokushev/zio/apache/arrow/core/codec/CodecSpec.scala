@@ -15,32 +15,17 @@ object CodecSpec extends ZIOSpecDefault {
       vectorSchemaRootCodecSpec
     ).provideLayerShared(Allocator.rootLayer())
 
-//  val vectorDecoderSpec =
-//    suite("ArrowVectorDecoder")(
-//      test("decoder map") {
-//        ZIO.scoped(
-//          for {
-//            intVec <- ArrowVectorEncoder.primitive[Int, IntVector].encodeZIO(Chunk(1, 2, 3))
-//            result <- ArrowVectorDecoder.primitive[IntVector, Int].map(_.toString).decodeZIO(intVec)
-//          } yield assert(result)(equalTo(Chunk("1", "2", "3")))
-//        )
-//      },
-//      test("decoder flatMap") {
-//        val decoder = ArrowVectorDecoder.primitive[IntVector, Int]
-//
-//        ZIO.scoped(
-//          for {
-//            intVec <- ArrowVectorEncoder.primitive[Int, IntVector].encodeZIO(Chunk(1, 2, 3))
-//            result <- decoder.flatMap {
-//                        case i if i % 2 == 0 =>
-//                          decoder.map(even => s"even:$even")
-//                        case _ =>
-//                          decoder.map(odd => s"odd:$odd")
-//                      }.decodeZIO(intVec)
-//          } yield assert(result)(equalTo(Chunk("odd:1", "even:2", "odd:3")))
-//        )
-//      }
-//    )
+  val valueVectorDecoderSpec =
+    suite("ValueVectorDecoder")(
+      test("map") {
+        ZIO.scoped(
+          for {
+            intVec <- ValueVectorEncoder.primitive[Int, IntVector].encodeZIO(Chunk(1, 2, 3))
+            result <- ValueVectorDecoder.primitive[IntVector, Int].map(_.toString).decodeZIO(intVec)
+          } yield assert(result)(equalTo(Chunk("1", "2", "3")))
+        )
+      }
+    )
 
   val valueVectorCodecPrimitiveSpec =
     suite("ValueVector Encoder/Decoder primitive")(
@@ -253,27 +238,41 @@ object CodecSpec extends ZIOSpecDefault {
       }
     )
 
-  val vectorSchemaRootCodecSpec =
-    suite("VectorSchemaRoot Encoder/Decoder")(
-      test("codec - primitives") {
+  val valueVectorCodecSpec =
+    suite("ValueVector Encoder/Decoder")(
+      valueVectorDecoderSpec,
+      valueVectorCodecPrimitiveSpec,
+      valueVectorCodecListSpec,
+      valueVectorCodecStructSpec
+    )
+
+  val vectorSchemaRootDecoderSpec =
+    suite("VectorSchemaRootDecoder")(
+      test("map") {
         ZIO.scoped(
           for {
-            rootVec <- Tabular.empty[Primitives]
-            _       <- VectorSchemaRootEncoder
-                         .schema[Primitives]
-                         .encodeZIO(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), rootVec)
-            result  <- VectorSchemaRootDecoder.schema[Primitives].decodeZIO(rootVec)
-          } yield assert(result)(equalTo(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))))
+            root   <- Tabular.empty[Primitives]
+            _      <- VectorSchemaRootEncoder.schema[Primitives].encodeZIO(Chunk(Primitives(1, 2.0, "3")), root)
+            result <- VectorSchemaRootDecoder.schema[Primitives].map(p => s"${p.a}, ${p.b}, ${p.c}").decodeZIO(root)
+          } yield assert(result)(equalTo(Chunk("1, 2.0, 3")))
         )
       }
     )
 
-  val valueVectorCodecSpec =
-    suite("ValueVector Encoder/Decoder")(
-//      vectorDecoderSpec,
-      valueVectorCodecPrimitiveSpec,
-      valueVectorCodecListSpec,
-      valueVectorCodecStructSpec
+  val vectorSchemaRootCodecSpec =
+    suite("VectorSchemaRoot Encoder/Decoder")(
+      vectorSchemaRootDecoderSpec,
+      test("codec - primitives") {
+        ZIO.scoped(
+          for {
+            root   <- Tabular.empty[Primitives]
+            _      <- VectorSchemaRootEncoder
+                        .schema[Primitives]
+                        .encodeZIO(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), root)
+            result <- VectorSchemaRootDecoder.schema[Primitives].decodeZIO(root)
+          } yield assert(result)(equalTo(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))))
+        )
+      }
     )
 
 }

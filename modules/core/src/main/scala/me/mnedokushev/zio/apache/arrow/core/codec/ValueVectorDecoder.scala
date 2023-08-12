@@ -26,17 +26,11 @@ trait ValueVectorDecoder[Vector <: ValueVector, +Val] { self =>
 
   protected def decodeUnsafe(vec: Vector): Chunk[Val]
 
-//  def flatMap[B](f: Val => ArrowVectorDecoder[Vector, B]): ArrowVectorDecoder[Vector, B] =
-//    new ArrowVectorDecoder[Vector, B] {
-//      override protected def decodeUnsafe(from: Vector): Chunk[B] =
-//        self.decodeUnsafe(from).flatMap(v => f(v).decodeUnsafe(from))
-//    }
-//
-//  def map[B](f: Val => B): ArrowVectorDecoder[Vector, B] =
-//    new ArrowVectorDecoder[Vector, B] {
-//      override protected def decodeUnsafe(from: Vector): Chunk[B] =
-//        self.decodeUnsafe(from).map(f)
-//    }
+  def map[B](f: Val => B): ValueVectorDecoder[Vector, B] =
+    new ValueVectorDecoder[Vector, B] {
+      override protected def decodeUnsafe(vec: Vector): Chunk[B] =
+        self.decodeUnsafe(vec).map(f)
+    }
 
 }
 

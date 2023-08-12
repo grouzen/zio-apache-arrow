@@ -61,7 +61,6 @@ package object ipc {
                   } yield ()
                 }
     } yield out
-
   }
 
 }

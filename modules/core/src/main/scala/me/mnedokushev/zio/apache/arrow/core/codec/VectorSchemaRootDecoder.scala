@@ -25,18 +25,11 @@ trait VectorSchemaRootDecoder[Val] { self =>
 
   protected def decodeUnsafe(root: VectorSchemaRoot): Chunk[Val]
 
-//
-//  final def flatMap[B](f: Val => VectorSchemaRootDecoder[B]): VectorSchemaRootDecoder[B] =
-//    new VectorSchemaRootDecoder[B] {
-//      override def decodeUnsafe(from: VectorSchemaRoot, idx: Int): B =
-//        f(self.decodeUnsafe(from, idx)).decodeUnsafe(from, idx)
-//    }
-//
-//  final def map[B](f: Val => B): VectorSchemaRootDecoder[B] =
-//    new VectorSchemaRootDecoder[B] {
-//      override def decodeUnsafe(from: VectorSchemaRoot, idx: Int): B =
-//        f(self.decodeUnsafe(from, idx))
-//    }
+  final def map[B](f: Val => B): VectorSchemaRootDecoder[B] =
+    new VectorSchemaRootDecoder[B] {
+      override def decodeUnsafe(root: VectorSchemaRoot): Chunk[B] =
+        self.decodeUnsafe(root).map(f)
+    }
 
 }
 
@@ -94,7 +87,7 @@ object VectorSchemaRootDecoder {
 
               builder.result()
             }
-          case _ =>
+          case _                          =>
             throw DecoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
       }
