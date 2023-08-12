@@ -4,22 +4,27 @@ import zio.schema._
 
 object Fixtures {
 
-  final case class Scalars(a: Int, b: Double, c: String)
-  object Scalars {
-    implicit val schema: Schema[Scalars] = DeriveSchema.gen[Scalars]
+  final case class Primitives(a: Int, b: Double, c: String)
+  object Primitives {
+    implicit val schema: Schema[Primitives] = DeriveSchema.gen[Primitives]
   }
 
-  final case class StructOfScalars(struct: Scalars)
-  object StructOfScalars {
-    implicit val schema: Schema[StructOfScalars] = DeriveSchema.gen[StructOfScalars]
+  final case class NullablePrimitives(a: Option[Int], b: Option[Double])
+  object NullablePrimitives {
+    implicit val schema: Schema[NullablePrimitives] = DeriveSchema.gen[NullablePrimitives]
   }
 
-  final case class StructOfLists(struct: ListOfScalars)
+  final case class StructOfPrimitives(struct: Primitives)
+  object StructOfPrimitives {
+    implicit val schema: Schema[StructOfPrimitives] = DeriveSchema.gen[StructOfPrimitives]
+  }
+
+  final case class StructOfLists(struct: ListOfPrimitives)
   object StructOfLists {
     implicit val schema: Schema[StructOfLists] = DeriveSchema.gen[StructOfLists]
   }
 
-  final case class StructOfStructs(struct: StructOfScalars)
+  final case class StructOfStructs(struct: StructOfPrimitives)
   object StructOfStructs {
     implicit val schema: Schema[StructOfStructs] = DeriveSchema.gen[StructOfStructs]
   }
@@ -29,12 +34,12 @@ object Fixtures {
     implicit val schema: Schema[StructOfListsOfStructs] = DeriveSchema.gen[StructOfListsOfStructs]
   }
 
-  final case class ListOfScalars(list: List[Int])
-  object ListOfScalars {
-    implicit val schema: Schema[ListOfScalars] = DeriveSchema.gen[ListOfScalars]
+  final case class ListOfPrimitives(list: List[Int])
+  object ListOfPrimitives {
+    implicit val schema: Schema[ListOfPrimitives] = DeriveSchema.gen[ListOfPrimitives]
   }
 
-  final case class ListOfStructs(list: List[Scalars])
+  final case class ListOfStructs(list: List[Primitives])
   object ListOfStructs {
     implicit val schema: Schema[ListOfStructs] = DeriveSchema.gen[ListOfStructs]
   }
@@ -44,7 +49,7 @@ object Fixtures {
     implicit val schema: Schema[ListOfLists] = DeriveSchema.gen[ListOfLists]
   }
 
-  final case class ListOfStructsOfLists(list: List[ListOfScalars])
+  final case class ListOfStructsOfLists(list: List[ListOfPrimitives])
   object ListOfStructsOfLists {
     implicit val schema: Schema[ListOfStructsOfLists] = DeriveSchema.gen[ListOfStructsOfLists]
   }

@@ -3,12 +3,10 @@ package me.mnedokushev.zio.apache.arrow.core
 import org.apache.arrow.memory.RootAllocator
 import zio._
 
-object ArrowAllocator {
+object Allocator {
 
   def root(limit: Long = Long.MaxValue): ZIO[Scope, Throwable, RootAllocator] =
-    ZIO.acquireRelease(
-      ZIO.attempt(new RootAllocator(limit))
-    )(a => ZIO.attempt(a.close()).ignoreLogged)
+    ZIO.fromAutoCloseable(ZIO.attempt(new RootAllocator(limit)))
 
   def rootLayer(limit: Long = Long.MaxValue): TaskLayer[RootAllocator] =
     ZLayer.scoped(root(limit))
