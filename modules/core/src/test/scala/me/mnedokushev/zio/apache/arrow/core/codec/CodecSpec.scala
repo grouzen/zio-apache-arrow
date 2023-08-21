@@ -91,43 +91,43 @@ object CodecSpec extends ZIOSpecDefault {
       test("codec list - empty") {
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.list[Int, List].encodeZIO(Chunk.empty)
-            result <- ValueVectorDecoder.list[Int, List].decodeZIO(vec)
+            vec    <- ValueVectorEncoder.list[Int].encodeZIO(Chunk.empty)
+            result <- ValueVectorDecoder.list[Int].decodeZIO(vec)
           } yield assertTrue(result.isEmpty)
         )
       },
       test("codec list - boolean") {
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.list[Boolean, Set].encodeZIO(Chunk(Set(true), Set(false, true)))
-            result <- ValueVectorDecoder.list[Boolean, List].decodeZIO(vec)
-          } yield assert(result)(equalTo(Chunk(List(true), List(false, true))))
+            vec    <- ValueVectorEncoder.list[Boolean].encodeZIO(Chunk(Chunk(true), Chunk(false, true)))
+            result <- ValueVectorDecoder.list[Boolean].decodeZIO(vec)
+          } yield assert(result)(equalTo(Chunk(Chunk(true), Chunk(false, true))))
         )
       },
       test("codec list - int") {
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.list[Int, Set].encodeZIO(Chunk(Set(1, 2), Set(3)))
-            result <- ValueVectorDecoder.list[Int, List].decodeZIO(vec)
-          } yield assert(result)(equalTo(Chunk(List(1, 2), List(3))))
+            vec    <- ValueVectorEncoder.list[Int].encodeZIO(Chunk(Chunk(1, 2), Chunk(3)))
+            result <- ValueVectorDecoder.list[Int].decodeZIO(vec)
+          } yield assert(result)(equalTo(Chunk(Chunk(1, 2), Chunk(3))))
         )
       },
       test("codec list - long") {
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.list[Long, Set].encodeZIO(Chunk(Set(1L, 2L), Set(3L)))
-            result <- ValueVectorDecoder.list[Long, List].decodeZIO(vec)
-          } yield assert(result)(equalTo(Chunk(List(1L, 2L), List(3L))))
+            vec    <- ValueVectorEncoder.list[Long].encodeZIO(Chunk(Chunk(1L, 2L), Chunk(3L)))
+            result <- ValueVectorDecoder.list[Long].decodeZIO(vec)
+          } yield assert(result)(equalTo(Chunk(Chunk(1L, 2L), Chunk(3L))))
         )
       },
       test("codec list - list of primitives") {
         ZIO.scoped(
           for {
             vec    <- ValueVectorEncoder
-                        .list[List[Int], List]
-                        .encodeZIO(Chunk(List(List(1, 2), List(3)), List(List(4), List(5, 6))))
-            result <- ValueVectorDecoder.list[List[Int], List].decodeZIO(vec)
-          } yield assert(result)(equalTo(Chunk(List(List(1, 2), List(3)), List(List(4), List(5, 6)))))
+                        .list[List[Int]]
+                        .encodeZIO(Chunk(Chunk(List(1, 2), List(3)), Chunk(List(4), List(5, 6))))
+            result <- ValueVectorDecoder.list[List[Int]].decodeZIO(vec)
+          } yield assert(result)(equalTo(Chunk(Chunk(List(1, 2), List(3)), Chunk(List(4), List(5, 6)))))
         )
       },
       test("codec list - list of structs") {
@@ -135,11 +135,11 @@ object CodecSpec extends ZIOSpecDefault {
           for {
             vec    <-
               ValueVectorEncoder
-                .list[Primitives, List]
-                .encodeZIO(Chunk(List(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), List(Primitives(7, 8.0, "9"))))
-            result <- ValueVectorDecoder.list[Primitives, List].decodeZIO(vec)
+                .list[Primitives]
+                .encodeZIO(Chunk(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), Chunk(Primitives(7, 8.0, "9"))))
+            result <- ValueVectorDecoder.list[Primitives].decodeZIO(vec)
           } yield assert(result)(
-            equalTo(Chunk(List(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), List(Primitives(7, 8.0, "9"))))
+            equalTo(Chunk(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), Chunk(Primitives(7, 8.0, "9"))))
           )
         )
       }

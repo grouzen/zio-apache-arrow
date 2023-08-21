@@ -70,14 +70,14 @@ object ValueVectorDecoder {
         }
     }
 
-  implicit def list[Val, Col[x] <: Iterable[x]](implicit
+  implicit def list[Val](implicit
     schema: Schema[Val]
-  ): ValueVectorDecoder[ListVector, Col[Val]] =
-    new ValueVectorDecoder[ListVector, Col[Val]] {
-      override protected def decodeUnsafe(vec: ListVector): Chunk[Col[Val]] = {
+  ): ValueVectorDecoder[ListVector, Chunk[Val]] =
+    new ValueVectorDecoder[ListVector, Chunk[Val]] {
+      override protected def decodeUnsafe(vec: ListVector): Chunk[Chunk[Val]] = {
         var idx     = 0
         val len     = vec.getValueCount
-        val builder = ChunkBuilder.make[Col[Val]](len)
+        val builder = ChunkBuilder.make[Chunk[Val]](len)
         val reader  = vec.getReader
 
         while (idx < len) {
@@ -94,7 +94,7 @@ object ValueVectorDecoder {
               }
             }
 
-          builder.addOne(buffer.result().asInstanceOf[Col[Val]])
+          builder.addOne(Chunk.fromIterable(buffer.result()))
           idx += 1
         }
 

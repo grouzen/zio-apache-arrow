@@ -89,11 +89,11 @@ object ValueVectorEncoder {
       }
     }
 
-  implicit def list[Val, Col[x] <: Iterable[x]](implicit
+  implicit def list[Val](implicit
     schema: Schema[Val]
-  ): ValueVectorEncoder[Col[Val], ListVector] =
-    new ValueVectorEncoder[Col[Val], ListVector] {
-      override protected def encodeUnsafe(chunk: Chunk[Col[Val]])(implicit alloc: BufferAllocator): ListVector = {
+  ): ValueVectorEncoder[Chunk[Val], ListVector] =
+    new ValueVectorEncoder[Chunk[Val], ListVector] {
+      override protected def encodeUnsafe(chunk: Chunk[Chunk[Val]])(implicit alloc: BufferAllocator): ListVector = {
         val vec    = ListVector.empty("listVector", alloc)
         val len    = chunk.length
         val writer = vec.getWriter
