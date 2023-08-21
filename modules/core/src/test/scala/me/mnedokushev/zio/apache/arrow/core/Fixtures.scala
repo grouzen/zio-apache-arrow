@@ -1,4 +1,4 @@
-package me.mnedokushev.zio.apache.arrow.core.codec
+package me.mnedokushev.zio.apache.arrow.core
 
 import zio.schema._
 

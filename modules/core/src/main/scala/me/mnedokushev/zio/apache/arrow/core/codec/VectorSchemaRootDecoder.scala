@@ -35,6 +35,9 @@ trait VectorSchemaRootDecoder[Val] { self =>
 
 object VectorSchemaRootDecoder {
 
+  def apply[Val](implicit decoder: VectorSchemaRootDecoder[Val]): VectorSchemaRootDecoder[Val] =
+    decoder
+
   implicit def schema[Val](implicit schema: Schema[Val]): VectorSchemaRootDecoder[Val] =
     new VectorSchemaRootDecoder[Val] {
       override protected def decodeUnsafe(root: VectorSchemaRoot): Chunk[Val] = {

@@ -1,7 +1,7 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import me.mnedokushev.zio.apache.arrow.core.Allocator
-import me.mnedokushev.zio.apache.arrow.core.codec.Fixtures.{
+import me.mnedokushev.zio.apache.arrow.core.Fixtures.{
   ListOfPrimitives,
   NullablePrimitives,
   Primitives,
@@ -25,7 +25,7 @@ object SchemaEncoderSpec extends ZIOSpecDefault {
     )
 
   val encodeFlatSpec =
-    suite("encodeFlat")(
+    suite("schemaRoot")(
       test("primitive") {
         for {
           result <- schemaRoot[Primitives]

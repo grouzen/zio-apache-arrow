@@ -1,29 +1,48 @@
 package me.mnedokushev.zio.apache.arrow.core
 
-import me.mnedokushev.zio.apache.arrow.core.codec.SchemaEncoder
+import me.mnedokushev.zio.apache.arrow.core.codec.{ SchemaEncoder, VectorSchemaRootEncoder }
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import zio._
 import zio.schema.{ Schema => ZSchema }
+import zio.stream.ZStream
+
 import scala.jdk.CollectionConverters._
-import org.apache.arrow.vector.types.pojo.Schema
 
 object Tabular {
 
-  def empty[Val](implicit schema: ZSchema[Val]): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
+  def empty[A](implicit schema: ZSchema[A]): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
     ZIO.fromAutoCloseable(
       ZIO.serviceWithZIO[BufferAllocator] { implicit alloc =>
         for {
-          schema0 <- ZIO.fromEither(SchemaEncoder.schemaRoot[Val])
+          schema0 <- ZIO.fromEither(SchemaEncoder.schemaRoot[A])
           vectors <- ZIO.foreach(schema0.getFields.asScala.toList) { f =>
                        for {
                          vec <- ZIO.attempt(f.createVector(alloc))
                          _   <- ZIO.attempt(vec.allocateNew())
                        } yield vec
                      }
-          vec     <- ZIO.attempt(new VectorSchemaRoot(schema0.getFields, vectors.asJava))
-        } yield vec
+          root    <- ZIO.attempt(new VectorSchemaRoot(schema0.getFields, vectors.asJava))
+        } yield root
       }
     )
+
+  def fromChunk[A](chunk: Chunk[A])(implicit
+    schema: ZSchema[A],
+    encoder: VectorSchemaRootEncoder[A]
+  ): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
+    for {
+      root <- empty
+      _    <- encoder.encodeZIO(chunk, root)
+    } yield root
+
+  def fromStream[R, A](stream: ZStream[R, Throwable, A])(implicit
+    schema: ZSchema[A],
+    encoder: VectorSchemaRootEncoder[A]
+  ): RIO[R with Scope with BufferAllocator, VectorSchemaRoot] =
+    for {
+      chunk <- stream.runCollect
+      root  <- fromChunk(chunk)
+    } yield root
 
 }

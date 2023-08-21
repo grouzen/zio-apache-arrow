@@ -1,7 +1,7 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import me.mnedokushev.zio.apache.arrow.core.{ Allocator, Tabular }
-import me.mnedokushev.zio.apache.arrow.core.codec.Fixtures._
+import me.mnedokushev.zio.apache.arrow.core.Fixtures._
 import org.apache.arrow.vector._
 import zio._
 import zio.test.Assertion._
@@ -268,8 +268,8 @@ object CodecSpec extends ZIOSpecDefault {
         ZIO.scoped(
           for {
             root   <- Tabular.empty[Primitives]
-            _      <- VectorSchemaRootEncoder.schema[Primitives].encodeZIO(Chunk(Primitives(1, 2.0, "3")), root)
-            result <- VectorSchemaRootDecoder.schema[Primitives].map(p => s"${p.a}, ${p.b}, ${p.c}").decodeZIO(root)
+            _      <- VectorSchemaRootEncoder[Primitives].encodeZIO(Chunk(Primitives(1, 2.0, "3")), root)
+            result <- VectorSchemaRootDecoder[Primitives].map(p => s"${p.a}, ${p.b}, ${p.c}").decodeZIO(root)
           } yield assert(result)(equalTo(Chunk("1, 2.0, 3")))
         )
       }
@@ -281,8 +281,7 @@ object CodecSpec extends ZIOSpecDefault {
         ZIO.scoped(
           for {
             root   <- Tabular.empty[Primitives]
-            _      <- VectorSchemaRootEncoder
-                        .schema[Primitives]
+            _      <- VectorSchemaRootEncoder[Primitives]
                         .contramap[String](s => Primitives(s.toInt, s.toDouble, s))
                         .encodeZIO(Chunk("1", "2"), root)
             result <- VectorSchemaRootDecoder.schema[Primitives].decodeZIO(root)
@@ -299,8 +298,7 @@ object CodecSpec extends ZIOSpecDefault {
         ZIO.scoped(
           for {
             root   <- Tabular.empty[Primitives]
-            _      <- VectorSchemaRootEncoder
-                        .schema[Primitives]
+            _      <- VectorSchemaRootEncoder[Primitives]
                         .encodeZIO(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), root)
             result <- VectorSchemaRootDecoder.schema[Primitives].decodeZIO(root)
           } yield assert(result)(equalTo(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))))
