@@ -45,4 +45,10 @@ object Tabular {
       root  <- fromChunk(chunk)
     } yield root
 
+  def toChunk[A](root: VectorSchemaRoot)(implicit decoder: VectorSchemaRootDecoder[A]): Task[Chunk[A]] =
+    decoder.decodeZIO(root)
+
+  def toStream[A](root: VectorSchemaRoot)(implicit decoder: VectorSchemaRootDecoder[A]): ZStream[Any, Throwable, A] =
+    ZStream.fromIterableZIO(decoder.decodeZIO(root))
+
 }
