@@ -1,6 +1,6 @@
 package me.mnedokushev.zio.apache.arrow.core
 
-import me.mnedokushev.zio.apache.arrow.core.codec.{ SchemaEncoder, VectorSchemaRootEncoder }
+import me.mnedokushev.zio.apache.arrow.core.codec._
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import zio._

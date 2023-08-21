@@ -1,14 +1,8 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
-import me.mnedokushev.zio.apache.arrow.core.Allocator
-import me.mnedokushev.zio.apache.arrow.core.Fixtures.{
-  ListOfPrimitives,
-  NullablePrimitives,
-  Primitives,
-  StructOfPrimitives
-}
+import me.mnedokushev.zio.apache.arrow.core.Fixtures._
 import org.apache.arrow.vector.types.FloatingPointPrecision
-import org.apache.arrow.vector.types.pojo.{ ArrowType, Field, FieldType, Schema }
+import org.apache.arrow.vector.types.pojo.{ ArrowType, Field, Schema }
 import zio.Scope
 import zio.test.Assertion._
 import zio.test._
