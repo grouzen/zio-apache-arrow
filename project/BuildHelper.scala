@@ -5,13 +5,13 @@ import scalafix.sbt.ScalafixPlugin.autoImport.scalafixSemanticdb
 object BuildHelper {
 
   def stdSettings(projectName: String): Seq[Def.Setting[_]] = Seq(
-    name         := s"zio-apache-arrow-$projectName",
-    organization := "me.mnedokushev",
+    name              := s"zio-apache-arrow-$projectName",
+    organization      := "me.mnedokushev",
     libraryDependencies ++= betterMonadicFor(scalaVersion.value),
     semanticdbEnabled := true,
     semanticdbVersion := scalafixSemanticdb.revision,
-    Test / javaOptions ++= Seq("--add-opens=java.base/java.nio=ALL-UNNAMED"),
-    Test / fork  := true
+    Test / javaOptions ++= arrowJavaCompat,
+    Test / fork       := true
   )
 
   val Scala212 = "2.12.18"
@@ -23,5 +23,11 @@ object BuildHelper {
       case Some((2, _)) => Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"))
       case _            => Seq()
     }
+
+  private def arrowJavaCompat =
+    if (System.getProperty("java.version").startsWith("1.8"))
+      Seq()
+    else
+      Seq("--add-opens=java.base/java.nio=ALL-UNNAMED")
 
 }
