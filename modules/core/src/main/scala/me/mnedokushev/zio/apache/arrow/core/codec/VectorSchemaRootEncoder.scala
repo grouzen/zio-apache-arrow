@@ -48,6 +48,9 @@ trait VectorSchemaRootEncoder[-Val] { self =>
 
 object VectorSchemaRootEncoder {
 
+  def apply[Val](implicit encoder: VectorSchemaRootEncoder[Val]): VectorSchemaRootEncoder[Val] =
+    encoder
+
   implicit def schema[Val](implicit schema: Schema[Val]): VectorSchemaRootEncoder[Val] =
     new VectorSchemaRootEncoder[Val] {
       override protected def encodeUnsafe(

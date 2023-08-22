@@ -2,7 +2,9 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ValueVector
+import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import zio._
+import zio.schema.Schema
 
 final case class ValueVectorCodec[Val, Vector <: ValueVector](
   encoder: ValueVectorEncoder[Val, Vector],
@@ -32,5 +34,14 @@ object ValueVectorCodec {
     codec: ValueVectorCodec[Val, Vector]
   ): ValueVectorCodec[Val, Vector] =
     codec
+
+  implicit def primitive[Val, Vector <: ValueVector](implicit schema: Schema[Val]): ValueVectorCodec[Val, Vector] =
+    ValueVectorCodec(ValueVectorEncoder.primitive[Val, Vector], ValueVectorDecoder[Vector, Val])
+
+  implicit def list[Val](implicit schema: Schema[Val]): ValueVectorCodec[Chunk[Val], ListVector] =
+    ValueVectorCodec(ValueVectorEncoder.list[Val], ValueVectorDecoder.list[Val])
+
+  implicit def struct[Val](implicit schema: Schema[Val]): ValueVectorCodec[Val, StructVector] =
+    ValueVectorCodec(ValueVectorEncoder.struct[Val], ValueVectorDecoder.struct[Val])
 
 }

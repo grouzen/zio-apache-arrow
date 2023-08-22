@@ -1,7 +1,7 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import me.mnedokushev.zio.apache.arrow.core.{ Allocator, Tabular }
-import me.mnedokushev.zio.apache.arrow.core.codec.Fixtures._
+import me.mnedokushev.zio.apache.arrow.core.Fixtures._
 import org.apache.arrow.vector._
 import zio._
 import zio.test.Assertion._
@@ -18,10 +18,12 @@ object CodecSpec extends ZIOSpecDefault {
   val valueVectorDecoderSpec =
     suite("ValueVectorDecoder")(
       test("map") {
+        val codec = ValueVectorCodec[Int, IntVector]
+
         ZIO.scoped(
           for {
-            intVec <- ValueVectorEncoder.primitive[Int, IntVector].encodeZIO(Chunk(1, 2, 3))
-            result <- ValueVectorDecoder.primitive[IntVector, Int].map(_.toString).decodeZIO(intVec)
+            intVec <- codec.encodeZIO(Chunk(1, 2, 3))
+            result <- codec.decoder.map(_.toString).decodeZIO(intVec)
           } yield assert(result)(equalTo(Chunk("1", "2", "3")))
         )
       }
@@ -30,215 +32,249 @@ object CodecSpec extends ZIOSpecDefault {
   val valueVectorEncoderSpec =
     suite("ValueVectorEncoder")(
       test("contramap") {
+        val codec = ValueVectorCodec[Int, IntVector]
+
         ZIO.scoped(
           for {
-            intVec <- ValueVectorEncoder
-                        .primitive[Int, IntVector]
-                        .contramap[String](s => s.toInt)
-                        .encodeZIO(Chunk("1", "2", "3"))
-            result <- ValueVectorDecoder.primitive[IntVector, Int].decodeZIO(intVec)
+            intVec <- codec.encoder.contramap[String](s => s.toInt).encodeZIO(Chunk("1", "2", "3"))
+            result <- codec.decodeZIO(intVec)
           } yield assert(result)(equalTo(Chunk(1, 2, 3)))
         )
       }
     )
 
   val valueVectorCodecPrimitiveSpec =
-    suite("ValueVector Encoder/Decoder primitive")(
-      test("codec - empty") {
+    suite("ValueVectorCodec primitive")(
+      test("empty") {
+        val codec = ValueVectorCodec[Int, IntVector]
+
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.primitive[Int, IntVector].encodeZIO(Chunk.empty)
-            result <- ValueVectorDecoder.primitive[IntVector, Int].decodeZIO(vec)
+            vec    <- codec.encodeZIO(Chunk.empty)
+            result <- codec.decodeZIO(vec)
           } yield assertTrue(result.isEmpty)
         )
       },
-      test("codec - boolean") {
+      test("boolean") {
+        val codec   = ValueVectorCodec[Boolean, BitVector]
+        val payload = Chunk(true, true, false)
+
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.primitive[Boolean, BitVector].encodeZIO(Chunk(true, true, false))
-            result <- ValueVectorDecoder.primitive[BitVector, Boolean].decodeZIO(vec)
-          } yield assert(result)(equalTo(Chunk(true, true, false)))
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec - int") {
+      test("int") {
+        val codec   = ValueVectorCodec[Int, IntVector]
+        val payload = Chunk(1, 2, 3)
+
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.primitive[Int, IntVector].encodeZIO(Chunk(1, 2, 3))
-            result <- ValueVectorDecoder.primitive[IntVector, Int].decodeZIO(vec)
-          } yield assert(result)(equalTo(Chunk(1, 2, 3)))
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec - long") {
+      test("long") {
+        val codec   = ValueVectorCodec[Long, BigIntVector]
+        val payload = Chunk(1L, 2L, 3L)
+
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.primitive[Long, BigIntVector].encodeZIO(Chunk(1L, 2L, 3L))
-            result <- ValueVectorDecoder.primitive[BigIntVector, Long].decodeZIO(vec)
-          } yield assert(result)(equalTo(Chunk(1L, 2L, 3L)))
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec - string") {
+      test("string") {
+        val codec   = ValueVectorCodec[String, VarCharVector]
+        val payload = Chunk("zio", "cats", "monix")
+
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.primitive[String, VarCharVector].encodeZIO(Chunk("zio", "cats", "monix"))
-            result <- ValueVectorDecoder.primitive[VarCharVector, String].decodeZIO(vec)
-          } yield assert(result)(equalTo(Chunk("zio", "cats", "monix")))
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
         )
       }
     )
 
   val valueVectorCodecListSpec =
-    suite("ValueVector Encoder/Decoder list")(
-      test("codec list - empty") {
+    suite("ValueVectorCodec list")(
+      test("list empty") {
+        val codec = ValueVectorCodec.list[Int]
+
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.list[Int, List].encodeZIO(Chunk.empty)
-            result <- ValueVectorDecoder.list[Int, List].decodeZIO(vec)
+            vec    <- codec.encodeZIO(Chunk.empty)
+            result <- codec.decodeZIO(vec)
           } yield assertTrue(result.isEmpty)
         )
       },
-      test("codec list - boolean") {
+      test("list boolean") {
+        val codec   = ValueVectorCodec.list[Boolean]
+        val payload = Chunk(Chunk(true), Chunk(false, true))
+
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.list[Boolean, Set].encodeZIO(Chunk(Set(true), Set(false, true)))
-            result <- ValueVectorDecoder.list[Boolean, List].decodeZIO(vec)
-          } yield assert(result)(equalTo(Chunk(List(true), List(false, true))))
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec list - int") {
+      test("list int") {
+        val codec   = ValueVectorCodec.list[Int]
+        val payload = Chunk(Chunk(1, 2), Chunk(3))
+
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.list[Int, Set].encodeZIO(Chunk(Set(1, 2), Set(3)))
-            result <- ValueVectorDecoder.list[Int, List].decodeZIO(vec)
-          } yield assert(result)(equalTo(Chunk(List(1, 2), List(3))))
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec list - long") {
+      test("list long") {
+        val codec   = ValueVectorCodec.list[Long]
+        val payload = Chunk(Chunk(1L, 2L), Chunk(3L))
+
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.list[Long, Set].encodeZIO(Chunk(Set(1L, 2L), Set(3L)))
-            result <- ValueVectorDecoder.list[Long, List].decodeZIO(vec)
-          } yield assert(result)(equalTo(Chunk(List(1L, 2L), List(3L))))
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec list - list of primitives") {
+      test("list of primitives") {
+        val codec   = ValueVectorCodec.list[List[Int]]
+        val payload = Chunk(Chunk(List(1, 2), List(3)), Chunk(List(4), List(5, 6)))
+
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder
-                        .list[List[Int], List]
-                        .encodeZIO(Chunk(List(List(1, 2), List(3)), List(List(4), List(5, 6))))
-            result <- ValueVectorDecoder.list[List[Int], List].decodeZIO(vec)
-          } yield assert(result)(equalTo(Chunk(List(List(1, 2), List(3)), List(List(4), List(5, 6)))))
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec list - list of structs") {
+      test("list of structs") {
+        val codec   = ValueVectorCodec.list[Primitives]
+        val payload = Chunk(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), Chunk(Primitives(7, 8.0, "9")))
+
         ZIO.scoped(
           for {
-            vec    <-
-              ValueVectorEncoder
-                .list[Primitives, List]
-                .encodeZIO(Chunk(List(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), List(Primitives(7, 8.0, "9"))))
-            result <- ValueVectorDecoder.list[Primitives, List].decodeZIO(vec)
-          } yield assert(result)(
-            equalTo(Chunk(List(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), List(Primitives(7, 8.0, "9"))))
-          )
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
         )
       }
     )
 
   val valueVectorCodecStructSpec =
-    suite("ValueVector Encoder/Decoder struct")(
-      test("codec struct - empty") {
+    suite("ValueVectorCodec struct")(
+      test("struct empty") {
+        val codec   = ValueVectorCodec.struct[Primitives]
         val payload = Chunk.empty[Primitives]
 
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.struct[Primitives].encodeZIO(payload)
-            result <- ValueVectorDecoder.struct[Primitives].decodeZIO(vec)
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec struct - primitives") {
+      test("struct primitives") {
+        val codec   = ValueVectorCodec.struct[Primitives]
         val payload = Chunk(Primitives(1, 2.0, "3"))
 
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.struct[Primitives].encodeZIO(payload)
-            result <- ValueVectorDecoder.struct[Primitives].decodeZIO(vec)
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec struct - struct of primitives") {
+      test("struct of primitives") {
+        val codec   = ValueVectorCodec.struct[StructOfPrimitives]
         val payload = Chunk(StructOfPrimitives(Primitives(1, 2.0, "3")))
 
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.struct[StructOfPrimitives].encodeZIO(payload)
-            result <- ValueVectorDecoder.struct[StructOfPrimitives].decodeZIO(vec)
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec struct - struct of lists") {
+      test("struct of lists") {
+        val codec   = ValueVectorCodec.struct[StructOfLists]
         val payload = Chunk(StructOfLists(ListOfPrimitives(List(1, 2, 3))))
 
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.struct[StructOfLists].encodeZIO(payload)
-            result <- ValueVectorDecoder.struct[StructOfLists].decodeZIO(vec)
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec struct - struct of structs") {
-        val payload =
-          Chunk(StructOfListsOfStructs(ListOfStructs(List(Primitives(1, 2.0, "3"), Primitives(11, 22.0, "33")))))
+      test("struct of structs") {
+        val codec   = ValueVectorCodec.struct[StructOfListsOfStructs]
+        val payload = Chunk(
+          StructOfListsOfStructs(ListOfStructs(List(Primitives(1, 2.0, "3"), Primitives(11, 22.0, "33"))))
+        )
 
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.struct[StructOfListsOfStructs].encodeZIO(payload)
-            result <- ValueVectorDecoder.struct[StructOfListsOfStructs].decodeZIO(vec)
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec struct - struct of lists of structs") {
+      test("struct of lists of structs") {
+        val codec   = ValueVectorCodec.struct[StructOfStructs]
         val payload = Chunk(StructOfStructs(StructOfPrimitives(Primitives(1, 2.0, "3"))))
 
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.struct[StructOfStructs].encodeZIO(payload)
-            result <- ValueVectorDecoder.struct[StructOfStructs].decodeZIO(vec)
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec struct - list of primitives") {
+      test("struct of list of primitives") {
+        val codec   = ValueVectorCodec.struct[ListOfPrimitives]
         val payload = Chunk(ListOfPrimitives(List(1, 2, 3)))
 
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.struct[ListOfPrimitives].encodeZIO(payload)
-            result <- ValueVectorDecoder.struct[ListOfPrimitives].decodeZIO(vec)
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec struct - list of structs") {
+      test("struct of list of structs") {
+        val codec   = ValueVectorCodec.struct[ListOfStructs]
         val payload = Chunk(ListOfStructs(List(Primitives(1, 2.0, "3"), Primitives(11, 22.0, "33"))))
 
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.struct[ListOfStructs].encodeZIO(payload)
-            result <- ValueVectorDecoder.struct[ListOfStructs].decodeZIO(vec)
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec struct - list of lists") {
+      test("struct of list of lists") {
+        val codec   = ValueVectorCodec.struct[ListOfLists]
         val payload = Chunk(ListOfLists(List(List(1, 2), List(3))))
 
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.struct[ListOfLists].encodeZIO(payload)
-            result <- ValueVectorDecoder.struct[ListOfLists].decodeZIO(vec)
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       },
-      test("codec struct - list of structs of lists") {
+      test("struct of list of structs of lists") {
+        val codec   = ValueVectorCodec.struct[ListOfStructsOfLists]
         val payload = Chunk(
           ListOfStructsOfLists(List(ListOfPrimitives(List(1, 2)), ListOfPrimitives(List(3)))),
           ListOfStructsOfLists(List(ListOfPrimitives(List(11, 22)), ListOfPrimitives(List(33))))
@@ -246,15 +282,15 @@ object CodecSpec extends ZIOSpecDefault {
 
         ZIO.scoped(
           for {
-            vec    <- ValueVectorEncoder.struct[ListOfStructsOfLists].encodeZIO(payload)
-            result <- ValueVectorDecoder.struct[ListOfStructsOfLists].decodeZIO(vec)
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
       }
     )
 
   val valueVectorCodecSpec =
-    suite("ValueVector Encoder/Decoder")(
+    suite("ValueVectorCodec")(
       valueVectorDecoderSpec,
       valueVectorEncoderSpec,
       valueVectorCodecPrimitiveSpec,
@@ -265,11 +301,13 @@ object CodecSpec extends ZIOSpecDefault {
   val vectorSchemaRootDecoderSpec =
     suite("VectorSchemaRootDecoder")(
       test("map") {
+        val codec = VectorSchemaRootCodec[Primitives]
+
         ZIO.scoped(
           for {
             root   <- Tabular.empty[Primitives]
-            _      <- VectorSchemaRootEncoder.schema[Primitives].encodeZIO(Chunk(Primitives(1, 2.0, "3")), root)
-            result <- VectorSchemaRootDecoder.schema[Primitives].map(p => s"${p.a}, ${p.b}, ${p.c}").decodeZIO(root)
+            _      <- codec.encodeZIO(Chunk(Primitives(1, 2.0, "3")), root)
+            result <- codec.decoder.map(p => s"${p.a}, ${p.b}, ${p.c}").decodeZIO(root)
           } yield assert(result)(equalTo(Chunk("1, 2.0, 3")))
         )
       }
@@ -278,32 +316,35 @@ object CodecSpec extends ZIOSpecDefault {
   val vectorSchemaRootEncoderSpec =
     suite("VectorSchemaRootEncoder")(
       test("contramap") {
+        val codec = VectorSchemaRootCodec[Primitives]
+
         ZIO.scoped(
           for {
             root   <- Tabular.empty[Primitives]
-            _      <- VectorSchemaRootEncoder
-                        .schema[Primitives]
+            _      <- codec.encoder
                         .contramap[String](s => Primitives(s.toInt, s.toDouble, s))
                         .encodeZIO(Chunk("1", "2"), root)
-            result <- VectorSchemaRootDecoder.schema[Primitives].decodeZIO(root)
+            result <- codec.decodeZIO(root)
           } yield assert(result)(equalTo(Chunk(Primitives(1, 1.0, "1"), Primitives(2, 2.0, "2"))))
         )
       }
     )
 
   val vectorSchemaRootCodecSpec =
-    suite("VectorSchemaRoot Encoder/Decoder")(
+    suite("VectorSchemaRootCodec")(
       vectorSchemaRootDecoderSpec,
       vectorSchemaRootEncoderSpec,
-      test("codec - primitives") {
+      test("primitives") {
+        val codec   = VectorSchemaRootCodec[Primitives]
+        val payload = Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))
+
         ZIO.scoped(
           for {
             root   <- Tabular.empty[Primitives]
-            _      <- VectorSchemaRootEncoder
-                        .schema[Primitives]
-                        .encodeZIO(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6")), root)
+            _      <- VectorSchemaRootEncoder[Primitives]
+                        .encodeZIO(payload, root)
             result <- VectorSchemaRootDecoder.schema[Primitives].decodeZIO(root)
-          } yield assert(result)(equalTo(Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))))
+          } yield assert(result)(equalTo(payload))
         )
       }
     )
