@@ -32,9 +32,11 @@ object VectorSpec extends ZIOSpecDefault {
         )
       },
       test("toChunk") {
-        val payload          = Chunk(1, 2, 3)
+        val payload = Chunk(1, 2, 3)
+
         // TODO: figure out how to avoid this
-        implicit val decoder = ValueVectorDecoder.primitive[IntVector, Int]
+        implicit val decoder: ValueVectorDecoder[IntVector, Int] =
+          ValueVectorDecoder.primitive[IntVector, Int]
 
         ZIO.scoped(
           for {
@@ -44,9 +46,11 @@ object VectorSpec extends ZIOSpecDefault {
         )
       },
       test("toStream") {
-        val payload          = Chunk(1, 2, 3)
+        val payload = Chunk(1, 2, 3)
+
         // TODO: figure out how to avoid this
-        implicit val decoder = ValueVectorDecoder.primitive[IntVector, Int]
+        implicit val decoder: ValueVectorDecoder[IntVector, Int] =
+          ValueVectorDecoder.primitive[IntVector, Int]
 
         ZIO.scoped(
           for {

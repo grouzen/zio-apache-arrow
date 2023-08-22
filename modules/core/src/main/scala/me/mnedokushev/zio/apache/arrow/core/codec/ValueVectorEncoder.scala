@@ -12,16 +12,16 @@ import java.nio.charset.StandardCharsets
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
-trait ValueVectorEncoder[-Val, Vector <: ValueVector] { self =>
+trait ValueVectorEncoder[-A, V <: ValueVector] { self =>
 
-  final def encodeZIO(chunk: Chunk[Val]): RIO[Scope with BufferAllocator, Vector] =
+  final def encodeZIO(chunk: Chunk[A]): RIO[Scope with BufferAllocator, V] =
     ZIO.fromAutoCloseable(
       ZIO.serviceWithZIO[BufferAllocator] { implicit alloc =>
         ZIO.fromEither(encode(chunk))
       }
     )
 
-  final def encode(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Either[Throwable, Vector] =
+  final def encode(chunk: Chunk[A])(implicit alloc: BufferAllocator): Either[Throwable, V] =
     try
       Right(encodeUnsafe(chunk))
     catch {
@@ -30,11 +30,11 @@ trait ValueVectorEncoder[-Val, Vector <: ValueVector] { self =>
 
     }
 
-  protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector
+  protected def encodeUnsafe(chunk: Chunk[A])(implicit alloc: BufferAllocator): V
 
-  final def contramap[B](f: B => Val): ValueVectorEncoder[B, Vector] =
-    new ValueVectorEncoder[B, Vector] {
-      override protected def encodeUnsafe(chunk: Chunk[B])(implicit alloc: BufferAllocator): Vector =
+  final def contramap[B](f: B => A): ValueVectorEncoder[B, V] =
+    new ValueVectorEncoder[B, V] {
+      override protected def encodeUnsafe(chunk: Chunk[B])(implicit alloc: BufferAllocator): V =
         self.encodeUnsafe(chunk.map(f))
     }
 
@@ -42,17 +42,13 @@ trait ValueVectorEncoder[-Val, Vector <: ValueVector] { self =>
 
 object ValueVectorEncoder {
 
-  def apply[Val, Vector <: ValueVector](implicit
-    encoder: ValueVectorEncoder[Val, Vector]
-  ): ValueVectorEncoder[Val, Vector] =
+  def apply[A, V <: ValueVector](implicit encoder: ValueVectorEncoder[A, V]): ValueVectorEncoder[A, V] =
     encoder
 
-  implicit def primitive[Val, Vector <: ValueVector](implicit
-    schema: Schema[Val]
-  ): ValueVectorEncoder[Val, Vector] =
-    new ValueVectorEncoder[Val, Vector] {
-      override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector = {
-        def allocate[A](standardType: StandardType[A]): Vector = {
+  implicit def primitive[A, V <: ValueVector](implicit schema: Schema[A]): ValueVectorEncoder[A, V] =
+    new ValueVectorEncoder[A, V] {
+      override protected def encodeUnsafe(chunk: Chunk[A])(implicit alloc: BufferAllocator): V = {
+        def allocate[A1](standardType: StandardType[A1]): V = {
           val vec = standardType match {
             case StandardType.BoolType   =>
               new BitVector("bitVector", alloc)
@@ -67,7 +63,7 @@ object ValueVectorEncoder {
           }
 
           vec.allocateNew()
-          vec.asInstanceOf[Vector]
+          vec.asInstanceOf[V]
         }
 
         schema match {
@@ -89,11 +85,9 @@ object ValueVectorEncoder {
       }
     }
 
-  implicit def list[Val](implicit
-    schema: Schema[Val]
-  ): ValueVectorEncoder[Chunk[Val], ListVector] =
-    new ValueVectorEncoder[Chunk[Val], ListVector] {
-      override protected def encodeUnsafe(chunk: Chunk[Chunk[Val]])(implicit alloc: BufferAllocator): ListVector = {
+  implicit def list[A](implicit schema: Schema[A]): ValueVectorEncoder[Chunk[A], ListVector] =
+    new ValueVectorEncoder[Chunk[A], ListVector] {
+      override protected def encodeUnsafe(chunk: Chunk[Chunk[A]])(implicit alloc: BufferAllocator): ListVector = {
         val vec    = ListVector.empty("listVector", alloc)
         val len    = chunk.length
         val writer = vec.getWriter
@@ -111,11 +105,11 @@ object ValueVectorEncoder {
       }
     }
 
-  implicit def struct[Val](implicit schema: Schema[Val]): ValueVectorEncoder[Val, StructVector] =
-    new ValueVectorEncoder[Val, StructVector] {
-      override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): StructVector =
+  implicit def struct[A](implicit schema: Schema[A]): ValueVectorEncoder[A, StructVector] =
+    new ValueVectorEncoder[A, StructVector] {
+      override protected def encodeUnsafe(chunk: Chunk[A])(implicit alloc: BufferAllocator): StructVector =
         schema match {
-          case record: Schema.Record[Val] =>
+          case record: Schema.Record[A] =>
             val vec    = StructVector.empty("structVector", alloc)
             val len    = chunk.length
             val writer = vec.getWriter
@@ -190,7 +184,7 @@ object ValueVectorEncoder {
   )(implicit alloc: BufferAllocator): Unit =
     (standardType, value) match {
       case (StandardType.StringType, s: String) =>
-        val buffer = alloc.buffer(s.length)
+        val buffer = alloc.buffer(s.length.toLong)
         buffer.writeBytes(s.getBytes(StandardCharsets.UTF_8))
         name.fold(writer0.varChar)(writer0.varChar).writeVarChar(0, s.length, buffer)
         buffer.close()

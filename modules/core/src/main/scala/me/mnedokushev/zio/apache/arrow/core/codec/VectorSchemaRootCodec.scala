@@ -5,25 +5,25 @@ import org.apache.arrow.vector.VectorSchemaRoot
 import zio._
 import zio.schema.Schema
 
-final case class VectorSchemaRootCodec[Val](
-  encoder: VectorSchemaRootEncoder[Val],
-  decoder: VectorSchemaRootDecoder[Val]
+final case class VectorSchemaRootCodec[A](
+  encoder: VectorSchemaRootEncoder[A],
+  decoder: VectorSchemaRootDecoder[A]
 ) { self =>
 
-  def transform[B](f: Val => B, g: B => Val): VectorSchemaRootCodec[B] =
+  def transform[B](f: A => B, g: B => A): VectorSchemaRootCodec[B] =
     VectorSchemaRootCodec(encoder.contramap(g), decoder.map(f))
 
-  def decodeZIO(root: VectorSchemaRoot): Task[Chunk[Val]] =
+  def decodeZIO(root: VectorSchemaRoot): Task[Chunk[A]] =
     decoder.decodeZIO(root)
 
-  def decode(root: VectorSchemaRoot): Either[Throwable, Chunk[Val]] =
+  def decode(root: VectorSchemaRoot): Either[Throwable, Chunk[A]] =
     decoder.decode(root)
 
-  def encodeZIO(chunk: Chunk[Val], root: VectorSchemaRoot): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
+  def encodeZIO(chunk: Chunk[A], root: VectorSchemaRoot): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
     encoder.encodeZIO(chunk, root)
 
   def encode(
-    chunk: Chunk[Val],
+    chunk: Chunk[A],
     root: VectorSchemaRoot
   )(implicit alloc: BufferAllocator): Either[Throwable, VectorSchemaRoot] =
     encoder.encode(chunk, root)
@@ -32,10 +32,10 @@ final case class VectorSchemaRootCodec[Val](
 
 object VectorSchemaRootCodec {
 
-  def apply[Val](implicit codec: VectorSchemaRootCodec[Val]): VectorSchemaRootCodec[Val] =
+  def apply[A](implicit codec: VectorSchemaRootCodec[A]): VectorSchemaRootCodec[A] =
     codec
 
-  implicit def schema[Val](implicit schema: Schema[Val]): VectorSchemaRootCodec[Val] =
-    VectorSchemaRootCodec(VectorSchemaRootEncoder.schema[Val], VectorSchemaRootDecoder.schema[Val])
+  implicit def schema[A](implicit schema: Schema[A]): VectorSchemaRootCodec[A] =
+    VectorSchemaRootCodec(VectorSchemaRootEncoder.schema[A], VectorSchemaRootDecoder.schema[A])
 
 }

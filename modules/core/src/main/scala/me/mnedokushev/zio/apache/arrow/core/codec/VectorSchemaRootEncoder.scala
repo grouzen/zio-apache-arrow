@@ -11,9 +11,9 @@ import zio.schema.Schema
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
-trait VectorSchemaRootEncoder[-Val] { self =>
+trait VectorSchemaRootEncoder[-A] { self =>
 
-  final def encodeZIO(chunk: Chunk[Val], root: VectorSchemaRoot): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
+  final def encodeZIO(chunk: Chunk[A], root: VectorSchemaRoot): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
     ZIO.fromAutoCloseable(
       ZIO.serviceWithZIO[BufferAllocator] { implicit alloc =>
         ZIO.fromEither(encode(chunk, root))
@@ -21,7 +21,7 @@ trait VectorSchemaRootEncoder[-Val] { self =>
     )
 
   final def encode(
-    chunk: Chunk[Val],
+    chunk: Chunk[A],
     root: VectorSchemaRoot
   )(implicit alloc: BufferAllocator): Either[Throwable, VectorSchemaRoot] =
     try
@@ -32,11 +32,11 @@ trait VectorSchemaRootEncoder[-Val] { self =>
     }
 
   protected def encodeUnsafe(
-    chunk: Chunk[Val],
+    chunk: Chunk[A],
     root: VectorSchemaRoot
   )(implicit alloc: BufferAllocator): VectorSchemaRoot
 
-  final def contramap[B](f: B => Val): VectorSchemaRootEncoder[B] =
+  final def contramap[B](f: B => A): VectorSchemaRootEncoder[B] =
     new VectorSchemaRootEncoder[B] {
       override protected def encodeUnsafe(chunk: Chunk[B], root: VectorSchemaRoot)(implicit
         alloc: BufferAllocator
@@ -48,22 +48,22 @@ trait VectorSchemaRootEncoder[-Val] { self =>
 
 object VectorSchemaRootEncoder {
 
-  def apply[Val](implicit encoder: VectorSchemaRootEncoder[Val]): VectorSchemaRootEncoder[Val] =
+  def apply[A](implicit encoder: VectorSchemaRootEncoder[A]): VectorSchemaRootEncoder[A] =
     encoder
 
-  implicit def schema[Val](implicit schema: Schema[Val]): VectorSchemaRootEncoder[Val] =
-    new VectorSchemaRootEncoder[Val] {
+  implicit def schema[A](implicit schema: Schema[A]): VectorSchemaRootEncoder[A] =
+    new VectorSchemaRootEncoder[A] {
       override protected def encodeUnsafe(
-        chunk: Chunk[Val],
+        chunk: Chunk[A],
         root: VectorSchemaRoot
       )(implicit alloc: BufferAllocator): VectorSchemaRoot = {
         @tailrec
-        def encodeField[A](
-          fieldSchema: Schema[A],
+        def encodeField[A1](
+          fieldSchema: Schema[A1],
           name: String,
           vec: FieldVector,
           writer: FieldWriter,
-          value: A,
+          value: A1,
           idx: Int
         ): Unit =
           fieldSchema match {
@@ -80,7 +80,7 @@ object VectorSchemaRootEncoder {
           }
 
         schema match {
-          case record: Schema.Record[Val] =>
+          case record: Schema.Record[A] =>
             validateSchema(root.getSchema) {
               val fields = record.fields.map { case Schema.Field(name, fieldSchema, _, _, g, _) =>
                 val vec = Option(root.getVector(name))
@@ -113,7 +113,7 @@ object VectorSchemaRootEncoder {
               root.setRowCount(len)
               root
             }
-          case _                          =>
+          case _                        =>
             throw EncoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
       }

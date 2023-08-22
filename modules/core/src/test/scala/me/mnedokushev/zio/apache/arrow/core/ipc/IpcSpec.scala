@@ -2,7 +2,6 @@ package me.mnedokushev.zio.apache.arrow.core.ipc
 
 import me.mnedokushev.zio.apache.arrow.core.Allocator
 import me.mnedokushev.zio.apache.arrow.core.Fixtures.Primitives
-import me.mnedokushev.zio.apache.arrow.core.codec.VectorSchemaRootDecoder
 import zio.test._
 import zio._
 import zio.stream.ZStream

@@ -4,15 +4,17 @@ import sbt.Keys._
 object BuildHelper {
 
   def stdSettings(projectName: String): Seq[Def.Setting[_]] = Seq(
-    name         := s"zio-apache-arrow-$projectName",
-    organization := "me.mnedokushev",
-    scalaVersion := Scala213,
-    libraryDependencies += compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-    scalacOptions ++= Seq(
-      "-Ymacro-annotations"
-    )
+    name               := s"zio-apache-arrow-$projectName",
+    organization       := "me.mnedokushev",
+    crossScalaVersions := Seq(Scala212, Scala213, Scala3),
+    libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, _)) => Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"))
+      case _            => Seq()
+    })
   )
 
-  private val Scala213 = "2.13.10"
+  val Scala212 = "2.12.18"
+  val Scala213 = "2.13.11"
+  val Scala3   = "3.3.0"
 
 }

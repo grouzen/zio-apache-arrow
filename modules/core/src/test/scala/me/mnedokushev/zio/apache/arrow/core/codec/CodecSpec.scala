@@ -341,9 +341,8 @@ object CodecSpec extends ZIOSpecDefault {
         ZIO.scoped(
           for {
             root   <- Tabular.empty[Primitives]
-            _      <- VectorSchemaRootEncoder[Primitives]
-                        .encodeZIO(payload, root)
-            result <- VectorSchemaRootDecoder.schema[Primitives].decodeZIO(root)
+            _      <- codec.encodeZIO(payload, root)
+            result <- codec.decodeZIO(root)
           } yield assert(result)(equalTo(payload))
         )
       }
