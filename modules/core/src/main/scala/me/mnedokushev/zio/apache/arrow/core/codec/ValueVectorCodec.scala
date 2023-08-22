@@ -30,9 +30,7 @@ final case class ValueVectorCodec[A, V <: ValueVector](
 
 object ValueVectorCodec {
 
-  def apply[A, V <: ValueVector](implicit
-    codec: ValueVectorCodec[A, V]
-  ): ValueVectorCodec[A, V] =
+  def apply[A, V <: ValueVector](implicit codec: ValueVectorCodec[A, V]): ValueVectorCodec[A, V] =
     codec
 
   implicit def primitive[A, V <: ValueVector](implicit schema: Schema[A]): ValueVectorCodec[A, V] =

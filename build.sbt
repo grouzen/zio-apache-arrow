@@ -37,7 +37,7 @@ inThisBuild(
 lazy val root =
   project
     .in(file("."))
-    .aggregate(core)
+    .aggregate(core, docs)
     .settings(publish / skip := true)
 
 lazy val core =
@@ -48,3 +48,18 @@ lazy val core =
       libraryDependencies ++= Dep.core,
       testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
     )
+
+lazy val docs =
+  project
+    .in(file("docs"))
+    .dependsOn(core)
+    .settings(
+      name           := "zio-apache-arrow-docs",
+      organization   := "me.mnedokushev",
+      publish / skip := true,
+      mdocIn         := file("docs/src/main/mdoc"),
+      mdocVariables  := Map(
+        "VERSION" -> version.value
+      )
+    )
+    .enablePlugins(MdocPlugin)
