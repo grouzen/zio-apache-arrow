@@ -4,9 +4,8 @@ import sbt.Keys._
 object BuildHelper {
 
   def stdSettings(projectName: String): Seq[Def.Setting[_]] = Seq(
-    name               := s"zio-apache-arrow-$projectName",
-    organization       := "me.mnedokushev",
-    crossScalaVersions := Seq(Scala212, Scala213, Scala3),
+    name         := s"zio-apache-arrow-$projectName",
+    organization := "me.mnedokushev",
     libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, _)) => Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"))
       case _            => Seq()
