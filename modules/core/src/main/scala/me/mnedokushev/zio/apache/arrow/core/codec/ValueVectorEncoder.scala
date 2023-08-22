@@ -52,7 +52,7 @@ object ValueVectorEncoder {
   ): ValueVectorEncoder[Val, Vector] =
     new ValueVectorEncoder[Val, Vector] {
       override protected def encodeUnsafe(chunk: Chunk[Val])(implicit alloc: BufferAllocator): Vector = {
-        def allocate(standardType: StandardType[Val]): Vector = {
+        def allocate[A](standardType: StandardType[A]): Vector = {
           val vec = standardType match {
             case StandardType.BoolType   =>
               new BitVector("bitVector", alloc)
