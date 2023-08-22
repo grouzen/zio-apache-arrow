@@ -46,7 +46,7 @@ object VectorSchemaRootDecoder {
           fieldSchema match {
             case Schema.Primitive(standardType, _)       =>
               ValueVectorDecoder.decodePrimitive(standardType, reader)
-            case record: Schema.Record[A1]                =>
+            case record: Schema.Record[A1]               =>
               ValueVectorDecoder.decodeCaseClass(record.fields, reader)
             case Schema.Sequence(elemSchema, _, _, _, _) =>
               ValueVectorDecoder.decodeSequence(elemSchema, reader)
@@ -90,7 +90,7 @@ object VectorSchemaRootDecoder {
 
               builder.result()
             }
-          case _                          =>
+          case _                        =>
             throw DecoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
       }

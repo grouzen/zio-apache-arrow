@@ -3,8 +3,8 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import me.mnedokushev.zio.apache.arrow.core._
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.complex.writer.FieldWriter
-import org.apache.arrow.vector.{ FieldVector, VectorSchemaRoot }
 import org.apache.arrow.vector.complex.{ ListVector, StructVector }
+import org.apache.arrow.vector.{ FieldVector, VectorSchemaRoot }
 import zio._
 import zio.schema.Schema
 

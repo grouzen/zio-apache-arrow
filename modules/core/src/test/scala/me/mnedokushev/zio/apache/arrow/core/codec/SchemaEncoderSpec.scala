@@ -8,6 +8,7 @@ import zio.test.Assertion._
 import zio.test._
 
 import scala.jdk.CollectionConverters._
+import zio.test.Spec
 
 object SchemaEncoderSpec extends ZIOSpecDefault {
 
@@ -18,7 +19,7 @@ object SchemaEncoderSpec extends ZIOSpecDefault {
       encodeFlatSpec
     )
 
-  val encodeFlatSpec =
+  val encodeFlatSpec: Spec[Any, Throwable] =
     suite("schemaRoot")(
       test("primitive") {
         for {

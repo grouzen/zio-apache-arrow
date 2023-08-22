@@ -2,10 +2,10 @@ package me.mnedokushev.zio.apache.arrow.core.ipc
 
 import me.mnedokushev.zio.apache.arrow.core.Allocator
 import me.mnedokushev.zio.apache.arrow.core.Fixtures.Primitives
-import zio.test._
 import zio._
 import zio.stream.ZStream
 import zio.test.Assertion._
+import zio.test._
 
 import java.io.ByteArrayInputStream
 

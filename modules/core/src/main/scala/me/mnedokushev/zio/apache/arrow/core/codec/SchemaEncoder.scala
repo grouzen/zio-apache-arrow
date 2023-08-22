@@ -35,7 +35,7 @@ object SchemaEncoder {
           record.fields.map { case ZSchema.Field(name, schemaField, _, _, _, _) =>
             encodeSchema(name, schemaField, nullable = false)
           }
-        case _                           =>
+        case _                         =>
           throw EncoderError(s"Given ZIO schema mut be of type Schema.Record[Val]")
       }
 

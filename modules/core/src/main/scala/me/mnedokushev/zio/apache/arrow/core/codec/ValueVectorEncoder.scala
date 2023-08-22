@@ -1,10 +1,10 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.complex.{ ListVector, StructVector }
-import org.apache.arrow.vector.complex.impl.{ PromotableWriter, UnionListWriter }
 import org.apache.arrow.vector._
+import org.apache.arrow.vector.complex.impl.{ PromotableWriter, UnionListWriter }
 import org.apache.arrow.vector.complex.writer.FieldWriter
+import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import zio._
 import zio.schema._
 
@@ -123,7 +123,7 @@ object ValueVectorEncoder {
             writer.setValueCount(len)
 
             vec
-          case _                          =>
+          case _                        =>
             throw EncoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
     }

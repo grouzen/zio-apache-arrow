@@ -3,9 +3,9 @@ package me.mnedokushev.zio.apache.arrow.core
 import me.mnedokushev.zio.apache.arrow.core.codec.{ VectorSchemaRootDecoder, VectorSchemaRootEncoder }
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ipc.{ ArrowStreamReader, ArrowStreamWriter }
+import zio._
 import zio.schema.Schema
 import zio.stream.ZStream
-import zio._
 
 import java.io.{ ByteArrayOutputStream, InputStream }
 import java.nio.channels.Channels
