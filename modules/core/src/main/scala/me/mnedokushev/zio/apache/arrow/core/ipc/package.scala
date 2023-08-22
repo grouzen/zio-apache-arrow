@@ -3,11 +3,11 @@ package me.mnedokushev.zio.apache.arrow.core
 import me.mnedokushev.zio.apache.arrow.core.codec.{ VectorSchemaRootDecoder, VectorSchemaRootEncoder }
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ipc.{ ArrowStreamReader, ArrowStreamWriter }
+import zio._
 import zio.schema.Schema
 import zio.stream.ZStream
-import zio._
 
-import java.io.{ ByteArrayOutputStream, InputStream, OutputStream }
+import java.io.{ ByteArrayOutputStream, InputStream }
 import java.nio.channels.Channels
 
 package object ipc {
@@ -25,7 +25,7 @@ package object ipc {
                               for {
                                 reader <- ZIO.fromAutoCloseable(ZIO.attempt(new ArrowStreamReader(in, alloc)))
                                 root   <- ZIO.attempt(reader.getVectorSchemaRoot)
-                                _      <- ZIO.attempt(validateSchema(root.getSchema)())
+                                _      <- ZIO.attempt(validateSchema(root.getSchema())(()))
                               } yield (reader, root)
                             }
                           )

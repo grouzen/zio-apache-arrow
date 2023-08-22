@@ -1,22 +1,21 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.vector._
-import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import org.apache.arrow.vector.complex.reader.FieldReader
+import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import zio._
 import zio.schema._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
-import scala.collection.mutable.ListBuffer
 import scala.util.control.NonFatal
 
-trait ValueVectorDecoder[Vector <: ValueVector, +Val] { self =>
+trait ValueVectorDecoder[V <: ValueVector, +A] { self =>
 
-  final def decodeZIO(vec: Vector): Task[Chunk[Val]] =
+  final def decodeZIO(vec: V): Task[Chunk[A]] =
     ZIO.fromEither(decode(vec))
 
-  final def decode(vec: Vector): Either[Throwable, Chunk[Val]] =
+  final def decode(vec: V): Either[Throwable, Chunk[A]] =
     try
       Right(decodeUnsafe(vec))
     catch {
@@ -24,11 +23,11 @@ trait ValueVectorDecoder[Vector <: ValueVector, +Val] { self =>
       case NonFatal(ex)               => Left(DecoderError("Error decoding vector", Some(ex)))
     }
 
-  protected def decodeUnsafe(vec: Vector): Chunk[Val]
+  protected def decodeUnsafe(vec: V): Chunk[A]
 
-  final def map[B](f: Val => B): ValueVectorDecoder[Vector, B] =
-    new ValueVectorDecoder[Vector, B] {
-      override protected def decodeUnsafe(vec: Vector): Chunk[B] =
+  final def map[B](f: A => B): ValueVectorDecoder[V, B] =
+    new ValueVectorDecoder[V, B] {
+      override protected def decodeUnsafe(vec: V): Chunk[B] =
         self.decodeUnsafe(vec).map(f)
     }
 
@@ -36,19 +35,17 @@ trait ValueVectorDecoder[Vector <: ValueVector, +Val] { self =>
 
 object ValueVectorDecoder {
 
-  def apply[Vector <: ValueVector, Val](implicit
-    decoder: ValueVectorDecoder[Vector, Val]
-  ): ValueVectorDecoder[Vector, Val] =
+  def apply[V <: ValueVector, A](implicit decoder: ValueVectorDecoder[V, A]): ValueVectorDecoder[V, A] =
     decoder
 
-  implicit def primitive[Vector <: ValueVector, Val](implicit schema: Schema[Val]): ValueVectorDecoder[Vector, Val] =
-    new ValueVectorDecoder[Vector, Val] {
-      override protected def decodeUnsafe(vec: Vector): Chunk[Val] =
+  implicit def primitive[V <: ValueVector, A](implicit schema: Schema[A]): ValueVectorDecoder[V, A] =
+    new ValueVectorDecoder[V, A] {
+      override protected def decodeUnsafe(vec: V): Chunk[A] =
         schema match {
           case Schema.Primitive(standardType, _) =>
             var idx     = 0
             val len     = vec.getValueCount
-            val builder = ChunkBuilder.make[Val](len)
+            val builder = ChunkBuilder.make[A](len)
             val reader  = vec.getReader
 
             while (idx < len) {
@@ -70,18 +67,16 @@ object ValueVectorDecoder {
         }
     }
 
-  implicit def list[Val](implicit
-    schema: Schema[Val]
-  ): ValueVectorDecoder[ListVector, Chunk[Val]] =
-    new ValueVectorDecoder[ListVector, Chunk[Val]] {
-      override protected def decodeUnsafe(vec: ListVector): Chunk[Chunk[Val]] = {
+  implicit def list[A](implicit schema: Schema[A]): ValueVectorDecoder[ListVector, Chunk[A]] =
+    new ValueVectorDecoder[ListVector, Chunk[A]] {
+      override protected def decodeUnsafe(vec: ListVector): Chunk[Chunk[A]] = {
         var idx     = 0
         val len     = vec.getValueCount
-        val builder = ChunkBuilder.make[Chunk[Val]](len)
+        val builder = ChunkBuilder.make[Chunk[A]](len)
         val reader  = vec.getReader
 
         while (idx < len) {
-          val buffer = ListBuffer.empty[Val]
+          val innerBuilder = ChunkBuilder.make[A]()
 
           reader.setPosition(idx)
           while (reader.next())
@@ -89,12 +84,12 @@ object ValueVectorDecoder {
               val dynamicValue = decodeSchema(None, schema, reader)
 
               dynamicValue.toTypedValue match {
-                case Right(v)      => buffer.addOne(v)
+                case Right(v)      => innerBuilder.addOne(v)
                 case Left(message) => throw DecoderError(message)
               }
             }
 
-          builder.addOne(Chunk.fromIterable(buffer.result()))
+          builder.addOne(innerBuilder.result())
           idx += 1
         }
 
@@ -102,14 +97,14 @@ object ValueVectorDecoder {
       }
     }
 
-  implicit def struct[Val](implicit schema: Schema[Val]): ValueVectorDecoder[StructVector, Val] =
-    new ValueVectorDecoder[StructVector, Val] {
-      override protected def decodeUnsafe(vec: StructVector): Chunk[Val] =
+  implicit def struct[A](implicit schema: Schema[A]): ValueVectorDecoder[StructVector, A] =
+    new ValueVectorDecoder[StructVector, A] {
+      override protected def decodeUnsafe(vec: StructVector): Chunk[A] =
         schema match {
-          case record: Schema.Record[Val] =>
+          case record: Schema.Record[A] =>
             var idx     = 0
             val len     = vec.getValueCount
-            val builder = ChunkBuilder.make[Val](len)
+            val builder = ChunkBuilder.make[A](len)
             val reader  = vec.getReader
 
             while (idx < len) {
@@ -126,7 +121,7 @@ object ValueVectorDecoder {
             }
 
             builder.result()
-          case _                          =>
+          case _                        =>
             throw DecoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
     }
@@ -150,11 +145,11 @@ object ValueVectorDecoder {
   }
 
   private[codec] def decodeCaseClass[A](fields: Chunk[Schema.Field[A, _]], reader0: FieldReader): DynamicValue = {
-    val values = fields.map { case Schema.Field(name, schema0, _, _, _, _) =>
+    val values = ListMap(fields.map { case Schema.Field(name, schema0, _, _, _, _) =>
       val value: DynamicValue = decodeSchema(Some(name), schema0, reader0)
 
       name -> value
-    }.to(ListMap)
+    }: _*)
 
     DynamicValue.Record(TypeId.Structural, values)
   }

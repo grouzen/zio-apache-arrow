@@ -10,10 +10,10 @@ import scala.util.control.NonFatal
 
 object SchemaEncoder {
 
-  def schemaRoot[Val](implicit schema: ZSchema[Val]): Either[Throwable, Schema] = {
+  def schemaRoot[A](implicit schema: ZSchema[A]): Either[Throwable, Schema] = {
 
     @tailrec
-    def encodeSchema[A](name: String, schemaField: ZSchema[A], nullable: Boolean): Field =
+    def encodeSchema[A1](name: String, schemaField: ZSchema[A1], nullable: Boolean): Field =
       schemaField match {
         case ZSchema.Primitive(standardType, _) =>
           encodePrimitive(name, standardType, nullable)
@@ -31,11 +31,11 @@ object SchemaEncoder {
 
     try {
       val fields = schema match {
-        case record: ZSchema.Record[Val] =>
+        case record: ZSchema.Record[A] =>
           record.fields.map { case ZSchema.Field(name, schemaField, _, _, _, _) =>
             encodeSchema(name, schemaField, nullable = false)
           }
-        case _                           =>
+        case _                         =>
           throw EncoderError(s"Given ZIO schema mut be of type Schema.Record[Val]")
       }
 

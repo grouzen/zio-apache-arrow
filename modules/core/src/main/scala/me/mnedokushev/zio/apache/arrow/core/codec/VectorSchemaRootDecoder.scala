@@ -10,12 +10,12 @@ import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 import scala.util.control.NonFatal
 
-trait VectorSchemaRootDecoder[Val] { self =>
+trait VectorSchemaRootDecoder[A] { self =>
 
-  final def decodeZIO(root: VectorSchemaRoot): Task[Chunk[Val]] =
+  final def decodeZIO(root: VectorSchemaRoot): Task[Chunk[A]] =
     ZIO.fromEither(decode(root))
 
-  final def decode(root: VectorSchemaRoot): Either[Throwable, Chunk[Val]] =
+  final def decode(root: VectorSchemaRoot): Either[Throwable, Chunk[A]] =
     try
       Right(decodeUnsafe(root))
     catch {
@@ -23,9 +23,9 @@ trait VectorSchemaRootDecoder[Val] { self =>
       case NonFatal(ex)               => Left(DecoderError("Error decoding vector schema root", Some(ex)))
     }
 
-  protected def decodeUnsafe(root: VectorSchemaRoot): Chunk[Val]
+  protected def decodeUnsafe(root: VectorSchemaRoot): Chunk[A]
 
-  final def map[B](f: Val => B): VectorSchemaRootDecoder[B] =
+  final def map[B](f: A => B): VectorSchemaRootDecoder[B] =
     new VectorSchemaRootDecoder[B] {
       override def decodeUnsafe(root: VectorSchemaRoot): Chunk[B] =
         self.decodeUnsafe(root).map(f)
@@ -35,18 +35,18 @@ trait VectorSchemaRootDecoder[Val] { self =>
 
 object VectorSchemaRootDecoder {
 
-  def apply[Val](implicit decoder: VectorSchemaRootDecoder[Val]): VectorSchemaRootDecoder[Val] =
+  def apply[A](implicit decoder: VectorSchemaRootDecoder[A]): VectorSchemaRootDecoder[A] =
     decoder
 
-  implicit def schema[Val](implicit schema: Schema[Val]): VectorSchemaRootDecoder[Val] =
-    new VectorSchemaRootDecoder[Val] {
-      override protected def decodeUnsafe(root: VectorSchemaRoot): Chunk[Val] = {
+  implicit def schema[A](implicit schema: Schema[A]): VectorSchemaRootDecoder[A] =
+    new VectorSchemaRootDecoder[A] {
+      override protected def decodeUnsafe(root: VectorSchemaRoot): Chunk[A] = {
         @tailrec
-        def decodeField[A](fieldSchema: Schema[A], reader: FieldReader): DynamicValue =
+        def decodeField[A1](fieldSchema: Schema[A1], reader: FieldReader): DynamicValue =
           fieldSchema match {
             case Schema.Primitive(standardType, _)       =>
               ValueVectorDecoder.decodePrimitive(standardType, reader)
-            case record: Schema.Record[A]                =>
+            case record: Schema.Record[A1]               =>
               ValueVectorDecoder.decodeCaseClass(record.fields, reader)
             case Schema.Sequence(elemSchema, _, _, _, _) =>
               ValueVectorDecoder.decodeSequence(elemSchema, reader)
@@ -57,7 +57,7 @@ object VectorSchemaRootDecoder {
           }
 
         schema match {
-          case record: Schema.Record[Val] =>
+          case record: Schema.Record[A] =>
             validateSchema(root.getSchema) {
               val fields = record.fields.map { case Schema.Field(name, fieldSchema, _, _, _, _) =>
                 val vec    = Option(root.getVector(name))
@@ -69,15 +69,15 @@ object VectorSchemaRootDecoder {
 
               var idx     = 0
               val len     = root.getRowCount
-              val builder = ChunkBuilder.make[Val]()
+              val builder = ChunkBuilder.make[A]()
 
               while (idx < len) {
-                val values = fields.map { case (fieldSchema, name, reader) =>
+                val values = ListMap(fields.map { case (fieldSchema, name, reader) =>
                   reader.setPosition(idx)
                   val value = decodeField(fieldSchema, reader)
 
                   name -> value
-                }.to(ListMap)
+                }: _*)
 
                 DynamicValue.Record(TypeId.Structural, values).toTypedValue match {
                   case Right(v)      =>
@@ -90,7 +90,7 @@ object VectorSchemaRootDecoder {
 
               builder.result()
             }
-          case _                          =>
+          case _                        =>
             throw DecoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
         }
       }

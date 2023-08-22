@@ -1,11 +1,13 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
-import me.mnedokushev.zio.apache.arrow.core.{ Allocator, Tabular }
 import me.mnedokushev.zio.apache.arrow.core.Fixtures._
+import me.mnedokushev.zio.apache.arrow.core.{ Allocator, Tabular }
 import org.apache.arrow.vector._
 import zio._
 import zio.test.Assertion._
 import zio.test._
+import org.apache.arrow.memory.BufferAllocator
+import zio.test.Spec
 
 object CodecSpec extends ZIOSpecDefault {
 
@@ -15,7 +17,7 @@ object CodecSpec extends ZIOSpecDefault {
       vectorSchemaRootCodecSpec
     ).provideLayerShared(Allocator.rootLayer())
 
-  val valueVectorDecoderSpec =
+  val valueVectorDecoderSpec: Spec[BufferAllocator, Throwable] =
     suite("ValueVectorDecoder")(
       test("map") {
         val codec = ValueVectorCodec[Int, IntVector]
@@ -29,7 +31,7 @@ object CodecSpec extends ZIOSpecDefault {
       }
     )
 
-  val valueVectorEncoderSpec =
+  val valueVectorEncoderSpec: Spec[BufferAllocator, Throwable] =
     suite("ValueVectorEncoder")(
       test("contramap") {
         val codec = ValueVectorCodec[Int, IntVector]
@@ -43,7 +45,7 @@ object CodecSpec extends ZIOSpecDefault {
       }
     )
 
-  val valueVectorCodecPrimitiveSpec =
+  val valueVectorCodecPrimitiveSpec: Spec[BufferAllocator, Throwable] =
     suite("ValueVectorCodec primitive")(
       test("empty") {
         val codec = ValueVectorCodec[Int, IntVector]
@@ -101,7 +103,7 @@ object CodecSpec extends ZIOSpecDefault {
       }
     )
 
-  val valueVectorCodecListSpec =
+  val valueVectorCodecListSpec: Spec[BufferAllocator, Throwable] =
     suite("ValueVectorCodec list")(
       test("list empty") {
         val codec = ValueVectorCodec.list[Int]
@@ -170,7 +172,7 @@ object CodecSpec extends ZIOSpecDefault {
       }
     )
 
-  val valueVectorCodecStructSpec =
+  val valueVectorCodecStructSpec: Spec[BufferAllocator, Throwable] =
     suite("ValueVectorCodec struct")(
       test("struct empty") {
         val codec   = ValueVectorCodec.struct[Primitives]
@@ -289,7 +291,7 @@ object CodecSpec extends ZIOSpecDefault {
       }
     )
 
-  val valueVectorCodecSpec =
+  val valueVectorCodecSpec: Spec[BufferAllocator, Throwable] =
     suite("ValueVectorCodec")(
       valueVectorDecoderSpec,
       valueVectorEncoderSpec,
@@ -298,7 +300,7 @@ object CodecSpec extends ZIOSpecDefault {
       valueVectorCodecStructSpec
     )
 
-  val vectorSchemaRootDecoderSpec =
+  val vectorSchemaRootDecoderSpec: Spec[BufferAllocator, Throwable] =
     suite("VectorSchemaRootDecoder")(
       test("map") {
         val codec = VectorSchemaRootCodec[Primitives]
@@ -313,7 +315,7 @@ object CodecSpec extends ZIOSpecDefault {
       }
     )
 
-  val vectorSchemaRootEncoderSpec =
+  val vectorSchemaRootEncoderSpec: Spec[BufferAllocator, Throwable] =
     suite("VectorSchemaRootEncoder")(
       test("contramap") {
         val codec = VectorSchemaRootCodec[Primitives]
@@ -330,7 +332,7 @@ object CodecSpec extends ZIOSpecDefault {
       }
     )
 
-  val vectorSchemaRootCodecSpec =
+  val vectorSchemaRootCodecSpec: Spec[BufferAllocator, Throwable] =
     suite("VectorSchemaRootCodec")(
       vectorSchemaRootDecoderSpec,
       vectorSchemaRootEncoderSpec,
@@ -341,9 +343,8 @@ object CodecSpec extends ZIOSpecDefault {
         ZIO.scoped(
           for {
             root   <- Tabular.empty[Primitives]
-            _      <- VectorSchemaRootEncoder[Primitives]
-                        .encodeZIO(payload, root)
-            result <- VectorSchemaRootDecoder.schema[Primitives].decodeZIO(root)
+            _      <- codec.encodeZIO(payload, root)
+            result <- codec.decodeZIO(root)
           } yield assert(result)(equalTo(payload))
         )
       }
