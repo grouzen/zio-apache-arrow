@@ -1,5 +1,4 @@
-import sbt.*
-import sbt.Keys.scalaVersion
+import sbt._
 
 object Dep {
 
@@ -30,10 +29,26 @@ object Dep {
 
   lazy val scalaCollectionCompat = O.scalaLangModules %% "scala-collection-compat" % V.scalaCollectionCompat
 
+  lazy val datafusionJava = "uk.co.gresearch.datafusion" % "datafusion-java" % "0.12.0"
+
   lazy val core = Seq(
     arrowFormat,
     arrowVector,
     arrowMemory,
+    zio,
+    zioSchema,
+    zioSchemaDerivation,
+    scalaCollectionCompat,
+    arrowMemoryUnsafe % Test,
+    zioTest           % Test,
+    zioTestSbt        % Test
+  )
+
+  lazy val datafusion = Seq(
+    arrowFormat,
+    arrowVector,
+    arrowMemory,
+    datafusionJava,
     zio,
     zioSchema,
     zioSchemaDerivation,

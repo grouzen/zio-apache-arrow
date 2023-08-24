@@ -37,7 +37,7 @@ inThisBuild(
 lazy val root =
   project
     .in(file("."))
-    .aggregate(core, docs)
+    .aggregate(core, datafusion, docs)
     .settings(publish / skip := true)
 
 lazy val core =
@@ -46,6 +46,16 @@ lazy val core =
     .settings(
       stdSettings("core"),
       libraryDependencies ++= Dep.core,
+      testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
+    )
+
+lazy val datafusion =
+  project
+    .in(file("modules/datafusion"))
+    .dependsOn(core)
+    .settings(
+      stdSettings("datafusion"),
+      libraryDependencies ++= Dep.datafusion,
       testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
     )
 
