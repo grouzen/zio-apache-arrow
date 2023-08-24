@@ -1,9 +1,10 @@
-import BuildHelper.*
+import BuildHelper._
 
 inThisBuild(
   List(
     name                                := "ZIO Apache Arrow",
     organization                        := "me.mnedokushev",
+    homepage                            := Some(url("https://github.com/grouzen/zio-apache-arrow")),
     licenses                            := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
     developers                          := List(
       Developer(
