@@ -6,7 +6,7 @@ import zio.schema._
 import zio.test._
 import zio.test.Assertion._
 
-import java.nio.file.Path
+import java.nio.file.Paths
 
 object DataframeSpec extends ZIOSpecDefault {
 
@@ -20,7 +20,7 @@ object DataframeSpec extends ZIOSpecDefault {
       test("collect") {
         ZIO.serviceWithZIO[Context] { context =>
           for {
-            _      <- context.registerCsv("test", Path.of(getClass.getResource("/test.csv").toURI))
+            _      <- context.registerCsv("test", Paths.get(getClass.getResource("/test.csv").toURI))
             df     <- context.sql("SELECT * FROM test WHERE fname = 'Dog'")
             result <- df.collect[TestData].runCollect
           } yield assert(result)(equalTo(Chunk(TestData("Dog", "Cat", "NY", 3))))
