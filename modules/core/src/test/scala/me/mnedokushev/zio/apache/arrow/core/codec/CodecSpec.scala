@@ -100,6 +100,17 @@ object CodecSpec extends ZIOSpecDefault {
             result <- codec.decodeZIO(vec)
           } yield assert(result)(equalTo(payload))
         )
+      },
+      test("optional string") {
+        val codec = ValueVectorCodec[Option[String], VarCharVector]
+        val payload = Chunk(Some("zio"), None, Some("monix"))
+
+        ZIO.scoped(
+          for {
+            vec <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
       }
     )
 
