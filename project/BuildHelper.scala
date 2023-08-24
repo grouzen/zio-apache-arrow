@@ -1,5 +1,5 @@
-import sbt.*
-import sbt.Keys.*
+import sbt._
+import sbt.Keys._
 import scalafix.sbt.ScalafixPlugin.autoImport.scalafixSemanticdb
 
 object BuildHelper {
