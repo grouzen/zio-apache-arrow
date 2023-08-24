@@ -47,20 +47,20 @@ object SchemaEncoder {
   }
 
   private def encodePrimitive[A](name: String, standardType: StandardType[A], nullable: Boolean): Field = {
-    def field0(arrowType: ArrowType) =
+    def namedField(arrowType: ArrowType) =
       field(name, arrowType, nullable)
 
     standardType match {
       case StandardType.IntType    =>
-        field0(new ArrowType.Int(32, true))
+        namedField(new ArrowType.Int(32, true))
       case StandardType.LongType   =>
-        field0(new ArrowType.Int(64, true))
+        namedField(new ArrowType.Int(64, true))
       case StandardType.FloatType  =>
-        field0(new ArrowType.FloatingPoint(FloatingPointPrecision.HALF))
+        namedField(new ArrowType.FloatingPoint(FloatingPointPrecision.HALF))
       case StandardType.DoubleType =>
-        field0(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))
+        namedField(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))
       case StandardType.StringType =>
-        field0(new ArrowType.Utf8)
+        namedField(new ArrowType.Utf8)
       case other                   =>
         throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
     }

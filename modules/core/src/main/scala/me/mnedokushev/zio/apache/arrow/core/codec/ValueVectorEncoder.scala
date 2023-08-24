@@ -68,16 +68,16 @@ object ValueVectorEncoder {
 
         schema match {
           case Schema.Primitive(standardType, _) =>
-            val vec0 = allocate(standardType)
-            val len  = chunk.length
-            val it   = chunk.iterator.zipWithIndex
+            val vec = allocate(standardType)
+            val len = chunk.length
+            val it  = chunk.iterator.zipWithIndex
 
             it.foreach { case (v, i) =>
-              encodePrimitive(v, standardType, vec0, i)
+              encodePrimitive(v, standardType, vec, i)
             }
 
-            vec0.setValueCount(len)
-            vec0
+            vec.setValueCount(len)
+            vec
           case _                                 =>
             throw EncoderError(s"Given ZIO schema must be of type Schema.Primitive[Val]")
 
@@ -132,22 +132,22 @@ object ValueVectorEncoder {
   private[codec] def encodeSchema[A](
     value: A,
     name: Option[String],
-    schema0: Schema[A],
-    writer0: FieldWriter
+    schema: Schema[A],
+    writer: FieldWriter
   )(implicit alloc: BufferAllocator): Unit =
-    schema0 match {
+    schema match {
       case Schema.Primitive(standardType, _)       =>
-        encodePrimitive(value, name, standardType, writer0)
+        encodePrimitive(value, name, standardType, writer)
       case record: Schema.Record[A]                =>
-        val writer = name.fold[FieldWriter](writer0.struct().asInstanceOf[UnionListWriter])(
-          writer0.struct(_).asInstanceOf[PromotableWriter]
+        val writer0 = name.fold[FieldWriter](writer.struct().asInstanceOf[UnionListWriter])(
+          writer.struct(_).asInstanceOf[PromotableWriter]
         )
-        encodeCaseClass(value, record.fields, writer)
+        encodeCaseClass(value, record.fields, writer0)
       case Schema.Sequence(elemSchema, _, g, _, _) =>
-        val writer = name.fold(writer0.list)(writer0.list).asInstanceOf[PromotableWriter]
-        encodeSequence(g(value), elemSchema, writer)
+        val writer0 = name.fold(writer.list)(writer.list).asInstanceOf[PromotableWriter]
+        encodeSequence(g(value), elemSchema, writer0)
       case lzy: Schema.Lazy[_]                     =>
-        encodeSchema(value, name, lzy.schema, writer0)
+        encodeSchema(value, name, lzy.schema, writer)
       case other                                   =>
         throw EncoderError(s"Unsupported ZIO Schema type $other")
     }

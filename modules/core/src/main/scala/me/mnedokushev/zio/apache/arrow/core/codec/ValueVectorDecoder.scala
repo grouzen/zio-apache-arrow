@@ -127,26 +127,26 @@ object ValueVectorDecoder {
     }
 
   @tailrec
-  private[codec] def decodeSchema[A](name: Option[String], schema0: Schema[A], reader0: FieldReader): DynamicValue = {
-    val reader = name.fold[FieldReader](reader0.reader())(reader0.reader(_))
+  private[codec] def decodeSchema[A](name: Option[String], schema: Schema[A], reader: FieldReader): DynamicValue = {
+    val reader0 = name.fold[FieldReader](reader.reader())(reader.reader(_))
 
-    schema0 match {
+    schema match {
       case Schema.Primitive(standardType, _)       =>
-        decodePrimitive(standardType, reader)
+        decodePrimitive(standardType, reader0)
       case record: Schema.Record[A]                =>
-        decodeCaseClass(record.fields, reader)
+        decodeCaseClass(record.fields, reader0)
       case Schema.Sequence(elemSchema, _, _, _, _) =>
-        decodeSequence(elemSchema, reader)
+        decodeSequence(elemSchema, reader0)
       case lzy: Schema.Lazy[_]                     =>
-        decodeSchema(name, lzy.schema, reader0)
+        decodeSchema(name, lzy.schema, reader)
       case other                                   =>
         throw DecoderError(s"Unsupported ZIO Schema type $other")
     }
   }
 
-  private[codec] def decodeCaseClass[A](fields: Chunk[Schema.Field[A, _]], reader0: FieldReader): DynamicValue = {
+  private[codec] def decodeCaseClass[A](fields: Chunk[Schema.Field[A, _]], reader: FieldReader): DynamicValue = {
     val values = ListMap(fields.map { case Schema.Field(name, schema0, _, _, _, _) =>
-      val value: DynamicValue = decodeSchema(Some(name), schema0, reader0)
+      val value: DynamicValue = decodeSchema(Some(name), schema0, reader)
 
       name -> value
     }: _*)
@@ -154,30 +154,30 @@ object ValueVectorDecoder {
     DynamicValue.Record(TypeId.Structural, values)
   }
 
-  private[codec] def decodeSequence[A](schema0: Schema[A], reader0: FieldReader): DynamicValue = {
+  private[codec] def decodeSequence[A](schema: Schema[A], reader: FieldReader): DynamicValue = {
     val builder = ChunkBuilder.make[DynamicValue]()
 
-    while (reader0.next())
-      if (reader0.isSet)
-        builder.addOne(decodeSchema(None, schema0, reader0))
+    while (reader.next())
+      if (reader.isSet)
+        builder.addOne(decodeSchema(None, schema, reader))
 
     DynamicValue.Sequence(builder.result())
   }
 
-  private[codec] def decodePrimitive[A](standardType: StandardType[A], reader0: FieldReader): DynamicValue =
+  private[codec] def decodePrimitive[A](standardType: StandardType[A], reader: FieldReader): DynamicValue =
     standardType match {
       case t: StandardType.BoolType.type   =>
-        DynamicValue.Primitive[Boolean](reader0.readBoolean(), t)
+        DynamicValue.Primitive[Boolean](reader.readBoolean(), t)
       case t: StandardType.IntType.type    =>
-        DynamicValue.Primitive[Int](reader0.readInteger(), t)
+        DynamicValue.Primitive[Int](reader.readInteger(), t)
       case t: StandardType.LongType.type   =>
-        DynamicValue.Primitive[Long](reader0.readLong(), t)
+        DynamicValue.Primitive[Long](reader.readLong(), t)
       case t: StandardType.FloatType.type  =>
-        DynamicValue.Primitive[Float](reader0.readFloat(), t)
+        DynamicValue.Primitive[Float](reader.readFloat(), t)
       case t: StandardType.DoubleType.type =>
-        DynamicValue.Primitive[Double](reader0.readDouble(), t)
+        DynamicValue.Primitive[Double](reader.readDouble(), t)
       case t: StandardType.StringType.type =>
-        DynamicValue.Primitive[String](reader0.readText().toString, t)
+        DynamicValue.Primitive[String](reader.readText().toString, t)
       case other                           =>
         throw DecoderError(s"Unsupported ZIO Schema type $other")
     }
