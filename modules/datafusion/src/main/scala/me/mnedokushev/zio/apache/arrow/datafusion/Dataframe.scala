@@ -1,7 +1,7 @@
 package me.mnedokushev.zio.apache.arrow.datafusion
 
-import me.mnedokushev.zio.apache.arrow.core.codec.VectorSchemaRootDecoder
 import me.mnedokushev.zio.apache.arrow.core._
+import me.mnedokushev.zio.apache.arrow.core.codec.VectorSchemaRootDecoder
 import org.apache.arrow.datafusion.DataFrame
 import org.apache.arrow.memory.BufferAllocator
 import zio._

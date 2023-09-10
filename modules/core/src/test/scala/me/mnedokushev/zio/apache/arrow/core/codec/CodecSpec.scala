@@ -2,12 +2,11 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 
 import me.mnedokushev.zio.apache.arrow.core.Fixtures._
 import me.mnedokushev.zio.apache.arrow.core.{ Allocator, Tabular }
+import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import zio._
 import zio.test.Assertion._
-import zio.test._
-import org.apache.arrow.memory.BufferAllocator
-import zio.test.Spec
+import zio.test.{ Spec, _ }
 
 object CodecSpec extends ZIOSpecDefault {
 

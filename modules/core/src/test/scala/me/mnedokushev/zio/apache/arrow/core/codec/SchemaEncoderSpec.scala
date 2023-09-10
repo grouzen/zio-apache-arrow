@@ -5,10 +5,9 @@ import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.pojo.{ ArrowType, Field, Schema }
 import zio.Scope
 import zio.test.Assertion._
-import zio.test._
+import zio.test.{ Spec, _ }
 
 import scala.jdk.CollectionConverters._
-import zio.test.Spec
 
 object SchemaEncoderSpec extends ZIOSpecDefault {
 

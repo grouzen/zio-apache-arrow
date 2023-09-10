@@ -2,8 +2,8 @@ package me.mnedokushev.zio.apache.arrow
 
 import me.mnedokushev.zio.apache.arrow.core.codec.SchemaEncoder
 import org.apache.arrow.vector.types.pojo.Schema
-import zio.schema.{ Schema => ZSchema }
 import zio._
+import zio.schema.{ Schema => ZSchema }
 
 package object core {
 

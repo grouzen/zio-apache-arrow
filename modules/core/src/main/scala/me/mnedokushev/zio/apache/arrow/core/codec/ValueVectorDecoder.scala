@@ -6,6 +6,25 @@ import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import zio._
 import zio.schema._
 
+import java.nio.ByteBuffer
+import java.time.{
+  DayOfWeek,
+  Instant,
+  LocalDate,
+  LocalDateTime,
+  LocalTime,
+  Month,
+  MonthDay,
+  OffsetDateTime,
+  OffsetTime,
+  Period,
+  Year,
+  YearMonth,
+  ZoneId,
+  ZoneOffset,
+  ZonedDateTime
+}
+import java.util.UUID
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 import scala.util.control.NonFatal
@@ -166,19 +185,69 @@ object ValueVectorDecoder {
 
   private[codec] def decodePrimitive[A](standardType: StandardType[A], reader: FieldReader): DynamicValue =
     standardType match {
-      case t: StandardType.BoolType.type   =>
-        DynamicValue.Primitive[Boolean](reader.readBoolean(), t)
-      case t: StandardType.IntType.type    =>
-        DynamicValue.Primitive[Int](reader.readInteger(), t)
-      case t: StandardType.LongType.type   =>
-        DynamicValue.Primitive[Long](reader.readLong(), t)
-      case t: StandardType.FloatType.type  =>
-        DynamicValue.Primitive[Float](reader.readFloat(), t)
-      case t: StandardType.DoubleType.type =>
-        DynamicValue.Primitive[Double](reader.readDouble(), t)
-      case t: StandardType.StringType.type =>
+      case t: StandardType.StringType.type         =>
         DynamicValue.Primitive[String](reader.readText().toString, t)
-      case other                           =>
+      case t: StandardType.BoolType.type           =>
+        DynamicValue.Primitive[Boolean](reader.readBoolean(), t)
+      case t: StandardType.ByteType.type           =>
+        DynamicValue.Primitive[Byte](reader.readByte(), t)
+      case t: StandardType.ShortType.type          =>
+        DynamicValue.Primitive[Short](reader.readShort(), t)
+      case t: StandardType.IntType.type            =>
+        DynamicValue.Primitive[Int](reader.readInteger(), t)
+      case t: StandardType.LongType.type           =>
+        DynamicValue.Primitive[Long](reader.readLong(), t)
+      case t: StandardType.FloatType.type          =>
+        DynamicValue.Primitive[Float](reader.readFloat(), t)
+      case t: StandardType.DoubleType.type         =>
+        DynamicValue.Primitive[Double](reader.readDouble(), t)
+      case t: StandardType.BinaryType.type         =>
+        DynamicValue.Primitive[Chunk[Byte]](Chunk.fromArray(reader.readByteArray()), t)
+      case t: StandardType.CharType.type           =>
+        DynamicValue.Primitive[Char](reader.readCharacter(), t)
+      case t: StandardType.UUIDType.type           =>
+        val bb = ByteBuffer.wrap(reader.readByteArray())
+        DynamicValue.Primitive[UUID](new UUID(bb.getLong, bb.getLong), t)
+      case t: StandardType.BigDecimalType.type     =>
+        DynamicValue.Primitive[java.math.BigDecimal](reader.readBigDecimal(), t)
+      case t: StandardType.BigIntegerType.type     =>
+        DynamicValue.Primitive[java.math.BigInteger](new java.math.BigInteger(reader.readByteArray()), t)
+      case t: StandardType.DayOfWeekType.type      =>
+        DynamicValue.Primitive[DayOfWeek](DayOfWeek.of(reader.readInteger()), t)
+      case t: StandardType.MonthType.type          =>
+        DynamicValue.Primitive[Month](Month.of(reader.readInteger()), t)
+      case t: StandardType.MonthDayType.type       =>
+        val bb = ByteBuffer.allocate(8).putLong(reader.readLong())
+        DynamicValue.Primitive[MonthDay](MonthDay.of(bb.getInt, bb.getInt), t)
+      case t: StandardType.PeriodType.type         =>
+        val bb = ByteBuffer.wrap(reader.readByteArray())
+        DynamicValue.Primitive[Period](Period.of(bb.getInt, bb.getInt, bb.getInt), t)
+      case t: StandardType.YearType.type           =>
+        DynamicValue.Primitive[Year](Year.of(reader.readInteger()), t)
+      case t: StandardType.YearMonthType.type      =>
+        val bb = ByteBuffer.allocate(8).putLong(reader.readLong())
+        DynamicValue.Primitive[YearMonth](YearMonth.of(bb.getInt, bb.getInt), t)
+      case t: StandardType.ZoneIdType.type         =>
+        DynamicValue.Primitive[ZoneId](ZoneId.of(reader.readText().toString), t)
+      case t: StandardType.ZoneOffsetType.type     =>
+        DynamicValue.Primitive[ZoneOffset](ZoneOffset.of(reader.readText().toString), t)
+      case t: StandardType.DurationType.type       =>
+        DynamicValue.Primitive[Duration](Duration.fromMillis(reader.readLong()), t)
+      case t: StandardType.InstantType.type        =>
+        DynamicValue.Primitive[Instant](Instant.ofEpochMilli(reader.readLong()), t)
+      case t: StandardType.LocalDateType.type      =>
+        DynamicValue.Primitive[LocalDate](LocalDate.parse(reader.readText().toString), t)
+      case t: StandardType.LocalTimeType.type      =>
+        DynamicValue.Primitive[LocalTime](LocalTime.parse(reader.readText().toString), t)
+      case t: StandardType.LocalDateTimeType.type  =>
+        DynamicValue.Primitive[LocalDateTime](LocalDateTime.parse(reader.readText().toString), t)
+      case t: StandardType.OffsetTimeType.type     =>
+        DynamicValue.Primitive[OffsetTime](OffsetTime.parse(reader.readText().toString), t)
+      case t: StandardType.OffsetDateTimeType.type =>
+        DynamicValue.Primitive[OffsetDateTime](OffsetDateTime.parse(reader.readText().toString), t)
+      case t: StandardType.ZonedDateTimeType.type  =>
+        DynamicValue.Primitive[ZonedDateTime](ZonedDateTime.parse(reader.readText().toString), t)
+      case other                                   =>
         throw DecoderError(s"Unsupported ZIO Schema type $other")
     }
 
