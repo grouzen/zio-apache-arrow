@@ -218,15 +218,15 @@ object ValueVectorDecoder {
         DynamicValue.Primitive[Month](Month.of(reader.readInteger()), t)
       case t: StandardType.MonthDayType.type       =>
         val bb = ByteBuffer.allocate(8).putLong(reader.readLong())
-        DynamicValue.Primitive[MonthDay](MonthDay.of(bb.getInt, bb.getInt), t)
+        DynamicValue.Primitive[MonthDay](MonthDay.of(bb.getInt(0), bb.getInt(4)), t)
       case t: StandardType.PeriodType.type         =>
         val bb = ByteBuffer.wrap(reader.readByteArray())
-        DynamicValue.Primitive[Period](Period.of(bb.getInt, bb.getInt, bb.getInt), t)
+        DynamicValue.Primitive[Period](Period.of(bb.getInt(0), bb.getInt(4), bb.getInt(8)), t)
       case t: StandardType.YearType.type           =>
         DynamicValue.Primitive[Year](Year.of(reader.readInteger()), t)
       case t: StandardType.YearMonthType.type      =>
         val bb = ByteBuffer.allocate(8).putLong(reader.readLong())
-        DynamicValue.Primitive[YearMonth](YearMonth.of(bb.getInt, bb.getInt), t)
+        DynamicValue.Primitive[YearMonth](YearMonth.of(bb.getInt(0), bb.getInt(4)), t)
       case t: StandardType.ZoneIdType.type         =>
         DynamicValue.Primitive[ZoneId](ZoneId.of(reader.readText().toString), t)
       case t: StandardType.ZoneOffsetType.type     =>

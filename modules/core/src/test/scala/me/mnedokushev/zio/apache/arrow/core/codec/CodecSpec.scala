@@ -8,6 +8,9 @@ import zio._
 import zio.test.Assertion._
 import zio.test.{ Spec, _ }
 
+import java.time.{ DayOfWeek, Month, MonthDay, Period }
+import java.util.UUID
+
 object CodecSpec extends ZIOSpecDefault {
 
   override def spec: Spec[TestEnvironment with Scope, Any] =
@@ -19,7 +22,7 @@ object CodecSpec extends ZIOSpecDefault {
   val valueVectorDecoderSpec: Spec[BufferAllocator, Throwable] =
     suite("ValueVectorDecoder")(
       test("map") {
-        val codec = ValueVectorCodec[Int, IntVector]
+        val codec = ValueVectorCodec.primitive[Int, IntVector]
 
         ZIO.scoped(
           for {
@@ -33,7 +36,7 @@ object CodecSpec extends ZIOSpecDefault {
   val valueVectorEncoderSpec: Spec[BufferAllocator, Throwable] =
     suite("ValueVectorEncoder")(
       test("contramap") {
-        val codec = ValueVectorCodec[Int, IntVector]
+        val codec = ValueVectorCodec.primitive[Int, IntVector]
 
         ZIO.scoped(
           for {
@@ -47,7 +50,7 @@ object CodecSpec extends ZIOSpecDefault {
   val valueVectorCodecPrimitiveSpec: Spec[BufferAllocator, Throwable] =
     suite("ValueVectorCodec primitive")(
       test("empty") {
-        val codec = ValueVectorCodec[Int, IntVector]
+        val codec = ValueVectorCodec.primitive[Int, IntVector]
 
         ZIO.scoped(
           for {
@@ -56,8 +59,19 @@ object CodecSpec extends ZIOSpecDefault {
           } yield assertTrue(result.isEmpty)
         )
       },
+      test("string") {
+        val codec   = ValueVectorCodec.primitive[String, VarCharVector]
+        val payload = Chunk("zio", "cats", "monix")
+
+        ZIO.scoped(
+          for {
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
+      },
       test("boolean") {
-        val codec   = ValueVectorCodec[Boolean, BitVector]
+        val codec   = ValueVectorCodec.primitive[Boolean, BitVector]
         val payload = Chunk(true, true, false)
 
         ZIO.scoped(
@@ -67,8 +81,30 @@ object CodecSpec extends ZIOSpecDefault {
           } yield assert(result)(equalTo(payload))
         )
       },
+      test("byte") {
+        val codec   = ValueVectorCodec.primitive[Byte, UInt1Vector]
+        val payload = Chunk[Byte](1, 2, 3)
+
+        ZIO.scoped(
+          for {
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
+      },
+      test("short") {
+        val codec   = ValueVectorCodec.primitive[Short, SmallIntVector]
+        val payload = Chunk[Short](1, 2, 3)
+
+        ZIO.scoped(
+          for {
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
+      },
       test("int") {
-        val codec   = ValueVectorCodec[Int, IntVector]
+        val codec   = ValueVectorCodec.primitive[Int, IntVector]
         val payload = Chunk(1, 2, 3)
 
         ZIO.scoped(
@@ -79,7 +115,7 @@ object CodecSpec extends ZIOSpecDefault {
         )
       },
       test("long") {
-        val codec   = ValueVectorCodec[Long, BigIntVector]
+        val codec   = ValueVectorCodec.primitive[Long, BigIntVector]
         val payload = Chunk(1L, 2L, 3L)
 
         ZIO.scoped(
@@ -89,9 +125,121 @@ object CodecSpec extends ZIOSpecDefault {
           } yield assert(result)(equalTo(payload))
         )
       },
-      test("string") {
-        val codec   = ValueVectorCodec[String, VarCharVector]
-        val payload = Chunk("zio", "cats", "monix")
+      test("float") {
+        val codec   = ValueVectorCodec.primitive[Float, Float4Vector]
+        val payload = Chunk(1.0f, 2.0f, 3.0f)
+
+        ZIO.scoped(
+          for {
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
+      },
+      test("double") {
+        val codec   = ValueVectorCodec.primitive[Double, Float8Vector]
+        val payload = Chunk(1.0, 2.0, 3.0)
+
+        ZIO.scoped(
+          for {
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
+      },
+      test("binary") {
+        // TODO: avoid specifying schema explicitly in this case
+        val codec                       =
+          ValueVectorCodec.primitive[Chunk[Byte], LargeVarBinaryVector](zio.schema.Schema.primitive[Chunk[Byte]])
+        val payload: Chunk[Chunk[Byte]] = Chunk(Chunk(1, 2, 3), Chunk(4, 5, 6))
+
+        ZIO.scoped(
+          for {
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
+      },
+      test("char") {
+        val codec   = ValueVectorCodec.primitive[Char, UInt2Vector]
+        val payload = Chunk('a', 'b', 'c')
+
+        ZIO.scoped(
+          for {
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
+      },
+      test("uuid") {
+        val codec   = ValueVectorCodec.primitive[UUID, VarBinaryVector]
+        val payload = Chunk(UUID.randomUUID(), UUID.randomUUID())
+
+        ZIO.scoped(
+          for {
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
+      },
+      test("big decimal") {
+        val codec   = ValueVectorCodec.primitive[java.math.BigDecimal, DecimalVector]
+        val payload = Chunk(new java.math.BigDecimal("12312.33"), new java.math.BigDecimal("9990221.33"))
+
+        ZIO.scoped(
+          for {
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
+      },
+      test("big integer") {
+        val codec   = ValueVectorCodec.primitive[java.math.BigInteger, VarBinaryVector]
+        val payload = Chunk(new java.math.BigInteger("1231233999"), new java.math.BigInteger("9990221001223"))
+
+        ZIO.scoped(
+          for {
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
+      },
+      test("day of week") {
+        val codec   = ValueVectorCodec.primitive[DayOfWeek, IntVector]
+        val payload = Chunk(DayOfWeek.of(1), DayOfWeek.of(2))
+
+        ZIO.scoped(
+          for {
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
+      },
+      test("month") {
+        val codec   = ValueVectorCodec.primitive[Month, IntVector]
+        val payload = Chunk(Month.of(1), Month.of(2))
+
+        ZIO.scoped(
+          for {
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
+      },
+      test("month day") {
+        val codec   = ValueVectorCodec.primitive[MonthDay, BigIntVector]
+        val payload = Chunk(MonthDay.of(1, 31), MonthDay.of(2, 28))
+
+        ZIO.scoped(
+          for {
+            vec    <- codec.encodeZIO(payload)
+            result <- codec.decodeZIO(vec)
+          } yield assert(result)(equalTo(payload))
+        )
+      },
+      test("period") {
+        val codec   = ValueVectorCodec.primitive[Period, VarBinaryVector]
+        val payload = Chunk(Period.of(1970, 1, 31), Period.of(1990, 2, 28))
 
         ZIO.scoped(
           for {
@@ -100,7 +248,8 @@ object CodecSpec extends ZIOSpecDefault {
           } yield assert(result)(equalTo(payload))
         )
       }
-//      test("optional string") {
+
+      //      test("optional string") {
 //        val codec = ValueVectorCodec[Option[String], VarCharVector]
 //        val payload = Chunk(Some("zio"), None, Some("monix"))
 //
