@@ -13,6 +13,6 @@ addSbtPlugin("com.github.sbt" % "sbt-ci-release"     % "1.5.12")
 addSbtPlugin("com.github.sbt" % "sbt-github-actions" % "0.19.0")
 
 // Docs
-addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.4.0")
+addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.5.0")
 
 addDependencyTreePlugin
