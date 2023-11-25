@@ -1,6 +1,6 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
-import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.memory.{ ArrowBuf, BufferAllocator }
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.impl.{ PromotableWriter, UnionListWriter }
 import org.apache.arrow.vector.complex.writer.FieldWriter
@@ -8,7 +8,26 @@ import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import zio._
 import zio.schema._
 
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
+import java.time.{
+  DayOfWeek,
+  Instant,
+  LocalDate,
+  LocalDateTime,
+  LocalTime,
+  Month,
+  MonthDay,
+  OffsetDateTime,
+  OffsetTime,
+  Period,
+  Year,
+  YearMonth,
+  ZoneId,
+  ZoneOffset,
+  ZonedDateTime
+}
+import java.util.UUID
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
@@ -50,15 +69,65 @@ object ValueVectorEncoder {
       override protected def encodeUnsafe(chunk: Chunk[A])(implicit alloc: BufferAllocator): V = {
         def allocate[A1](standardType: StandardType[A1]): V = {
           val vec = standardType match {
-            case StandardType.BoolType   =>
-              new BitVector("bitVector", alloc)
-            case StandardType.IntType    =>
-              new IntVector("intVector", alloc)
-            case StandardType.LongType   =>
-              new BigIntVector("longVector", alloc)
-            case StandardType.StringType =>
+            case StandardType.StringType         =>
               new VarCharVector("stringVector", alloc)
-            case other                   =>
+            case StandardType.BoolType           =>
+              new BitVector("boolVector", alloc)
+            case StandardType.ByteType           =>
+              new UInt1Vector("byteVector", alloc)
+            case StandardType.ShortType          =>
+              new SmallIntVector("shortVector", alloc)
+            case StandardType.IntType            =>
+              new IntVector("intVector", alloc)
+            case StandardType.LongType           =>
+              new BigIntVector("longVector", alloc)
+            case StandardType.FloatType          =>
+              new Float4Vector("floatVector", alloc)
+            case StandardType.DoubleType         =>
+              new Float8Vector("doubleVector", alloc)
+            case StandardType.BinaryType         =>
+              new LargeVarBinaryVector("binaryVector", alloc)
+            case StandardType.CharType           =>
+              new UInt2Vector("charVector", alloc)
+            case StandardType.UUIDType           =>
+              new VarBinaryVector("uuidVector", alloc)
+            case StandardType.BigDecimalType     =>
+              new DecimalVector("bigDecimalVector", alloc, 11, 2)
+            case StandardType.BigIntegerType     =>
+              new VarBinaryVector("bigIntVector", alloc)
+            case StandardType.DayOfWeekType      =>
+              new IntVector("dayOfWeekVector", alloc)
+            case StandardType.MonthType          =>
+              new IntVector("monthVector", alloc)
+            case StandardType.MonthDayType       =>
+              new BigIntVector("monthDayVector", alloc)
+            case StandardType.PeriodType         =>
+              new VarBinaryVector("periodVector", alloc)
+            case StandardType.YearType           =>
+              new IntVector("yearVector", alloc)
+            case StandardType.YearMonthType      =>
+              new BigIntVector("yearMonthVector", alloc)
+            case StandardType.ZoneIdType         =>
+              new VarCharVector("zoneIdVector", alloc)
+            case StandardType.ZoneOffsetType     =>
+              new VarCharVector("zoneOffsetVector", alloc)
+            case StandardType.DurationType       =>
+              new BigIntVector("durationVector", alloc)
+            case StandardType.InstantType        =>
+              new BigIntVector("instantVector", alloc)
+            case StandardType.LocalDateType      =>
+              new VarCharVector("localDateVector", alloc)
+            case StandardType.LocalTimeType      =>
+              new VarCharVector("localTimeVector", alloc)
+            case StandardType.LocalDateTimeType  =>
+              new VarCharVector("localDateTimeVector", alloc)
+            case StandardType.OffsetTimeType     =>
+              new VarCharVector("offsetTimeVector", alloc)
+            case StandardType.OffsetDateTimeType =>
+              new VarCharVector("offsetDateTimeVector", alloc)
+            case StandardType.ZonedDateTimeType  =>
+              new VarCharVector("zoneDateTimeVector", alloc)
+            case other                           =>
               throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
           }
 
@@ -68,16 +137,16 @@ object ValueVectorEncoder {
 
         schema match {
           case Schema.Primitive(standardType, _) =>
-            val vec0 = allocate(standardType)
-            val len  = chunk.length
-            val it   = chunk.iterator.zipWithIndex
+            val vec = allocate(standardType)
+            val len = chunk.length
+            val it  = chunk.iterator.zipWithIndex
 
             it.foreach { case (v, i) =>
-              encodePrimitive(v, standardType, vec0, i)
+              encodePrimitive(v, standardType, vec, i)
             }
 
-            vec0.setValueCount(len)
-            vec0
+            vec.setValueCount(len)
+            vec
           case _                                 =>
             throw EncoderError(s"Given ZIO schema must be of type Schema.Primitive[Val]")
 
@@ -132,22 +201,22 @@ object ValueVectorEncoder {
   private[codec] def encodeSchema[A](
     value: A,
     name: Option[String],
-    schema0: Schema[A],
-    writer0: FieldWriter
+    schema: Schema[A],
+    writer: FieldWriter
   )(implicit alloc: BufferAllocator): Unit =
-    schema0 match {
+    schema match {
       case Schema.Primitive(standardType, _)       =>
-        encodePrimitive(value, name, standardType, writer0)
+        encodePrimitive(value, name, standardType, writer)
       case record: Schema.Record[A]                =>
-        val writer = name.fold[FieldWriter](writer0.struct().asInstanceOf[UnionListWriter])(
-          writer0.struct(_).asInstanceOf[PromotableWriter]
+        val writer0 = name.fold[FieldWriter](writer.struct().asInstanceOf[UnionListWriter])(
+          writer.struct(_).asInstanceOf[PromotableWriter]
         )
-        encodeCaseClass(value, record.fields, writer)
+        encodeCaseClass(value, record.fields, writer0)
       case Schema.Sequence(elemSchema, _, g, _, _) =>
-        val writer = name.fold(writer0.list)(writer0.list).asInstanceOf[PromotableWriter]
-        encodeSequence(g(value), elemSchema, writer)
+        val writer0 = name.fold(writer.list)(writer.list).asInstanceOf[PromotableWriter]
+        encodeSequence(g(value), elemSchema, writer0)
       case lzy: Schema.Lazy[_]                     =>
-        encodeSchema(value, name, lzy.schema, writer0)
+        encodeSchema(value, name, lzy.schema, writer)
       case other                                   =>
         throw EncoderError(s"Unsupported ZIO Schema type $other")
     }
@@ -155,52 +224,132 @@ object ValueVectorEncoder {
   private[codec] def encodeCaseClass[A](
     value: A,
     fields: Chunk[Schema.Field[A, _]],
-    writer0: FieldWriter
+    writer: FieldWriter
   )(implicit alloc: BufferAllocator): Unit = {
-    writer0.start()
+    writer.start()
     fields.foreach { case Schema.Field(name, schema0, _, _, get, _) =>
-      encodeSchema(get(value), Some(name), schema0.asInstanceOf[Schema[Any]], writer0)
+      encodeSchema(get(value), Some(name), schema0.asInstanceOf[Schema[Any]], writer)
     }
-    writer0.end()
+    writer.end()
   }
 
   private[codec] def encodeSequence[A](
     chunk: Chunk[A],
     schema0: Schema[A],
-    writer0: FieldWriter
+    writer: FieldWriter
   )(implicit alloc: BufferAllocator): Unit = {
     val it = chunk.iterator
 
-    writer0.startList()
-    it.foreach(encodeSchema(_, None, schema0, writer0))
-    writer0.endList()
+    writer.startList()
+    it.foreach(encodeSchema(_, None, schema0, writer))
+    writer.endList()
   }
 
   private[codec] def encodePrimitive[A](
     value: A,
     name: Option[String],
     standardType: StandardType[A],
-    writer0: FieldWriter
-  )(implicit alloc: BufferAllocator): Unit =
-    (standardType, value) match {
-      case (StandardType.StringType, s: String) =>
-        val buffer = alloc.buffer(s.length.toLong)
+    writer: FieldWriter
+  )(implicit alloc: BufferAllocator): Unit = {
+
+    def withBuffer(size: Long)(fn: ArrowBuf => Unit) = {
+      val buffer = alloc.buffer(size)
+      fn(buffer)
+      buffer.close()
+    }
+
+    def writeString(s: String) =
+      withBuffer(s.length.toLong) { buffer =>
         buffer.writeBytes(s.getBytes(StandardCharsets.UTF_8))
-        name.fold(writer0.varChar)(writer0.varChar).writeVarChar(0, s.length, buffer)
-        buffer.close()
-      case (StandardType.BoolType, b: Boolean)  =>
-        name.fold(writer0.bit)(writer0.bit).writeBit(if (b) 1 else 0)
-      case (StandardType.IntType, i: Int)       =>
-        name.fold(writer0.integer)(writer0.integer).writeInt(i)
-      case (StandardType.LongType, l: Long)     =>
-        name.fold(writer0.bigInt)(writer0.bigInt).writeBigInt(l)
-      case (StandardType.FloatType, f: Float)   =>
-        name.fold(writer0.float4)(writer0.float4).writeFloat4(f)
-      case (StandardType.DoubleType, d: Double) =>
-        name.fold(writer0.float8)(writer0.float8).writeFloat8(d)
-      case (other, _)                           =>
+        name.fold(writer.varChar)(writer.varChar).writeVarChar(0, s.length, buffer)
+      }
+
+    def writeLong[A1](v: A1)(fst: A1 => Int)(snd: A1 => Int) =
+      withBuffer(8) { buffer =>
+        buffer.writeInt(fst(v))
+        buffer.writeInt(snd(v))
+        name.fold(writer.bigInt)(writer.bigInt).writeBigInt(buffer.getLong(0))
+      }
+
+    (standardType, value) match {
+      case (StandardType.StringType, v: String)                   =>
+        writeString(v)
+      case (StandardType.BoolType, v: Boolean)                    =>
+        name.fold(writer.bit)(writer.bit).writeBit(if (v) 1 else 0)
+      case (StandardType.ByteType, v: Byte)                       =>
+        name.fold(writer.uInt1)(writer.uInt1).writeUInt1(v)
+      case (StandardType.ShortType, v: Short)                     =>
+        name.fold(writer.smallInt)(writer.smallInt).writeSmallInt(v)
+      case (StandardType.IntType, v: Int)                         =>
+        name.fold(writer.integer)(writer.integer).writeInt(v)
+      case (StandardType.LongType, v: Long)                       =>
+        name.fold(writer.bigInt)(writer.bigInt).writeBigInt(v)
+      case (StandardType.FloatType, v: Float)                     =>
+        name.fold(writer.float4)(writer.float4).writeFloat4(v)
+      case (StandardType.DoubleType, v: Double)                   =>
+        name.fold(writer.float8)(writer.float8).writeFloat8(v)
+      case (StandardType.BinaryType, v: Chunk[_])                 =>
+        withBuffer(v.length.toLong) { buffer =>
+          buffer.writeBytes(v.asInstanceOf[Chunk[Byte]].toArray)
+          name.fold(writer.largeVarBinary)(writer.largeVarBinary).writeLargeVarBinary(0L, v.length.toLong, buffer)
+        }
+      case (StandardType.CharType, v: Char)                       =>
+        name.fold(writer.uInt2)(writer.uInt2).writeUInt2(v)
+      case (StandardType.UUIDType, v: UUID)                       =>
+        withBuffer(16) { buffer =>
+          buffer.writeLong(v.getLeastSignificantBits)
+          buffer.writeLong(v.getMostSignificantBits)
+          name.fold(writer.varBinary)(writer.varBinary).writeVarBinary(0, 16, buffer)
+        }
+      case (StandardType.BigDecimalType, v: java.math.BigDecimal) =>
+        name.fold(writer.decimal)(writer.decimal).writeDecimal(v)
+      case (StandardType.BigIntegerType, v: java.math.BigInteger) =>
+        val bb = v.toByteArray
+        withBuffer(bb.length.toLong) { buffer =>
+          buffer.writeBytes(bb)
+          name.fold(writer.varBinary)(writer.varBinary).writeVarBinary(0, bb.length, buffer)
+        }
+      case (StandardType.DayOfWeekType, v: DayOfWeek)             =>
+        name.fold(writer.integer)(writer.integer).writeInt(v.getValue)
+      case (StandardType.MonthType, v: Month)                     =>
+        name.fold(writer.integer)(writer.integer).writeInt(v.getValue)
+      case (StandardType.MonthDayType, v: MonthDay)               =>
+        writeLong(v)(_.getDayOfMonth)(_.getMonthValue)
+      case (StandardType.PeriodType, v: Period)                   =>
+        withBuffer(12) { buffer =>
+          buffer.writeInt(v.getDays)
+          buffer.writeInt(v.getMonths)
+          buffer.writeInt(v.getYears)
+          name.fold(writer.varBinary)(writer.varBinary).writeVarBinary(0, 12, buffer)
+        }
+      case (StandardType.YearType, v: Year)                       =>
+        name.fold(writer.integer)(writer.integer).writeInt(v.getValue)
+      case (StandardType.YearMonthType, v: YearMonth)             =>
+        writeLong(v)(_.getMonthValue)(_.getYear)
+      case (StandardType.ZoneIdType, v: ZoneId)                   =>
+        writeString(v.toString)
+      case (StandardType.ZoneOffsetType, v: ZoneOffset)           =>
+        writeString(v.toString)
+      case (StandardType.DurationType, v: Duration)               =>
+        name.fold(writer.bigInt)(writer.bigInt).writeBigInt(v.toMillis)
+      case (StandardType.InstantType, v: Instant)                 =>
+        name.fold(writer.bigInt)(writer.bigInt).writeBigInt(v.toEpochMilli)
+      case (StandardType.LocalDateType, v: LocalDate)             =>
+        writeString(v.toString)
+      case (StandardType.LocalTimeType, v: LocalTime)             =>
+        writeString(v.toString)
+      case (StandardType.LocalDateTimeType, v: LocalDateTime)     =>
+        writeString(v.toString)
+      case (StandardType.OffsetTimeType, v: OffsetTime)           =>
+        writeString(v.toString)
+      case (StandardType.OffsetDateTimeType, v: OffsetDateTime)   =>
+        writeString(v.toString)
+      case (StandardType.ZonedDateTimeType, v: ZonedDateTime)     =>
+        writeString(v.toString)
+      case (other, _)                                             =>
         throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
     }
+  }
 
   private[codec] def encodePrimitive[A, V <: ValueVector](
     value: A,
@@ -209,19 +358,78 @@ object ValueVectorEncoder {
     idx: Int
   ): Unit =
     (standardType, vec, value) match {
-      case (StandardType.StringType, vec: VarCharVector, s: String) =>
-        vec.set(idx, s.getBytes(StandardCharsets.UTF_8))
-      case (StandardType.BoolType, vec: BitVector, b: Boolean)      =>
-        vec.set(idx, if (b) 1 else 0)
-      case (StandardType.IntType, vec: IntVector, ii: Int)          =>
-        vec.set(idx, ii)
-      case (StandardType.LongType, vec: BigIntVector, l: Long)      =>
-        vec.set(idx, l)
-      case (StandardType.FloatType, vec: Float4Vector, f: Float)    =>
-        vec.set(idx, f)
-      case (StandardType.DoubleType, vec: Float8Vector, d: Double)  =>
-        vec.set(idx, d)
-      case (other, _, _)                                            =>
+      case (StandardType.StringType, vec: VarCharVector, v: String)                     =>
+        vec.set(idx, v.getBytes(StandardCharsets.UTF_8))
+      case (StandardType.BoolType, vec: BitVector, v: Boolean)                          =>
+        vec.set(idx, if (v) 1 else 0)
+      case (StandardType.ByteType, vec: UInt1Vector, v: Byte)                           =>
+        vec.set(idx, v)
+      case (StandardType.ShortType, vec: SmallIntVector, v: Short)                      =>
+        vec.set(idx, v)
+      case (StandardType.IntType, vec: IntVector, v: Int)                               =>
+        vec.set(idx, v)
+      case (StandardType.LongType, vec: BigIntVector, v: Long)                          =>
+        vec.set(idx, v)
+      case (StandardType.FloatType, vec: Float4Vector, v: Float)                        =>
+        vec.set(idx, v)
+      case (StandardType.DoubleType, vec: Float8Vector, v: Double)                      =>
+        vec.set(idx, v)
+      case (StandardType.BinaryType, vec: LargeVarBinaryVector, v: Chunk[_])            =>
+        vec.set(idx, v.asInstanceOf[Chunk[Byte]].toArray)
+      case (StandardType.CharType, vec: UInt2Vector, v: Char)                           =>
+        vec.set(idx, v)
+      case (StandardType.UUIDType, vec: VarBinaryVector, v: UUID)                       =>
+        val bb = ByteBuffer.wrap(Array.ofDim(16))
+        bb.putLong(v.getMostSignificantBits)
+        bb.putLong(v.getLeastSignificantBits)
+        vec.set(idx, bb.array())
+      case (StandardType.BigDecimalType, vec: DecimalVector, v: java.math.BigDecimal)   =>
+        vec.set(idx, v)
+      case (StandardType.BigIntegerType, vec: VarBinaryVector, v: java.math.BigInteger) =>
+        vec.set(idx, v.toByteArray)
+      case (StandardType.DayOfWeekType, vec: IntVector, v: DayOfWeek)                   =>
+        vec.set(idx, v.getValue)
+      case (StandardType.MonthType, vec: IntVector, v: Month)                           =>
+        vec.set(idx, v.getValue)
+      case (StandardType.MonthDayType, vec: BigIntVector, v: MonthDay)                  =>
+        val bb = ByteBuffer.allocate(8)
+        bb.putInt(v.getMonthValue)
+        bb.putInt(v.getDayOfMonth)
+        vec.set(idx, bb.getLong(0))
+      case (StandardType.PeriodType, vec: VarBinaryVector, v: Period)                   =>
+        val bb = ByteBuffer.allocate(12)
+        bb.putInt(v.getYears)
+        bb.putInt(v.getMonths)
+        bb.putInt(v.getDays)
+        vec.set(idx, bb.array())
+      case (StandardType.YearType, vec: IntVector, v: Year)                             =>
+        vec.set(idx, v.getValue)
+      case (StandardType.YearMonthType, vec: BigIntVector, v: YearMonth)                =>
+        val bb = ByteBuffer.allocate(8)
+        bb.putInt(v.getYear)
+        bb.putInt(v.getMonthValue)
+        vec.set(idx, bb.getLong(0))
+      case (StandardType.ZoneIdType, vec: VarCharVector, v: ZoneId)                     =>
+        vec.set(idx, v.toString.getBytes(StandardCharsets.UTF_8))
+      case (StandardType.ZoneOffsetType, vec: VarCharVector, v: ZoneOffset)             =>
+        vec.set(idx, v.toString.getBytes(StandardCharsets.UTF_8))
+      case (StandardType.DurationType, vec: BigIntVector, v: Duration)                  =>
+        vec.set(idx, v.toMillis)
+      case (StandardType.InstantType, vec: BigIntVector, v: Instant)                    =>
+        vec.set(idx, v.toEpochMilli)
+      case (StandardType.LocalDateType, vec: VarCharVector, v: LocalDate)               =>
+        vec.set(idx, v.toString.getBytes(StandardCharsets.UTF_8))
+      case (StandardType.LocalTimeType, vec: VarCharVector, v: LocalTime)               =>
+        vec.set(idx, v.toString.getBytes(StandardCharsets.UTF_8))
+      case (StandardType.LocalDateTimeType, vec: VarCharVector, v: LocalDateTime)       =>
+        vec.set(idx, v.toString.getBytes(StandardCharsets.UTF_8))
+      case (StandardType.OffsetTimeType, vec: VarCharVector, v: OffsetTime)             =>
+        vec.set(idx, v.toString.getBytes(StandardCharsets.UTF_8))
+      case (StandardType.OffsetDateTimeType, vec: VarCharVector, v: OffsetDateTime)     =>
+        vec.set(idx, v.toString.getBytes(StandardCharsets.UTF_8))
+      case (StandardType.ZonedDateTimeType, vec: VarCharVector, v: ZonedDateTime)       =>
+        vec.set(idx, v.toString.getBytes(StandardCharsets.UTF_8))
+      case (other, _, _)                                                                =>
         throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
     }
 

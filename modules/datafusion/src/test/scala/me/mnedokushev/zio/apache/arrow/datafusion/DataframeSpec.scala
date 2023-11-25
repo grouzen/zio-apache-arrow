@@ -3,8 +3,8 @@ package me.mnedokushev.zio.apache.arrow.datafusion
 import me.mnedokushev.zio.apache.arrow.core.Allocator
 import zio._
 import zio.schema._
-import zio.test._
 import zio.test.Assertion._
+import zio.test._
 
 import java.nio.file.Paths
 

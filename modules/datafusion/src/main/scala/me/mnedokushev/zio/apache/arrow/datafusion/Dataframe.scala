@@ -1,7 +1,7 @@
 package me.mnedokushev.zio.apache.arrow.datafusion
 
+import me.mnedokushev.zio.apache.arrow.core._
 import me.mnedokushev.zio.apache.arrow.core.codec.VectorSchemaRootDecoder
-import me.mnedokushev.zio.apache.arrow.core.validateSchema
 import org.apache.arrow.datafusion.DataFrame
 import org.apache.arrow.memory.BufferAllocator
 import zio._
@@ -24,7 +24,7 @@ class Dataframe(underlying: DataFrame) {
         root   <- ZStream.fromZIO(
                     for {
                       root <- ZIO.attempt(reader.getVectorSchemaRoot)
-                      _    <- ZIO.attempt(validateSchema(root.getSchema())(()))
+                      _    <- validateSchema(root.getSchema())
                     } yield root
                   )
         chunk  <- ZStream.repeatZIOOption(

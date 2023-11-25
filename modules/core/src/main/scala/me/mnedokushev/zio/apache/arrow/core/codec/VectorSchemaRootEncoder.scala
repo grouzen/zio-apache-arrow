@@ -81,7 +81,7 @@ object VectorSchemaRootEncoder {
 
         schema match {
           case record: Schema.Record[A] =>
-            validateSchema(root.getSchema) {
+            whenSchemaValid(root.getSchema) {
               val fields = record.fields.map { case Schema.Field(name, fieldSchema, _, _, g, _) =>
                 val vec = Option(root.getVector(name))
                   .getOrElse(throw EncoderError(s"Couldn't find vector by name $name"))

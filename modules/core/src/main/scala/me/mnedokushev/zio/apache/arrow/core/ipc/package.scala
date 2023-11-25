@@ -25,7 +25,7 @@ package object ipc {
                               for {
                                 reader <- ZIO.fromAutoCloseable(ZIO.attempt(new ArrowStreamReader(in, alloc)))
                                 root   <- ZIO.attempt(reader.getVectorSchemaRoot)
-                                _      <- ZIO.attempt(validateSchema(root.getSchema())(()))
+                                _      <- validateSchema(root.getSchema())
                               } yield (reader, root)
                             }
                           )
