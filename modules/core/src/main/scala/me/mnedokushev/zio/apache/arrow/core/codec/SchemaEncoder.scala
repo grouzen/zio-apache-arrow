@@ -51,17 +51,65 @@ object SchemaEncoder {
       field(name, arrowType, nullable)
 
     standardType match {
-      case StandardType.IntType    =>
-        namedField(new ArrowType.Int(32, true))
-      case StandardType.LongType   =>
-        namedField(new ArrowType.Int(64, true))
-      case StandardType.FloatType  =>
-        namedField(new ArrowType.FloatingPoint(FloatingPointPrecision.HALF))
-      case StandardType.DoubleType =>
-        namedField(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))
-      case StandardType.StringType =>
+      case StandardType.StringType         =>
         namedField(new ArrowType.Utf8)
-      case other                   =>
+      case StandardType.BoolType           =>
+        namedField(new ArrowType.Bool)
+      case StandardType.ByteType           =>
+        namedField(new ArrowType.Int(8, false))
+      case StandardType.ShortType          =>
+        namedField(new ArrowType.Int(16, true))
+      case StandardType.IntType            =>
+        namedField(new ArrowType.Int(32, true))
+      case StandardType.LongType           =>
+        namedField(new ArrowType.Int(64, true))
+      case StandardType.FloatType          =>
+        namedField(new ArrowType.FloatingPoint(FloatingPointPrecision.HALF))
+      case StandardType.DoubleType         =>
+        namedField(new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))
+      case StandardType.BinaryType         =>
+        namedField(new ArrowType.Binary)
+      case StandardType.CharType           =>
+        namedField(new ArrowType.Int(16, false))
+      case StandardType.UUIDType           =>
+        namedField(new ArrowType.FixedSizeBinary(8))
+      case StandardType.BigDecimalType     =>
+        namedField(new ArrowType.Decimal(11, 2, 128))
+      case StandardType.BigIntegerType     =>
+        namedField(new ArrowType.FixedSizeBinary(8))
+      case StandardType.DayOfWeekType      =>
+        namedField(new ArrowType.Int(3, false))
+      case StandardType.MonthType          =>
+        namedField(new ArrowType.Int(4, false))
+      case StandardType.MonthDayType       =>
+        namedField(new ArrowType.Int(64, false))
+      case StandardType.PeriodType         =>
+        namedField(new ArrowType.FixedSizeBinary(8))
+      case StandardType.YearType           =>
+        namedField(new ArrowType.Int(16, false))
+      case StandardType.YearMonthType      =>
+        namedField(new ArrowType.Int(64, false))
+      case StandardType.ZoneIdType         =>
+        namedField(new ArrowType.Utf8)
+      case StandardType.ZoneOffsetType     =>
+        namedField(new ArrowType.Utf8)
+      case StandardType.DurationType       =>
+        namedField(new ArrowType.Int(64, false))
+      case StandardType.InstantType        =>
+        namedField(new ArrowType.Int(64, false))
+      case StandardType.LocalDateType      =>
+        namedField(new ArrowType.Utf8)
+      case StandardType.LocalTimeType      =>
+        namedField(new ArrowType.Utf8)
+      case StandardType.LocalDateTimeType  =>
+        namedField(new ArrowType.Utf8)
+      case StandardType.OffsetTimeType     =>
+        namedField(new ArrowType.Utf8)
+      case StandardType.OffsetDateTimeType =>
+        namedField(new ArrowType.Utf8)
+      case StandardType.ZonedDateTimeType  =>
+        namedField(new ArrowType.Utf8)
+      case other                           =>
         throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
     }
   }
