@@ -38,7 +38,7 @@ inThisBuild(
 lazy val root =
   project
     .in(file("."))
-    .aggregate(core, datafusion, docs)
+    .aggregate(core, datafusion)
     .settings(publish / skip := true)
 
 lazy val core =
@@ -60,17 +60,17 @@ lazy val datafusion =
       testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
     )
 
-lazy val docs =
-  project
-    .in(file("docs"))
-    .dependsOn(core)
-    .settings(
-      name           := "zio-apache-arrow-docs",
-      organization   := "me.mnedokushev",
-      publish / skip := true,
-      mdocIn         := file("docs/src/main/mdoc"),
-      mdocVariables  := Map(
-        "VERSION" -> version.value
-      )
-    )
-    .enablePlugins(MdocPlugin)
+//lazy val docs =
+//  project
+//    .in(file("docs"))
+//    .dependsOn(core)
+//    .settings(
+//      name           := "zio-apache-arrow-docs",
+//      organization   := "me.mnedokushev",
+//      publish / skip := true,
+//      mdocIn         := file("docs/src/main/mdoc"),
+//      mdocVariables  := Map(
+//        "VERSION" -> version.value
+//      )
+//    )
+//    .enablePlugins(MdocPlugin)

@@ -10,9 +10,23 @@ ZIO based wrapper for [Apache Arrow Java Implementation](https://arrow.apache.or
 for [ValueVector](https://arrow.apache.org/docs/java/reference/index.html)
 and [VectorSchemaRoot](https://arrow.apache.org/docs/java/reference/index.html)
 
-## Documentation
+# Overview
 
-The documentation can be found on the project's website
-[https://zio-apache-arrow.mnedokushev.me/](https://zio-apache-arrow.mnedokushev.me/) or in the
-[docs/](https://github.com/grouzen/zio-apache-arrow/docs/src/main/mdoc/) directory.
+## Installation
 
+```scala
+libraryDependencies += "me.mnedokushev" %% "zio-apache-arrow-core" % "@VERSION@"
+```
+
+## Codecs
+
+```scala
+val codec = ValueVectorCodec[Int, IntVector]
+
+ZIO.scoped(
+  for {
+    vec <- codec.encodeZIO(Chunk(1, 2, 3))
+    result <- codec.decodeZIO(vec)
+  } yield result
+)
+```
