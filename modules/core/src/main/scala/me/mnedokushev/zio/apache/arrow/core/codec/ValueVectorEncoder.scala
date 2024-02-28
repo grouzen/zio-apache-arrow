@@ -379,7 +379,7 @@ object ValueVectorEncoder {
       case (StandardType.CharType, vec: UInt2Vector, v: Char)                           =>
         vec.set(idx, v)
       case (StandardType.UUIDType, vec: VarBinaryVector, v: UUID)                       =>
-        val bb = ByteBuffer.wrap(Array.ofDim(16))
+        val bb = ByteBuffer.allocate(16)
         bb.putLong(v.getMostSignificantBits)
         bb.putLong(v.getLeastSignificantBits)
         vec.set(idx, bb.array())

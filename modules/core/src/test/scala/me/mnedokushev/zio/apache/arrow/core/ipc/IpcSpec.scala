@@ -22,6 +22,6 @@ object IpcSpec extends ZIOSpecDefault {
           } yield assert(result)(equalTo(Chunk.fromIterable(payload)))
         )
       }
-    ) provideLayerShared (Allocator.rootLayer())
+    ).provideLayerShared(Allocator.rootLayer())
 
 }
