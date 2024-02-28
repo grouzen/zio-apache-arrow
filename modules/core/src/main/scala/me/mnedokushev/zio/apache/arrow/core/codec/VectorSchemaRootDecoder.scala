@@ -38,7 +38,7 @@ object VectorSchemaRootDecoder {
   def apply[A](implicit decoder: VectorSchemaRootDecoder[A]): VectorSchemaRootDecoder[A] =
     decoder
 
-  implicit def schema[A](implicit schema: Schema[A]): VectorSchemaRootDecoder[A] =
+  implicit def schema[A: SchemaEncoder](implicit schema: Schema[A]): VectorSchemaRootDecoder[A] =
     new VectorSchemaRootDecoder[A] {
       override protected def decodeUnsafe(root: VectorSchemaRoot): Chunk[A] = {
         @tailrec

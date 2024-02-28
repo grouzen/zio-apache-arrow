@@ -35,7 +35,7 @@ object VectorSchemaRootCodec {
   def apply[A](implicit codec: VectorSchemaRootCodec[A]): VectorSchemaRootCodec[A] =
     codec
 
-  implicit def schema[A](implicit schema: Schema[A]): VectorSchemaRootCodec[A] =
+  implicit def schema[A: Schema: SchemaEncoder]: VectorSchemaRootCodec[A] =
     VectorSchemaRootCodec(VectorSchemaRootEncoder.schema[A], VectorSchemaRootDecoder.schema[A])
 
 }

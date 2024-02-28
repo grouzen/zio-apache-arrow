@@ -11,18 +11,18 @@ import scala.jdk.CollectionConverters._
 
 object SchemaEncoderSpec extends ZIOSpecDefault {
 
-  import SchemaEncoder._
-
   override def spec: Spec[TestEnvironment with Scope, Any] =
     suite("SchemaEncoder")(
       encodeFlatSpec
     )
 
+  import SchemaEncoderDeriver._
+
   val encodeFlatSpec: Spec[Any, Throwable] =
     suite("schemaRoot")(
       test("primitive") {
         for {
-          result <- schemaRoot[Primitives]
+          result <- Primitives.schemaEncoder.encode
           fields  = getFields(result)
         } yield assert(fields)(contains(fieldNotNullable("a", new ArrowType.Int(32, true)))) &&
           assert(fields)(contains(fieldNotNullable("b", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)))) &&
@@ -30,19 +30,19 @@ object SchemaEncoderSpec extends ZIOSpecDefault {
       },
       test("struct") {
         for {
-          result <- schemaRoot[StructOfPrimitives]
+          result <- StructOfPrimitives.schemaEncoder.encode
           fields  = getFields(result)
         } yield assert(fields)(contains(fieldNotNullable("struct", new ArrowType.Struct)))
       },
       test("list") {
         for {
-          result <- schemaRoot[ListOfPrimitives]
+          result <- ListOfPrimitives.schemaEncoder.encode
           fields  = getFields(result)
         } yield assert(fields)(contains(fieldNotNullable("list", new ArrowType.List)))
       },
       test("nullable primitives") {
         for {
-          result <- schemaRoot[NullablePrimitives]
+          result <- NullablePrimitives.schemaEncoder.encode
           fields  = getFields(result)
         } yield assert(fields)(contains(fieldNullable("a", new ArrowType.Int(32, true)))) &&
           assert(fields)(contains(fieldNullable("b", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE))))

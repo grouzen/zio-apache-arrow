@@ -51,7 +51,7 @@ object VectorSchemaRootEncoder {
   def apply[A](implicit encoder: VectorSchemaRootEncoder[A]): VectorSchemaRootEncoder[A] =
     encoder
 
-  implicit def schema[A](implicit schema: Schema[A]): VectorSchemaRootEncoder[A] =
+  implicit def schema[A: SchemaEncoder](implicit schema: Schema[A]): VectorSchemaRootEncoder[A] =
     new VectorSchemaRootEncoder[A] {
       override protected def encodeUnsafe(
         chunk: Chunk[A],

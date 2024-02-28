@@ -7,15 +7,17 @@ import zio.schema.{ Schema => ZSchema }
 
 package object core {
 
-  def whenSchemaValid[A: ZSchema, B](schema: Schema)(ifValid: => B): B =
+  def whenSchemaValid[A, B](schema: Schema)(
+    ifValid: => B
+  )(implicit zschema: ZSchema[A], schemaEncoder: SchemaEncoder[A]): B =
     // TODO: cache result of `schemaRoot` for better performance
-    SchemaEncoder.schemaRoot[A] match {
+    schemaEncoder.encode(zschema) match {
       case Right(s) if s == schema => ifValid
       case Right(s)                => throw ValidationError(s"Schemas are not equal $s != $schema")
       case Left(error)             => throw error
     }
 
-  def validateSchema[A: ZSchema](schema: Schema): Task[Unit] =
+  def validateSchema[A: ZSchema: SchemaEncoder](schema: Schema): Task[Unit] =
     ZIO.attempt(whenSchemaValid[A, Unit](schema)(()))
 
 }
