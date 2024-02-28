@@ -11,14 +11,13 @@ import scala.jdk.CollectionConverters._
 
 object Tabular {
 
-  def empty[A](implicit
-    schemaEncoder: SchemaEncoder[A],
-    schema: ZSchema[A]
+  def empty[A: ZSchema](implicit
+    schemaEncoder: SchemaEncoder[A]
   ): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
     ZIO.fromAutoCloseable(
       ZIO.serviceWithZIO[BufferAllocator] { implicit alloc =>
         for {
-          schema0 <- ZIO.fromEither(schemaEncoder.encode(schema))
+          schema0 <- ZIO.fromEither(schemaEncoder.encode)
           vectors <- ZIO.foreach(schema0.getFields.asScala.toList) { f =>
                        for {
                          vec <- ZIO.attempt(f.createVector(alloc))

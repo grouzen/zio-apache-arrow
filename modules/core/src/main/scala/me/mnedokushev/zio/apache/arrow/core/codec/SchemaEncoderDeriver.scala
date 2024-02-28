@@ -1,7 +1,7 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.vector.types.FloatingPointPrecision
-import org.apache.arrow.vector.types.pojo.{ ArrowType, Field, FieldType, Schema => JSchema }
+import org.apache.arrow.vector.types.pojo.{ ArrowType, Field, Schema => JSchema }
 import zio.Chunk
 import zio.schema.{ Deriver, Schema, StandardType }
 
@@ -32,7 +32,7 @@ object SchemaEncoderDeriver {
         }
 
       override def encodeField(name: String, nullable: Boolean): Field =
-        field(name, new ArrowType.Struct, nullable)
+        SchemaEncoder.field(name, new ArrowType.Struct, nullable)
 
     }
 
@@ -55,7 +55,7 @@ object SchemaEncoderDeriver {
 
       override def encodeField(name: String, nullable: Boolean): Field = {
         def namedField(arrowType: ArrowType) =
-          field(name, arrowType, nullable)
+          SchemaEncoder.field(name, arrowType, nullable)
 
         st match {
           case StandardType.StringType         =>
@@ -141,7 +141,7 @@ object SchemaEncoderDeriver {
     ): SchemaEncoder[C[A]] = new SchemaEncoder[C[A]] {
 
       override def encodeField(name: String, nullable: Boolean): Field =
-        field(name, new ArrowType.List, nullable)
+        SchemaEncoder.field(name, new ArrowType.List, nullable)
 
     }
 
@@ -171,13 +171,6 @@ object SchemaEncoderDeriver {
 
   }
 
-  private[codec] def field(name: String, arrowType: ArrowType, nullable: Boolean): Field =
-    new Field(name, new FieldType(nullable, arrowType, null), null)
-
-  private[codec] def fieldNullable(name: String, arrowType: ArrowType): Field =
-    field(name, arrowType, nullable = true)
-
-  private[codec] def fieldNotNullable(name: String, arrowType: ArrowType): Field =
-    field(name, arrowType, nullable = false)
+  def summoned: Deriver[SchemaEncoder] = default.autoAcceptSummoned
 
 }
