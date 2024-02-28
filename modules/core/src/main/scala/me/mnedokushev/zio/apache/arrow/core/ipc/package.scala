@@ -24,17 +24,17 @@ package object ipc {
                             ZIO.serviceWithZIO[BufferAllocator] { implicit alloc =>
                               for {
                                 reader <- ZIO.fromAutoCloseable(ZIO.attempt(new ArrowStreamReader(in, alloc)))
-                                root   <- ZIO.attempt(reader.getVectorSchemaRoot)
+                                root   <- ZIO.attemptBlockingIO(reader.getVectorSchemaRoot)
                                 _      <- validateSchema(root.getSchema())
                               } yield (reader, root)
                             }
                           )
       chunk          <- ZStream.repeatZIOOption(
                           ZIO
-                            .attempt(reader.loadNextBatch())
+                            .attemptBlockingIO(reader.loadNextBatch())
                             .asSomeError
                             .filterOrFail(_ == true)(None)
-                            .flatMap(_ => decoder.decodeZIO(root).asSomeError)
+                            .zipRight(decoder.decodeZIO(root).asSomeError)
                         )
       elem           <- ZStream.fromIterable(chunk)
     } yield elem
