@@ -2,7 +2,6 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ValueVector
-// import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import zio._
 // import zio.schema.Schema
 

@@ -4,8 +4,9 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.complex.writer.FieldWriter
 import org.apache.arrow.vector.{ FieldVector, VectorSchemaRoot }
 import zio._
+
+import scala.annotation.unused
 import scala.util.control.NonFatal
-import scala.annotation.nowarn
 
 trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
 
@@ -30,10 +31,12 @@ trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
   final def contramap[B](f: B => A): VectorSchemaRootEncoder[B] =
     new VectorSchemaRootEncoder[B] {
 
-      override def encodeField(name: String, vec: FieldVector, writer: FieldWriter, value: B, idx: Int)(implicit
-        alloc: BufferAllocator
-      ): Unit =
-        self.encodeField(name, vec, writer, f(value), idx)
+      override def encodeValue(
+        value: B,
+        name: Option[String],
+        writer: FieldWriter
+      )(implicit alloc: BufferAllocator): Unit =
+        self.encodeValue(f(value), name, writer)
 
       override protected def encodeUnsafe(chunk: Chunk[B], root: VectorSchemaRoot)(implicit
         alloc: BufferAllocator
@@ -42,21 +45,15 @@ trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
     }
 
   protected def encodeUnsafe(
-    @nowarn chunk: Chunk[A],
-    @nowarn root: VectorSchemaRoot
-  )(implicit @nowarn alloc: BufferAllocator): VectorSchemaRoot =
+    @unused chunk: Chunk[A],
+    @unused root: VectorSchemaRoot
+  )(implicit @unused alloc: BufferAllocator): VectorSchemaRoot =
     throw EncoderError(s"Given ZIO schema must be of type Schema.Record[A]")
 
-  override def encodeValue(
-    value: A,
-    name: Option[String],
-    writer: FieldWriter
-  )(implicit alloc: BufferAllocator): Unit =
-    throw EncoderError(s"Unsupported ZIO Schema type for field $name")
-
-  def encodeField(name: String, vec: FieldVector, writer: FieldWriter, value: A, idx: Int)(implicit
+  def encodeField(@unused vec: FieldVector, writer: FieldWriter, value: A, @unused idx: Int)(implicit
     alloc: BufferAllocator
-  ): Unit
+  ): Unit =
+    self.encodeValue(value, None, writer)
 
 }
 

@@ -2,33 +2,9 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
-// import org.apache.arrow.vector.complex.impl.{ PromotableWriter, UnionListWriter }
 import org.apache.arrow.vector.complex.writer.FieldWriter
-// import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import zio._
-// import zio.schema._
 
-// import java.nio.ByteBuffer
-// import java.nio.charset.StandardCharsets
-// import java.time.{
-//   DayOfWeek,
-//   Instant,
-//   LocalDate,
-//   LocalDateTime,
-//   LocalTime,
-//   Month,
-//   MonthDay,
-//   OffsetDateTime,
-//   OffsetTime,
-//   Period,
-//   Year,
-//   YearMonth,
-//   ZoneId,
-//   ZoneOffset,
-//   ZonedDateTime
-// }
-// import java.util.UUID
-// import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
 trait ValueVectorEncoder[-A, V <: ValueVector] extends ValueEncoder[A] { self =>
