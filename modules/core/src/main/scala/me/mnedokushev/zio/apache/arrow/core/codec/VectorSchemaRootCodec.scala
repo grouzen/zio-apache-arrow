@@ -3,7 +3,6 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import zio._
-// import zio.schema.Schema
 
 final case class VectorSchemaRootCodec[A](
   encoder: VectorSchemaRootEncoder[A],
@@ -29,13 +28,3 @@ final case class VectorSchemaRootCodec[A](
     encoder.encode(chunk, root)
 
 }
-
-// object VectorSchemaRootCodec {
-
-//   def apply[A](implicit codec: VectorSchemaRootCodec[A]): VectorSchemaRootCodec[A] =
-//     codec
-
-//   implicit def schema[A: Schema: SchemaEncoder]: VectorSchemaRootCodec[A] =
-//     VectorSchemaRootCodec(VectorSchemaRootEncoder.schema[A], VectorSchemaRootDecoder.schema[A])
-
-// }
