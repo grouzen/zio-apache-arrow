@@ -2,12 +2,12 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
-// import org.apache.arrow.vector.complex.writer.FieldWriter
 import zio._
+import zio.schema.Derive
 
 import scala.util.control.NonFatal
 
-trait ValueVectorEncoder[-A, V <: ValueVector] extends ValueEncoder[A] { self =>
+trait ValueVectorEncoder[V <: ValueVector, -A] extends ValueEncoder[A] { self =>
 
   final def encodeZIO(chunk: Chunk[A]): RIO[Scope with BufferAllocator, V] =
     ZIO.fromAutoCloseable(
@@ -40,5 +40,14 @@ trait ValueVectorEncoder[-A, V <: ValueVector] extends ValueEncoder[A] { self =>
   //       self.encodeValue(f(value), name, writer)
 
   //   }
+
+}
+
+object ValueVectorEncoder {
+
+  implicit val stringEncoder: ValueVectorEncoder[VarCharVector, String] =
+    Derive.derive[ValueVectorEncoder[VarCharVector, *], String](ValueVectorEncoderDeriver.default[VarCharVector])
+  implicit val intEncoder: ValueVectorEncoder[IntVector, Int]           =
+    Derive.derive[ValueVectorEncoder[IntVector, *], Int](ValueVectorEncoderDeriver.default[IntVector])
 
 }

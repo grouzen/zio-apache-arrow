@@ -4,8 +4,8 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ValueVector
 import zio._
 
-final case class ValueVectorCodec[A, V <: ValueVector](
-  encoder: ValueVectorEncoder[A, V],
+final case class ValueVectorCodec[V <: ValueVector, A](
+  encoder: ValueVectorEncoder[V, A],
   decoder: ValueVectorDecoder[V, A]
 ) { self =>
 
@@ -28,10 +28,10 @@ final case class ValueVectorCodec[A, V <: ValueVector](
 
 object ValueVectorCodec {
 
-  implicit def codec[A, V <: ValueVector](implicit
-    encoder: ValueVectorEncoder[A, V],
+  implicit def codec[V <: ValueVector, A](implicit
+    encoder: ValueVectorEncoder[V, A],
     decoder: ValueVectorDecoder[V, A]
-  ): ValueVectorCodec[A, V] =
-    ValueVectorCodec[A, V](encoder, decoder)
+  ): ValueVectorCodec[V, A] =
+    ValueVectorCodec[V, A](encoder, decoder)
 
 }

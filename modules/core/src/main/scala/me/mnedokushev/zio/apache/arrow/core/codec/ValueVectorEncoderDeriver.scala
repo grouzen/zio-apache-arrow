@@ -10,13 +10,13 @@ import zio.schema.{ Deriver, Schema, StandardType }
 
 object ValueVectorEncoderDeriver {
 
-  def default[V1 <: ValueVector]: Deriver[ValueVectorEncoder[*, V1]] = new Deriver[ValueVectorEncoder[*, V1]] {
+  def default[V1 <: ValueVector]: Deriver[ValueVectorEncoder[V1, *]] = new Deriver[ValueVectorEncoder[V1, *]] {
 
     override def deriveRecord[A](
       record: Schema.Record[A],
-      fields: => Chunk[Deriver.WrappedF[ValueVectorEncoder[*, V1], _]],
-      summoned: => Option[ValueVectorEncoder[A, V1]]
-    ): ValueVectorEncoder[A, V1] = new ValueVectorEncoder[A, V1] {
+      fields: => Chunk[Deriver.WrappedF[ValueVectorEncoder[V1, *], _]],
+      summoned: => Option[ValueVectorEncoder[V1, A]]
+    ): ValueVectorEncoder[V1, A] = new ValueVectorEncoder[V1, A] {
 
       private val encoders = fields.map(_.unwrap)
 
@@ -51,14 +51,14 @@ object ValueVectorEncoderDeriver {
 
     override def deriveEnum[A](
       `enum`: Schema.Enum[A],
-      cases: => Chunk[Deriver.WrappedF[ValueVectorEncoder[*, V1], _]],
-      summoned: => Option[ValueVectorEncoder[A, V1]]
-    ): ValueVectorEncoder[A, V1] = ???
+      cases: => Chunk[Deriver.WrappedF[ValueVectorEncoder[V1, *], _]],
+      summoned: => Option[ValueVectorEncoder[V1, A]]
+    ): ValueVectorEncoder[V1, A] = ???
 
     override def derivePrimitive[A](
       st: StandardType[A],
-      summoned: => Option[ValueVectorEncoder[A, V1]]
-    ): ValueVectorEncoder[A, V1] = new ValueVectorEncoder[A, V1] {
+      summoned: => Option[ValueVectorEncoder[V1, A]]
+    ): ValueVectorEncoder[V1, A] = new ValueVectorEncoder[V1, A] {
 
       override protected def encodeUnsafe(chunk: Chunk[A])(implicit alloc: BufferAllocator): V1 = {
         def allocate[A1](standardType: StandardType[A1]): V1 = {
@@ -149,16 +149,16 @@ object ValueVectorEncoderDeriver {
 
     override def deriveOption[A](
       option: Schema.Optional[A],
-      inner: => ValueVectorEncoder[A, V1],
-      summoned: => Option[ValueVectorEncoder[Option[A], V1]]
-    ): ValueVectorEncoder[Option[A], V1] = ???
+      inner: => ValueVectorEncoder[V1, A],
+      summoned: => Option[ValueVectorEncoder[V1, Option[A]]]
+    ): ValueVectorEncoder[V1, Option[A]] = ???
 
     override def deriveSequence[C[_], A](
       sequence: Schema.Sequence[C[A], A, _],
-      inner: => ValueVectorEncoder[A, V1],
-      summoned: => Option[ValueVectorEncoder[C[A], V1]]
-    ): ValueVectorEncoder[C[A], V1] =
-      new ValueVectorEncoder[C[A], V1] {
+      inner: => ValueVectorEncoder[V1, A],
+      summoned: => Option[ValueVectorEncoder[V1, C[A]]]
+    ): ValueVectorEncoder[V1, C[A]] =
+      new ValueVectorEncoder[V1, C[A]] {
 
         override protected def encodeUnsafe(chunk: Chunk[C[A]])(implicit alloc: BufferAllocator): V1 = {
           val vec    = ListVector.empty("listVector", alloc)
@@ -188,17 +188,17 @@ object ValueVectorEncoderDeriver {
 
     override def deriveMap[K, V](
       map: Schema.Map[K, V],
-      key: => ValueVectorEncoder[K, V1],
-      value: => ValueVectorEncoder[V, V1],
-      summoned: => Option[ValueVectorEncoder[Map[K, V], V1]]
-    ): ValueVectorEncoder[Map[K, V], V1] = ???
+      key: => ValueVectorEncoder[V1, K],
+      value: => ValueVectorEncoder[V1, V],
+      summoned: => Option[ValueVectorEncoder[V1, Map[K, V]]]
+    ): ValueVectorEncoder[V1, Map[K, V]] = ???
 
     override def deriveTransformedRecord[A, B](
       record: Schema.Record[A],
       transform: Schema.Transform[A, B, _],
-      fields: => Chunk[Deriver.WrappedF[ValueVectorEncoder[*, V1], _]],
-      summoned: => Option[ValueVectorEncoder[B, V1]]
-    ): ValueVectorEncoder[B, V1] = ???
+      fields: => Chunk[Deriver.WrappedF[ValueVectorEncoder[V1, *], _]],
+      summoned: => Option[ValueVectorEncoder[V1, B]]
+    ): ValueVectorEncoder[V1, B] = ???
 
   }
 

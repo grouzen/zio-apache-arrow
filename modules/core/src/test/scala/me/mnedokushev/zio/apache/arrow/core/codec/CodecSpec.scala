@@ -2,59 +2,22 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 
 // import me.mnedokushev.zio.apache.arrow.core.Fixtures._
 // import me.mnedokushev.zio.apache.arrow.core.{ Allocator, Tabular }
+import me.mnedokushev.zio.apache.arrow.core.Fixtures._
+import me.mnedokushev.zio.apache.arrow.core.{ Allocator, Tabular }
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
+import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import zio._
-// import zio.test.Assertion._
-import zio.test.{ Spec, _ }
-
-// import java.time.{
-//   DayOfWeek,
-//   Instant,
-//   LocalDate,
-//   LocalDateTime,
-//   LocalTime,
-//   Month,
-//   MonthDay,
-//   OffsetDateTime,
-//   OffsetTime,
-//   Period,
-//   Year,
-//   YearMonth,
-//   ZoneId,
-//   ZoneOffset,
-//   ZonedDateTime
-// }
-// import java.util.UUID
 import zio.schema.Derive
-import me.mnedokushev.zio.apache.arrow.core.Allocator
-import org.apache.arrow.vector.complex.ListVector
-import org.apache.arrow.vector.complex.StructVector
-import zio.schema.DeriveSchema
-import zio.schema.Schema
+import zio.test.Assertion._
+import zio.test.{ Spec, _ }
 
 object CodecSpec extends ZIOSpecDefault {
 
-  case class Prim(a: Long, b: String)
-  object Prim {
-    implicit val schema: Schema[Prim] =
-      DeriveSchema.gen[Prim]
-
-    implicit val encoder: ValueVectorEncoder[Prim, StructVector] =
-      Derive.derive[ValueVectorEncoder[*, StructVector], Prim](
-        ValueVectorEncoderDeriver.default[StructVector]
-      )
-
-    implicit val decoder: ValueVectorDecoder[StructVector, Prim] =
-      Derive.derive[ValueVectorDecoder[StructVector, *], Prim](
-        ValueVectorDecoderDeriver.default[StructVector]
-      )
-  }
-
   override def spec: Spec[TestEnvironment with Scope, Any] =
     suite("Codec")(
-      valueVectorCodecSpec
-      // vectorSchemaRootCodecSpec
+      valueVectorCodecSpec,
+      vectorSchemaRootCodecSpec
     ).provideLayerShared(Allocator.rootLayer())
 
   // val valueVectorDecoderSpec: Spec[BufferAllocator, Throwable] =
@@ -90,14 +53,8 @@ object CodecSpec extends ZIOSpecDefault {
       test("primitive") {
         import ValueVectorCodec._
 
-        val stringCodec = codec(
-          Derive.derive[ValueVectorEncoder[*, VarCharVector], String](ValueVectorEncoderDeriver.default[VarCharVector]),
-          Derive.derive[ValueVectorDecoder[VarCharVector, *], String](ValueVectorDecoderDeriver.default[VarCharVector])
-        )
-        val intCodec    = codec(
-          Derive.derive[ValueVectorEncoder[*, IntVector], Int](ValueVectorEncoderDeriver.default[IntVector]),
-          Derive.derive[ValueVectorDecoder[IntVector, *], Int](ValueVectorDecoderDeriver.default[IntVector])
-        )
+        val stringCodec = codec[VarCharVector, String]
+        val intCodec    = codec[IntVector, Int]
 
         val emptyPayload = Chunk[Int]()
         val stringPaylod = Chunk("zio", "cats", "monix")
@@ -121,55 +78,60 @@ object CodecSpec extends ZIOSpecDefault {
       test("list") {
         import ValueVectorCodec._
 
-        val stringCodec = codec(
-          Derive.derive[ValueVectorEncoder[*, ListVector], Chunk[String]](
+        val stringCodec     = codec(
+          Derive.derive[ValueVectorEncoder[ListVector, *], Chunk[String]](
             ValueVectorEncoderDeriver.default[ListVector]
           ),
-          Derive.derive[ValueVectorDecoder[ListVector, *], Chunk[String]](ValueVectorDecoderDeriver.default[ListVector])
+          Derive.derive[ValueVectorDecoder[ListVector, *], Chunk[String]](
+            ValueVectorDecoderDeriver.default[ListVector]
+          )
         )
-        // val primitivesCodec = codec(
-        //   Derive.derive[ValueVectorEncoder[*, ListVector], Fixtures.Primitives](
-        //     ValueVectorEncoderDeriver.default[ListVector]
-        //   ),
-        //   Derive.derive[ValueVectorDecoder[ListVector, *], Fixtures.Primitives](ValueVectorDecoderDeriver.default[ListVector])
-        // )
+        val primitivesCodec = codec(
+          Derive.derive[ValueVectorEncoder[ListVector, *], Chunk[Primitives]](
+            ValueVectorEncoderDeriver.default[ListVector]
+          ),
+          Derive.derive[ValueVectorDecoder[ListVector, *], Chunk[Primitives]](
+            ValueVectorDecoderDeriver.default[ListVector]
+          )
+        )
 
-        val stringPayload = Chunk(Chunk("zio"), Chunk("cats", "monix"))
-        // val primitivesPayload = Chunk(Chunk(Fixtures.Primitives(1, 2.0, "3")))
+        val stringPayload     = Chunk(Chunk("zio"), Chunk("cats", "monix"))
+        val primitivesPayload = Chunk(Chunk(Primitives(1, 2.0, "3")))
 
         ZIO.scoped(
           for {
-            stringVec    <- stringCodec.encodeZIO(stringPayload)
-            stringResult <- stringCodec.decodeZIO(stringVec)
-            // primitivesVec <- primitivesCodec.encodeZIO(primitivesPayload)
+            stringVec        <- stringCodec.encodeZIO(stringPayload)
+            stringResult     <- stringCodec.decodeZIO(stringVec)
+            primitivesVec    <- primitivesCodec.encodeZIO(primitivesPayload)
+            primitivesResult <- primitivesCodec.decodeZIO(primitivesVec)
           } yield assertTrue(
-            stringResult == stringPayload
+            stringResult == stringPayload,
+            primitivesResult == primitivesPayload
           )
         )
       },
-      // test("struct") {
-      //   import ValueVectorCodec._
+      test("struct") {
+        import ValueVectorCodec._
 
-      //   val primitivesCodec = codec(
-      //     Derive.derive[ValueVectorEncoder[*, StructVector], Prim](
-      //       ValueVectorEncoderDeriver.default[StructVector]
-      //     ),
-      //     Derive.derive[ValueVectorDecoder[StructVector, *], Prim](
-      //       ValueVectorDecoderDeriver.default[StructVector]
-      //     )
-      //   )
+        val primitivesCodec = codec(
+          Derive.derive[ValueVectorEncoder[StructVector, *], Primitives](
+            ValueVectorEncoderDeriver.default[StructVector]
+          ),
+          Derive.derive[ValueVectorDecoder[StructVector, *], Primitives](
+            ValueVectorDecoderDeriver.default[StructVector]
+          )
+        )
 
-      //   val primitivesPayload = Chunk(Primitives(1, 2.0, "3"))
-      //   // val primitivesPayload = Chunk("foo", "bar")
+        val primitivesPayload = Chunk(Primitives(1, 2.0, "3"))
 
-      //   ZIO.scoped(
-      //     for {
-      //       primitivesVec    <- primitivesCodec.encodeZIO(primitivesPayload)
-      //       primitivesResult <- primitivesCodec.decodeZIO(primitivesVec)
-      //     } yield assertTrue(
-      //       primitivesResult == primitivesPayload
-      //     )
-      //   )
+        ZIO.scoped(
+          for {
+            primitivesVec    <- primitivesCodec.encodeZIO(primitivesPayload)
+            primitivesResult <- primitivesCodec.decodeZIO(primitivesVec)
+          } yield assertTrue(
+            primitivesResult == primitivesPayload
+          )
+        )
 
         //       test("struct primitives") {
         //         val codec   = ValueVectorCodec.struct[Primitives]
@@ -193,7 +155,7 @@ object CodecSpec extends ZIOSpecDefault {
         //           } yield assert(result)(equalTo(payload))
         //         )
         //       },
-      // }
+      }
     )
 
 //   val valueVectorCodecPrimitiveSpec: Spec[BufferAllocator, Throwable] =
@@ -1078,22 +1040,26 @@ object CodecSpec extends ZIOSpecDefault {
   //     }
   //   )
 
-  // val vectorSchemaRootCodecSpec: Spec[BufferAllocator, Throwable] =
-  //   suite("VectorSchemaRootCodec")(
-  //     vectorSchemaRootDecoderSpec,
-  //     vectorSchemaRootEncoderSpec,
-  //     test("primitives") {
-  //       val codec   = VectorSchemaRootCodec[Primitives]
-  //       val payload = Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))
+  val vectorSchemaRootCodecSpec: Spec[BufferAllocator, Throwable] =
+    suite("VectorSchemaRootCodec")(
+      test("flat primitives") {
+        import VectorSchemaRootCodec._
 
-  //       ZIO.scoped(
-  //         for {
-  //           root   <- Tabular.empty[Primitives]
-  //           _      <- codec.encodeZIO(payload, root)
-  //           result <- codec.decodeZIO(root)
-  //         } yield assert(result)(equalTo(payload))
-  //       )
-  //     }
-  //   )
+        val flatPrimitivesCodec = codec(
+          Derive.derive[VectorSchemaRootEncoder, Primitives](VectorSchemaRootEncoderDeriver.default),
+          Derive.derive[VectorSchemaRootDecoder, Primitives](VectorSchemaRootDecoderDeriver.default)
+        )
+
+        val flatPrimitivesPayload = Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))
+
+        ZIO.scoped(
+          for {
+            root                 <- Tabular.empty[Primitives]
+            flatPrimitivesVec    <- flatPrimitivesCodec.encodeZIO(flatPrimitivesPayload, root)
+            flatPrimitivesResult <- flatPrimitivesCodec.decodeZIO(flatPrimitivesVec)
+          } yield assert(flatPrimitivesResult)(equalTo(flatPrimitivesPayload))
+        )
+      }
+    )
 
 }
