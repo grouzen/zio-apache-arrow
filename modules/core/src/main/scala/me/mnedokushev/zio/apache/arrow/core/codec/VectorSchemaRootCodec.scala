@@ -9,8 +9,8 @@ final case class VectorSchemaRootCodec[A](
   decoder: VectorSchemaRootDecoder[A]
 ) { self =>
 
-  def transform[B](f: A => B, g: B => A): VectorSchemaRootCodec[B] =
-    VectorSchemaRootCodec(encoder.contramap(g), decoder.map(f))
+  // def transform[B](f: A => B, g: B => A): VectorSchemaRootCodec[B] =
+  //   VectorSchemaRootCodec(encoder.contramap(g), decoder.map(f))
 
   def decodeZIO(root: VectorSchemaRoot): Task[Chunk[A]] =
     decoder.decodeZIO(root)
@@ -26,5 +26,15 @@ final case class VectorSchemaRootCodec[A](
     root: VectorSchemaRoot
   )(implicit alloc: BufferAllocator): Either[Throwable, VectorSchemaRoot] =
     encoder.encode(chunk, root)
+
+}
+
+object VectorSchemaRootCodec {
+
+  implicit def codec[A](implicit
+    encoder: VectorSchemaRootEncoder[A],
+    decoder: VectorSchemaRootDecoder[A]
+  ): VectorSchemaRootCodec[A] =
+    VectorSchemaRootCodec(encoder, decoder)
 
 }

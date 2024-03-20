@@ -9,8 +9,8 @@ final case class ValueVectorCodec[A, V <: ValueVector](
   decoder: ValueVectorDecoder[V, A]
 ) { self =>
 
-  def transform[B](f: A => B, g: B => A): ValueVectorCodec[B, V] =
-    ValueVectorCodec(encoder.contramap(g), decoder.map(f))
+  // def transform[B](f: A => B, g: B => A): ValueVectorCodec[B, V] =
+  //   ValueVectorCodec(encoder.contramap(g), decoder.map(f))
 
   def decodeZIO(vec: V): Task[Chunk[A]] =
     decoder.decodeZIO(vec)
@@ -23,5 +23,15 @@ final case class ValueVectorCodec[A, V <: ValueVector](
 
   def encode(chunk: Chunk[A])(implicit alloc: BufferAllocator): Either[Throwable, V] =
     encoder.encode(chunk)
+
+}
+
+object ValueVectorCodec {
+
+  implicit def codec[A, V <: ValueVector](implicit
+    encoder: ValueVectorEncoder[A, V],
+    decoder: ValueVectorDecoder[V, A]
+  ): ValueVectorCodec[A, V] =
+    ValueVectorCodec[A, V](encoder, decoder)
 
 }

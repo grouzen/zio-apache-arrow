@@ -28,22 +28,6 @@ trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
       case NonFatal(ex)               => Left(EncoderError("Error encoding vector schema root", Some(ex)))
     }
 
-  final def contramap[B](f: B => A): VectorSchemaRootEncoder[B] =
-    new VectorSchemaRootEncoder[B] {
-
-      override def encodeValue(
-        value: B,
-        name: Option[String],
-        writer: FieldWriter
-      )(implicit alloc: BufferAllocator): Unit =
-        self.encodeValue(f(value), name, writer)
-
-      override protected def encodeUnsafe(chunk: Chunk[B], root: VectorSchemaRoot)(implicit
-        alloc: BufferAllocator
-      ): VectorSchemaRoot =
-        self.encodeUnsafe(chunk.map(f), root)
-    }
-
   protected def encodeUnsafe(
     @unused chunk: Chunk[A],
     @unused root: VectorSchemaRoot
@@ -54,5 +38,21 @@ trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
     alloc: BufferAllocator
   ): Unit =
     self.encodeValue(value, None, writer)
+
+  // final def contramap[B](f: B => A): VectorSchemaRootEncoder[B] =
+  //   new VectorSchemaRootEncoder[B] {
+
+  //     override def encodeValue(
+  //       value: B,
+  //       name: Option[String],
+  //       writer: FieldWriter
+  //     )(implicit alloc: BufferAllocator): Unit =
+  //       self.encodeValue(f(value), name, writer)
+
+  //     override protected def encodeUnsafe(chunk: Chunk[B], root: VectorSchemaRoot)(implicit
+  //       alloc: BufferAllocator
+  //     ): VectorSchemaRoot =
+  //       self.encodeUnsafe(chunk.map(f), root)
+  //   }
 
 }

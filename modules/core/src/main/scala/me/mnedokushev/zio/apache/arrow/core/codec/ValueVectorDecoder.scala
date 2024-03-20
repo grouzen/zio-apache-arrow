@@ -1,9 +1,9 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.vector._
-import org.apache.arrow.vector.complex.reader.FieldReader
+// import org.apache.arrow.vector.complex.reader.FieldReader
 import zio._
-import zio.schema.DynamicValue
+// import zio.schema.DynamicValue
 
 import scala.util.control.NonFatal
 
@@ -22,14 +22,14 @@ trait ValueVectorDecoder[V <: ValueVector, +A] extends ValueDecoder[A] { self =>
 
   protected def decodeUnsafe(vec: V): Chunk[A]
 
-  final def map[B](f: A => B): ValueVectorDecoder[V, B] =
-    new ValueVectorDecoder[V, B] {
+  // final def map[B](f: A => B): ValueVectorDecoder[V, B] =
+  //   new ValueVectorDecoder[V, B] {
 
-      // TODO: how to convert to B
-      override def decodeValue(name: Option[String], reader: FieldReader): DynamicValue = ???
+  //     // TODO: how to convert to B
+  //     override def decodeValue(name: Option[String], reader: FieldReader): DynamicValue = ???
 
-      override protected def decodeUnsafe(vec: V): Chunk[B] =
-        self.decodeUnsafe(vec).map(f)
-    }
+  //     override protected def decodeUnsafe(vec: V): Chunk[B] =
+  //       self.decodeUnsafe(vec).map(f)
+  //   }
 
 }
