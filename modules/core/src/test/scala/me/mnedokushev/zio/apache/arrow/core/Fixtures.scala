@@ -4,6 +4,7 @@ import me.mnedokushev.zio.apache.arrow.core.codec.{ SchemaEncoder, SchemaEncoder
 import zio.schema._
 import zio.schema.Factory._
 import me.mnedokushev.zio.apache.arrow.core.codec.VectorSchemaRootDecoder
+import me.mnedokushev.zio.apache.arrow.core.codec.VectorSchemaRootCodec
 
 object Fixtures {
 
@@ -16,6 +17,9 @@ object Fixtures {
     implicit val deriverFactory: Factory[Primitives]                          = factory[Primitives]
     implicit val vectorSchemaRootDecoder: VectorSchemaRootDecoder[Primitives] =
       VectorSchemaRootDecoder[Primitives]
+    implicit val vectorSchemaRootCodec: VectorSchemaRootCodec[Primitives] = 
+      VectorSchemaRootCodec.codec[Primitives]
+      
   }
 
   // TODO: implement deriveOption
