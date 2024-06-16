@@ -3,13 +3,10 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.complex.reader.FieldReader
 import zio._
-import zio.schema.DynamicValue
+import zio.schema.{ Deriver, DynamicValue, Factory, Schema }
 
 import scala.annotation.unused
 import scala.util.control.NonFatal
-import zio.schema.Factory
-import zio.schema.Deriver
-import zio.schema.Schema
 
 trait VectorSchemaRootDecoder[+A] extends ValueDecoder[A] { self =>
 

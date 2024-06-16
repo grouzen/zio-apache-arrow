@@ -17,9 +17,9 @@ object Fixtures {
     implicit val deriverFactory: Factory[Primitives]                          = factory[Primitives]
     implicit val vectorSchemaRootDecoder: VectorSchemaRootDecoder[Primitives] =
       VectorSchemaRootDecoder[Primitives]
-    implicit val vectorSchemaRootCodec: VectorSchemaRootCodec[Primitives] = 
+    implicit val vectorSchemaRootCodec: VectorSchemaRootCodec[Primitives]     =
       VectorSchemaRootCodec.codec[Primitives]
-      
+
   }
 
   // TODO: implement deriveOption

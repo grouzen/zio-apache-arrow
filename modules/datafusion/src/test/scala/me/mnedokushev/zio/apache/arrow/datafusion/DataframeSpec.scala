@@ -14,9 +14,9 @@ object DataframeSpec extends ZIOSpecDefault {
 
   case class TestData(fname: String, lname: String, address: String, age: Long)
   object TestData {
-    implicit val schema: Schema[TestData]               =
+    implicit val schema: Schema[TestData]                                   =
       DeriveSchema.gen[TestData]
-    implicit val schemaEncoder: SchemaEncoder[TestData] =
+    implicit val schemaEncoder: SchemaEncoder[TestData]                     =
       Derive.derive[SchemaEncoder, TestData](SchemaEncoderDeriver.default)
     implicit val vectorSchemaRootDecoder: VectorSchemaRootDecoder[TestData] =
       VectorSchemaRootDecoder[TestData]

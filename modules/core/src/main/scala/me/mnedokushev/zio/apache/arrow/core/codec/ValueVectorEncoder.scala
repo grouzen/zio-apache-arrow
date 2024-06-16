@@ -107,7 +107,7 @@ object ValueVectorEncoder {
     Derive.derive[ValueVectorEncoder[VarCharVector, *], java.time.ZoneOffset](
       ValueVectorEncoderDeriver.default[VarCharVector]
     )
-  implicit val durationDecoder: ValueVectorEncoder[BigIntVector, java.time.Duration]            =
+  implicit val durationDecoder: ValueVectorEncoder[BigIntVector, java.time.Duration]              =
     Derive.derive[ValueVectorEncoder[BigIntVector, *], java.time.Duration](
       ValueVectorEncoderDeriver.default[BigIntVector]
     )
