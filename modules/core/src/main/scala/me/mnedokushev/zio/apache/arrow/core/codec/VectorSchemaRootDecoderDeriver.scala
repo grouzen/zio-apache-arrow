@@ -21,8 +21,9 @@ object VectorSchemaRootDecoderDeriver {
 
       override protected def decodeUnsafe(root: VectorSchemaRoot): Chunk[A] = {
         val fields0 = record.fields.zip(decoders).map { case (field, decoder) =>
-          val vec    = Option(root.getVector(field.name))
-            .getOrElse(throw DecoderError(s"Couldn't get vector by name ${field.name}"))
+          val vec    =
+            Option(root.getVector(field.name))
+              .getOrElse(throw DecoderError(s"Couldn't get vector by name ${field.name}"))
           val reader = vec.getReader
 
           (decoder, field.name.toString, reader)

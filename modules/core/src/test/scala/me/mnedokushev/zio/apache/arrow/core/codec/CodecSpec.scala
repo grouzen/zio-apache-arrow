@@ -5,12 +5,12 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import me.mnedokushev.zio.apache.arrow.core.Fixtures._
 import me.mnedokushev.zio.apache.arrow.core.{ Allocator, Tabular }
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import zio._
 import zio.schema.Derive
 import zio.test.Assertion._
 import zio.test.{ Spec, _ }
+import java.util.UUID
 
 object CodecSpec extends ZIOSpecDefault {
 
@@ -53,25 +53,148 @@ object CodecSpec extends ZIOSpecDefault {
       test("primitive") {
         import ValueVectorCodec._
 
-        val stringCodec = codec[VarCharVector, String]
-        val intCodec    = codec[IntVector, Int]
-
-        val emptyPayload = Chunk[Int]()
-        val stringPaylod = Chunk("zio", "cats", "monix")
-        val intPayload   = Chunk(1, 2, 3)
+        val emptyPayload                      = Chunk[Int]()
+        val stringPaylod                      = Chunk("zio", "cats", "monix")
+        val boolPayload                       = Chunk(true, false)
+        val bytePayload                       = Chunk[Byte](1, 2)
+        val shortPayload                      = Chunk[Short](1, 2)
+        val intPayload                        = Chunk(1, 2, 3)
+        val longPayload                       = Chunk(1L, 2L, 3L)
+        val floatPayload                      = Chunk(0.5f, 1.5f, 2.5f)
+        val doublePayload                     = Chunk(0.5d, 1.5d, 2.5d)
+        val binaryPayload: Chunk[Chunk[Byte]] = Chunk(Chunk(1, 2, 3), Chunk(4, 5, 6))
+        val charPayload                       = Chunk('a', 'b')
+        val uuidPayload                       = Chunk(UUID.randomUUID(), UUID.randomUUID())
+        val bigDecimalPayload                 = Chunk(new java.math.BigDecimal("12312.33"), new java.math.BigDecimal("9990221.33"))
+        val bigIntegerPayload                 = Chunk(new java.math.BigInteger("1231233999"), new java.math.BigInteger("9990221001223"))
+        val dayOfWeekPayload                  = Chunk(java.time.DayOfWeek.MONDAY, java.time.DayOfWeek.TUESDAY)
+        val monthPayload                      = Chunk(java.time.Month.JANUARY, java.time.Month.FEBRUARY)
+        val monthDayPayload                   =
+          Chunk(java.time.MonthDay.of(java.time.Month.JANUARY, 1), java.time.MonthDay.of(java.time.Month.FEBRUARY, 2))
+        val periodPayload                     = Chunk(java.time.Period.ofDays(1), java.time.Period.ofMonths(2))
+        val yearPayload                       = Chunk(java.time.Year.of(2019), java.time.Year.of(2020))
+        val yearMonthPayload                  = Chunk(java.time.YearMonth.of(2019, 3), java.time.YearMonth.of(2020, 4))
+        // val zoneIdPayload                     = Chunk(java.time.ZoneId.of("Australia/Sydney"), java.time.ZoneId.of("Africa/Harare"))
+        val zoneOffsetPayload                 = Chunk(java.time.ZoneOffset.of("+1"), java.time.ZoneOffset.of("+3"))
+        val durationPayload                   = Chunk(java.time.Duration.ofDays(2), java.time.Duration.ofHours(4))
+        val instantPayload                    = Chunk(java.time.Instant.ofEpochMilli(123), java.time.Instant.ofEpochMilli(999312))
+        val localDatePayload                  = Chunk(java.time.LocalDate.of(2018, 5, 7), java.time.LocalDate.of(2019, 6, 4))
+        val localTimePayload                  = Chunk(java.time.LocalTime.of(12, 30), java.time.LocalTime.of(8, 45))
+        val localDateTimePayload              =
+          Chunk(java.time.LocalDateTime.of(2018, 3, 12, 12, 30), java.time.LocalDateTime.of(2019, 4, 5, 7, 45))
+        val offsetTimePayload                 =
+          Chunk(
+            java.time.OffsetTime.of(java.time.LocalTime.of(3, 12), java.time.ZoneOffset.of("+1")),
+            java.time.OffsetTime.of(java.time.LocalTime.of(4, 12), java.time.ZoneOffset.of("-2"))
+          )
+        val offsetDateTimePayload             =
+          Chunk(
+            java.time.OffsetDateTime
+              .of(java.time.LocalDate.of(1970, 1, 3), java.time.LocalTime.of(3, 12), java.time.ZoneOffset.of("+1")),
+            java.time.OffsetDateTime
+              .of(java.time.LocalDate.of(1989, 5, 31), java.time.LocalTime.of(4, 12), java.time.ZoneOffset.of("-2"))
+          )
+        val zonedDateTimePayload              =
+          Chunk(
+            java.time.ZonedDateTime
+              .of(java.time.LocalDateTime.of(1970, 1, 3, 3, 12), java.time.ZoneId.of("Asia/Dhaka")),
+            java.time.ZonedDateTime
+              .of(java.time.LocalDateTime.of(1989, 5, 31, 3, 12), java.time.ZoneId.of("Asia/Shanghai"))
+          )
 
         ZIO.scoped(
           for {
-            emptyVec     <- intCodec.encodeZIO(emptyPayload)
-            emptyResult  <- intCodec.decodeZIO(emptyVec)
-            stringVec    <- stringCodec.encodeZIO(stringPaylod)
-            stringResult <- stringCodec.decodeZIO(stringVec)
-            intVec       <- intCodec.encodeZIO(intPayload)
-            intResult    <- intCodec.decodeZIO(intVec)
+            emptyVec             <- intCodec.encodeZIO(emptyPayload)
+            emptyResult          <- intCodec.decodeZIO(emptyVec)
+            stringVec            <- stringCodec.encodeZIO(stringPaylod)
+            stringResult         <- stringCodec.decodeZIO(stringVec)
+            boolVec              <- boolCodec.encodeZIO(boolPayload)
+            boolResult           <- boolCodec.decodeZIO(boolVec)
+            byteVec              <- byteCodec.encodeZIO(bytePayload)
+            byteResult           <- byteCodec.decodeZIO(byteVec)
+            shortVec             <- shortCodec.encodeZIO(shortPayload)
+            shortResult          <- shortCodec.decodeZIO(shortVec)
+            intVec               <- intCodec.encodeZIO(intPayload)
+            intResult            <- intCodec.decodeZIO(intVec)
+            longVec              <- longCodec.encodeZIO(longPayload)
+            longResult           <- longCodec.decodeZIO(longVec)
+            floatVec             <- floatCodec.encodeZIO(floatPayload)
+            floatResult          <- floatCodec.decodeZIO(floatVec)
+            doubleVec            <- doubleCodec.encodeZIO(doublePayload)
+            doubleResult         <- doubleCodec.decodeZIO(doubleVec)
+            binaryVec            <- binaryCodec.encodeZIO(binaryPayload)
+            binaryResult         <- binaryCodec.decodeZIO(binaryVec)
+            charVec              <- charCodec.encodeZIO(charPayload)
+            charResult           <- charCodec.decodeZIO(charVec)
+            uuidVec              <- uuidCodec.encodeZIO(uuidPayload)
+            uuidResult           <- uuidCodec.decodeZIO(uuidVec)
+            bigDecimalVec        <- bigDecimalCodec.encodeZIO(bigDecimalPayload)
+            bigDecimalResult     <- bigDecimalCodec.decodeZIO(bigDecimalVec)
+            bigIntegerVec        <- bigIntegerCodec.encodeZIO(bigIntegerPayload)
+            bigIntegerResult     <- bigIntegerCodec.decodeZIO(bigIntegerVec)
+            dayOfWeekVec         <- dayOfWeekCodec.encodeZIO(dayOfWeekPayload)
+            dayOfWeekResult      <- dayOfWeekCodec.decodeZIO(dayOfWeekVec)
+            monthVec             <- monthCodec.encodeZIO(monthPayload)
+            monthResult          <- monthCodec.decodeZIO(monthVec)
+            monthDayVec          <- monthDayCodec.encodeZIO(monthDayPayload)
+            monthDayResult       <- monthDayCodec.decodeZIO(monthDayVec)
+            periodVec            <- periodCodec.encodeZIO(periodPayload)
+            periodResult         <- periodCodec.decodeZIO(periodVec)
+            yearVec              <- yearCodec.encodeZIO(yearPayload)
+            yearResult           <- yearCodec.decodeZIO(yearVec)
+            yearMonthVec         <- yearMonthCodec.encodeZIO(yearMonthPayload)
+            yearMonthResult      <- yearMonthCodec.decodeZIO(yearMonthVec)
+            // zoneIdVec            <- zoneIdCodec.encodeZIO(zoneIdPayload)
+            // zoneIdResult         <- zoneIdCodec.decodeZIO(zoneIdVec)
+            zoneOffsetVec        <- zoneOffsetCodec.encodeZIO(zoneOffsetPayload)
+            zoneOffsetResult     <- zoneOffsetCodec.decodeZIO(zoneOffsetVec)
+            durationVec          <- durationCodec.encodeZIO(durationPayload)
+            durationResult       <- durationCodec.decodeZIO(durationVec)
+            instantVec           <- instantCodec.encodeZIO(instantPayload)
+            instantResult        <- instantCodec.decodeZIO(instantVec)
+            localDateVec         <- localDateCodec.encodeZIO(localDatePayload)
+            localDateResult      <- localDateCodec.decodeZIO(localDateVec)
+            localTimeVec         <- localTimeCodec.encodeZIO(localTimePayload)
+            localTimeResult      <- localTimeCodec.decodeZIO(localTimeVec)
+            localDateTimeVec     <- localDateTimeCodec.encodeZIO(localDateTimePayload)
+            localDateTimeResult  <- localDateTimeCodec.decodeZIO(localDateTimeVec)
+            offsetTimeVec        <- offsetTimeCodec.encodeZIO(offsetTimePayload)
+            offsetTimeResult     <- offsetTimeCodec.decodeZIO(offsetTimeVec)
+            offsetDateTimeVec    <- offsetDateTimeCodec.encodeZIO(offsetDateTimePayload)
+            offsetDateTimeResult <- offsetDateTimeCodec.decodeZIO(offsetDateTimeVec)
+            zonedDateTimeVec     <- zonedDateTimeCodec.encodeZIO(zonedDateTimePayload)
+            zonedDateTimeResult  <- zonedDateTimeCodec.decodeZIO(zonedDateTimeVec)
           } yield assertTrue(
             emptyResult == emptyPayload,
             stringResult == stringPaylod,
-            intResult == intPayload
+            boolResult == boolPayload,
+            byteResult == bytePayload,
+            shortResult == shortPayload,
+            intResult == intPayload,
+            longResult == longPayload,
+            floatResult == floatPayload,
+            doubleResult == doublePayload,
+            binaryResult == binaryPayload,
+            charResult == charPayload,
+            uuidResult == uuidPayload,
+            bigDecimalResult == bigDecimalPayload,
+            bigIntegerResult == bigIntegerPayload,
+            dayOfWeekResult == dayOfWeekPayload,
+            monthResult == monthPayload,
+            monthDayResult == monthDayPayload,
+            periodResult == periodPayload,
+            yearResult == yearPayload,
+            yearMonthResult == yearMonthPayload,
+            // zoneIdResult == zoneIdPayload,
+            zoneOffsetResult == zoneOffsetPayload,
+            durationResult == durationPayload,
+            instantResult == instantPayload,
+            localDateResult == localDatePayload,
+            localTimeResult == localTimePayload,
+            localDateTimeResult == localDateTimePayload,
+            offsetTimeResult == offsetTimePayload,
+            offsetDateTimeResult == offsetDateTimePayload,
+            zonedDateTimeResult == zonedDateTimePayload
           )
         )
       },

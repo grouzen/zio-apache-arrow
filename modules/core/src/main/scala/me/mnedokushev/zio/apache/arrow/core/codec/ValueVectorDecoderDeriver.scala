@@ -7,6 +7,9 @@ import zio.{ Chunk, ChunkBuilder }
 
 object ValueVectorDecoderDeriver {
 
+  private def resolveReaderByName(name: Option[String], reader: FieldReader) =
+    name.fold[FieldReader](reader.reader())(reader.reader(_))
+
   def default[V1 <: ValueVector]: Deriver[ValueVectorDecoder[V1, *]] = new Deriver[ValueVectorDecoder[V1, *]] {
 
     override def deriveRecord[A](
@@ -39,11 +42,8 @@ object ValueVectorDecoderDeriver {
         builder.result()
       }
 
-      def decodeValue(name: Option[String], reader: FieldReader): DynamicValue = {
-        val reader0 = name.fold[FieldReader](reader.reader())(reader.reader(_))
-
-        ValueDecoder.decodeStruct(record.fields, decoders, reader0)
-      }
+      def decodeValue(name: Option[String], reader: FieldReader): DynamicValue =
+        ValueDecoder.decodeStruct(record.fields, decoders, resolveReaderByName(name, reader))
 
     }
 
@@ -80,11 +80,8 @@ object ValueVectorDecoderDeriver {
         builder.result()
       }
 
-      override def decodeValue(name: Option[String], reader: FieldReader): DynamicValue = {
-        val reader0 = name.fold[FieldReader](reader.reader())(reader.reader(_))
-
-        ValueDecoder.decodePrimitive(st, reader0)
-      }
+      override def decodeValue(name: Option[String], reader: FieldReader): DynamicValue =
+        ValueDecoder.decodePrimitive(st, resolveReaderByName(name, reader))
 
     }
 
@@ -92,7 +89,43 @@ object ValueVectorDecoderDeriver {
       option: Schema.Optional[A],
       inner: => ValueVectorDecoder[V1, A],
       summoned: => Option[ValueVectorDecoder[V1, Option[A]]]
-    ): ValueVectorDecoder[V1, Option[A]] = ???
+    ): ValueVectorDecoder[V1, Option[A]] = new ValueVectorDecoder[V1, Option[A]] {
+
+      override protected def decodeUnsafe(vec: V1): Chunk[Option[A]] = {
+        var idx     = 0
+        val len     = vec.getValueCount
+        val builder = ChunkBuilder.make[Option[A]](len)
+        val reader  = vec.getReader
+
+        while (idx < len) {
+          reader.setPosition(idx)
+
+          if (reader.isSet) {
+            val dynamicValue = inner.decodeValue(None, reader)
+
+            dynamicValue.toTypedValue(option) match {
+              case Right(v)      =>
+                builder.addOne(v)
+                idx += 1
+              case Left(message) =>
+                throw DecoderError(message)
+            }
+          } else {
+            builder.addOne(None)
+          }
+        }
+
+        builder.result()
+      }
+
+      // TODO: move to ValueDecoder to re-use it in VectorSchemaRootDecoderDeriver (???)
+      override def decodeValue(name: Option[String], reader: FieldReader): DynamicValue =
+        if (reader.isSet)
+          DynamicValue.SomeValue(inner.decodeValue(name, resolveReaderByName(name, reader)))
+        else
+          DynamicValue.NoneValue
+
+    }
 
     override def deriveSequence[C[_], A](
       sequence: Schema.Sequence[C[A], A, _],
@@ -127,11 +160,8 @@ object ValueVectorDecoderDeriver {
         builder.result()
       }
 
-      override def decodeValue(name: Option[String], reader: FieldReader): DynamicValue = {
-        val reader0 = name.fold[FieldReader](reader.reader())(reader.reader(_))
-
-        ValueDecoder.decodeList(inner, reader0)
-      }
+      override def decodeValue(name: Option[String], reader: FieldReader): DynamicValue =
+        ValueDecoder.decodeList(inner, resolveReaderByName(name, reader))
 
     }
 
