@@ -228,6 +228,9 @@ object ValueVectorEncoderDeriver {
       summoned: => Option[ValueVectorEncoder[V1, B]]
     ): ValueVectorEncoder[V1, B] = ???
 
-  }
+  }.cached
+
+  def summoned[V1 <: ValueVector]: Deriver[ValueVectorEncoder[V1, *]] =
+    default.autoAcceptSummoned
 
 }

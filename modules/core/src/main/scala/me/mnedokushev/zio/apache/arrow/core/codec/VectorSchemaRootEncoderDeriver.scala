@@ -141,6 +141,8 @@ object VectorSchemaRootEncoderDeriver {
       summoned: => Option[VectorSchemaRootEncoder[B]]
     ): VectorSchemaRootEncoder[B] = ???
 
-  }
+  }.cached
+
+  def summoned: Deriver[VectorSchemaRootEncoder] = default.autoAcceptSummoned
 
 }

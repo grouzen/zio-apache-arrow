@@ -37,4 +37,6 @@ object VectorSchemaRootCodec {
   ): VectorSchemaRootCodec[A] =
     VectorSchemaRootCodec(encoder, decoder)
 
+
+    
 }

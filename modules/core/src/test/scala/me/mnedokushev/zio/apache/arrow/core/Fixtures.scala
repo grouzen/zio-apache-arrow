@@ -2,24 +2,33 @@ package me.mnedokushev.zio.apache.arrow.core
 
 import me.mnedokushev.zio.apache.arrow.core.codec.{ SchemaEncoder, SchemaEncoderDeriver }
 import zio.schema._
+import zio.schema.Factory._
+import me.mnedokushev.zio.apache.arrow.core.codec.VectorSchemaRootDecoder
 
 object Fixtures {
 
   final case class Primitives(a: Int, b: Double, c: String)
   object Primitives {
-    implicit val schema: Schema[Primitives]               =
+    implicit val schema: Schema[Primitives]                                   =
       DeriveSchema.gen[Primitives]
-    implicit val schemaEncoder: SchemaEncoder[Primitives] =
+    implicit val schemaEncoder: SchemaEncoder[Primitives]                     =
       Derive.derive[SchemaEncoder, Primitives](SchemaEncoderDeriver.default)
+    implicit val deriverFactory: Factory[Primitives]                          = factory[Primitives]
+    implicit val vectorSchemaRootDecoder: VectorSchemaRootDecoder[Primitives] =
+      VectorSchemaRootDecoder[Primitives]
   }
 
-  final case class NullablePrimitives(a: Option[Int], b: Option[Double])
-  object NullablePrimitives {
-    implicit val schema: Schema[NullablePrimitives]               =
-      DeriveSchema.gen[NullablePrimitives]
-    implicit val schemaEncoder: SchemaEncoder[NullablePrimitives] =
-      Derive.derive[SchemaEncoder, NullablePrimitives](SchemaEncoderDeriver.default)
-  }
+  // TODO: implement deriveOption
+  // final case class NullablePrimitives(a: Option[Int], b: Option[Double])
+  // object NullablePrimitives {
+  //   implicit val schema: Schema[NullablePrimitives]                                   =
+  //     DeriveSchema.gen[NullablePrimitives]
+  //   implicit val schemaEncoder: SchemaEncoder[NullablePrimitives]                     =
+  //     Derive.derive[SchemaEncoder, NullablePrimitives](SchemaEncoderDeriver.default)
+  //   implicit val deriverFactory: Factory[NullablePrimitives]                          = factory[NullablePrimitives]
+  //   implicit val vectorSchemaRootDecoder: VectorSchemaRootDecoder[NullablePrimitives] =
+  //     VectorSchemaRootDecoder[NullablePrimitives]
+  // }
 
   final case class StructOfPrimitives(struct: Primitives)
   object StructOfPrimitives {

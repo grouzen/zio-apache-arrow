@@ -169,7 +169,7 @@ object SchemaEncoderDeriver {
 
     }
 
-  }
+  }.cached
 
   def summoned: Deriver[SchemaEncoder] = default.autoAcceptSummoned
 

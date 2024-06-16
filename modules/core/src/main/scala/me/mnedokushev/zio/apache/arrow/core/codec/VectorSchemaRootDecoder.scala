@@ -7,6 +7,9 @@ import zio.schema.DynamicValue
 
 import scala.annotation.unused
 import scala.util.control.NonFatal
+import zio.schema.Factory
+import zio.schema.Deriver
+import zio.schema.Schema
 
 trait VectorSchemaRootDecoder[+A] extends ValueDecoder[A] { self =>
 
@@ -37,5 +40,21 @@ trait VectorSchemaRootDecoder[+A] extends ValueDecoder[A] { self =>
   //     override def decodeUnsafe(root: VectorSchemaRoot): Chunk[B] =
   //       self.decodeUnsafe(root).map(f)
   //   }
+
+}
+
+object VectorSchemaRootDecoder {
+
+  implicit def apply[A: Factory: Schema]: VectorSchemaRootDecoder[A] =
+    fromSummonedDeriver[A]
+
+  def fromDeriver[A: Factory: Schema](deriver: Deriver[VectorSchemaRootDecoder]): VectorSchemaRootDecoder[A] =
+    implicitly[Factory[A]].derive[VectorSchemaRootDecoder](deriver)
+
+  def fromDefaultDeriver[A: Factory: Schema]: VectorSchemaRootDecoder[A] =
+    fromDeriver[A](VectorSchemaRootDecoderDeriver.default)
+
+  def fromSummonedDeriver[A: Factory: Schema]: VectorSchemaRootDecoder[A] =
+    fromDeriver[A](VectorSchemaRootDecoderDeriver.summoned)
 
 }

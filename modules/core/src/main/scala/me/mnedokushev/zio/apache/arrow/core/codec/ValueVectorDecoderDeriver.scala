@@ -179,6 +179,9 @@ object ValueVectorDecoderDeriver {
       summoned: => Option[ValueVectorDecoder[V1, B]]
     ): ValueVectorDecoder[V1, B] = ???
 
-  }
+  }.cached
+
+  def summoned[V1 <: ValueVector]: Deriver[ValueVectorDecoder[V1, *]] =
+    default.autoAcceptSummoned
 
 }

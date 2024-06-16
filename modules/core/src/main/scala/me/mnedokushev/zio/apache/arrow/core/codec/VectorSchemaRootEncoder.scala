@@ -4,9 +4,12 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.complex.writer.FieldWriter
 import org.apache.arrow.vector.{ FieldVector, VectorSchemaRoot }
 import zio._
+import zio.schema.Factory
 
 import scala.annotation.unused
 import scala.util.control.NonFatal
+import zio.schema.Schema
+import zio.schema.Deriver
 
 trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
 
@@ -54,5 +57,21 @@ trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
   //     ): VectorSchemaRoot =
   //       self.encodeUnsafe(chunk.map(f), root)
   //   }
+
+}
+
+object VectorSchemaRootEncoder {
+
+  implicit def apply[A: Factory: Schema]: VectorSchemaRootEncoder[A] = 
+    fromSummonedDeriver[A]
+
+  def fromDeriver[A: Factory: Schema](deriver: Deriver[VectorSchemaRootEncoder]): VectorSchemaRootEncoder[A] =
+    implicitly[Factory[A]].derive[VectorSchemaRootEncoder](deriver)
+
+  def fromDefaultDeriver[A: Factory: Schema]: VectorSchemaRootEncoder[A] =
+    fromDeriver[A](VectorSchemaRootEncoderDeriver.default)
+
+  def fromSummonedDeriver[A: Factory: Schema]: VectorSchemaRootEncoder[A] =
+    fromDeriver[A](VectorSchemaRootEncoderDeriver.summoned)
 
 }

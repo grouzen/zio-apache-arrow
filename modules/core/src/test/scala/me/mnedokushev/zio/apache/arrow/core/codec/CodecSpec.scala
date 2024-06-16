@@ -1168,7 +1168,7 @@ object CodecSpec extends ZIOSpecDefault {
       test("flat primitives") {
         import VectorSchemaRootCodec._
 
-        val flatPrimitivesCodec = codec(
+        val flatPrimitivesCodec = apply(
           Derive.derive[VectorSchemaRootEncoder, Primitives](VectorSchemaRootEncoderDeriver.default),
           Derive.derive[VectorSchemaRootDecoder, Primitives](VectorSchemaRootDecoderDeriver.default)
         )

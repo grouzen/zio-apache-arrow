@@ -105,6 +105,8 @@ object VectorSchemaRootDecoderDeriver {
       summoned: => Option[VectorSchemaRootDecoder[B]]
     ): VectorSchemaRootDecoder[B] = ???
 
-  }
+  }.cached
+
+  def summoned: Deriver[VectorSchemaRootDecoder] = default.autoAcceptSummoned
 
 }
