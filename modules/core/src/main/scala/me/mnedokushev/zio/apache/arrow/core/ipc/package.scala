@@ -1,6 +1,6 @@
 package me.mnedokushev.zio.apache.arrow.core
 
-import me.mnedokushev.zio.apache.arrow.core.codec.{ VectorSchemaRootDecoder, VectorSchemaRootEncoder }
+import me.mnedokushev.zio.apache.arrow.core.codec.{ SchemaEncoder, VectorSchemaRootDecoder, VectorSchemaRootEncoder }
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.ipc.{ ArrowStreamReader, ArrowStreamWriter }
 import zio._
@@ -12,10 +12,9 @@ import java.nio.channels.Channels
 
 package object ipc {
 
-  def readStreaming[A](
+  def readStreaming[A: Schema: SchemaEncoder](
     in: InputStream
   )(implicit
-    schema: Schema[A],
     decoder: VectorSchemaRootDecoder[A]
   ): ZStream[Scope with BufferAllocator, Throwable, A] =
     for {
@@ -39,13 +38,12 @@ package object ipc {
       elem           <- ZStream.fromIterable(chunk)
     } yield elem
 
-  def writeStreaming[R, A](
+  def writeStreaming[R, A: Schema: SchemaEncoder](
     in: ZStream[R, Throwable, A],
     // TODO: benchmark which value is more performant. See https://wesmckinney.com/blog/arrow-streaming-columnar/
     // TODO: ArrowBuf size is limited
     batchSize: Int = 2048
   )(implicit
-    schema: Schema[A],
     encoder: VectorSchemaRootEncoder[A]
   ): ZIO[R with Scope with BufferAllocator, Throwable, ByteArrayOutputStream] = {
     val out = new ByteArrayOutputStream()

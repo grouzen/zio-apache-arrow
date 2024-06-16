@@ -8,6 +8,7 @@ object BuildHelper {
     name              := s"zio-apache-arrow-$projectName",
     organization      := "me.mnedokushev",
     libraryDependencies ++= betterMonadicFor(scalaVersion.value),
+    libraryDependencies ++= kindProjector(scalaVersion.value),
     semanticdbEnabled := true,
     semanticdbVersion := scalafixSemanticdb.revision,
     Test / javaOptions ++= arrowJavaCompat,
@@ -21,6 +22,12 @@ object BuildHelper {
   private def betterMonadicFor(scalaVersion: String) =
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((2, _)) => Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"))
+      case _            => Seq()
+    }
+
+  private def kindProjector(scalaVersion: String) =
+    CrossVersion.partialVersion(scalaVersion) match {
+      case Some((2, _)) => Seq(compilerPlugin("org.typelevel" % "kind-projector" % "0.13.3" cross CrossVersion.full))
       case _            => Seq()
     }
 
