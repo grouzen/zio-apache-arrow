@@ -18,16 +18,16 @@ trait ValueVectorEncoder[V <: ValueVector, -A] extends ValueEncoder[A] { self =>
 
   final def encode(chunk: Chunk[A])(implicit alloc: BufferAllocator): Either[Throwable, V] =
     try
-      Right(encodeUnsafe(chunk, allocateVector))
+      Right(encodeUnsafe(chunk))
     catch {
       case encoderError: EncoderError => Left(encoderError)
       case NonFatal(ex)               => Left(EncoderError("Error encoding vector", Some(ex)))
 
     }
 
-  protected def encodeUnsafe(chunk: Chunk[A], vector: V)(implicit alloc: BufferAllocator): V
+  protected def encodeUnsafe(chunk: Chunk[A])(implicit alloc: BufferAllocator): V
 
-  def allocateVector(implicit alloc: BufferAllocator): V
+  // def allocateVector(implicit alloc: BufferAllocator): V
 
   // final def contramap[B](f: B => A): ValueVectorEncoder[B, V] =
   //   new ValueVectorEncoder[B, V] {

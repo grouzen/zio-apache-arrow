@@ -1,13 +1,12 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.complex.writer.FieldWriter
-import org.apache.arrow.vector.{ FieldVector, VectorSchemaRoot }
 import zio._
 import zio.schema.{ Deriver, Factory, Schema }
 
 import scala.annotation.unused
 import scala.util.control.NonFatal
+import org.apache.arrow.vector.VectorSchemaRoot
 
 trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
 
@@ -35,10 +34,10 @@ trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
   )(implicit @unused alloc: BufferAllocator): VectorSchemaRoot =
     throw EncoderError(s"Given ZIO schema must be of type Schema.Record[A]")
 
-  def encodeField(@unused vec: FieldVector, writer: FieldWriter, value: A, @unused idx: Int)(implicit
-    alloc: BufferAllocator
-  ): Unit =
-    self.encodeValue(value, None, writer)
+  // def encodeField(@unused vec: FieldVector, writer: FieldWriter, value: A, @unused idx: Int)(implicit
+  //   alloc: BufferAllocator
+  // ): Unit =
+  //   self.encodeValue(value, None, writer)
 
   // final def contramap[B](f: B => A): VectorSchemaRootEncoder[B] =
   //   new VectorSchemaRootEncoder[B] {

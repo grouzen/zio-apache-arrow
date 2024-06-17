@@ -4,9 +4,10 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.complex.impl.{ PromotableWriter, UnionListWriter }
 import org.apache.arrow.vector.complex.writer.FieldWriter
 import org.apache.arrow.vector.complex.{ ListVector, StructVector }
-import org.apache.arrow.vector.{ FieldVector, VectorSchemaRoot }
+// import org.apache.arrow.vector.{ FieldVector, VectorSchemaRoot }
 import zio.Chunk
 import zio.schema.{ Deriver, Schema, StandardType }
+import org.apache.arrow.vector.VectorSchemaRoot
 
 object VectorSchemaRootEncoderDeriver {
 
@@ -20,16 +21,14 @@ object VectorSchemaRootEncoderDeriver {
 
       private val encoders = fields.map(_.unwrap)
 
-      private def encodeField0[A1](
+      private def encodeValue0[A1](
         encoder: VectorSchemaRootEncoder[_],
-        vec: FieldVector,
-        writer: FieldWriter,
         value: A1,
-        idx: Int
+        writer: FieldWriter
       )(implicit
         alloc: BufferAllocator
       ) =
-        encoder.asInstanceOf[VectorSchemaRootEncoder[A1]].encodeField(vec, writer, value, idx)
+        encoder.asInstanceOf[VectorSchemaRootEncoder[A1]].encodeValue(value, None, writer)
 
       override protected def encodeUnsafe(
         chunk: Chunk[A],
@@ -52,11 +51,11 @@ object VectorSchemaRootEncoderDeriver {
           }
 
         val len = chunk.length
-        val it  = chunk.iterator.zipWithIndex
+        val it  = chunk.iterator
 
-        it.foreach { case (v, i) =>
-          fields0.foreach { case (encoder, vec, writer, get) =>
-            encodeField0(encoder, vec, writer, get(v), i)
+        it.foreach { v =>
+          fields0.foreach { case (encoder, _, writer, get) =>
+            encodeValue0(encoder, get(v), writer)
           }
         }
 
@@ -98,10 +97,10 @@ object VectorSchemaRootEncoderDeriver {
       ): Unit =
         ValueEncoder.encodePrimitive(st, value, name, writer)
 
-      override def encodeField(vec: FieldVector, writer: FieldWriter, value: A, idx: Int)(implicit
-        alloc: BufferAllocator
-      ): Unit =
-        ValueEncoder.encodePrimitive(st, value, vec, idx)
+      // override def encodeField(vec: FieldVector, writer: FieldWriter, value: A, idx: Int)(implicit
+      //   alloc: BufferAllocator
+      // ): Unit =
+      //   ValueEncoder.encodePrimitive(st, value, vec, idx)
 
     }
 

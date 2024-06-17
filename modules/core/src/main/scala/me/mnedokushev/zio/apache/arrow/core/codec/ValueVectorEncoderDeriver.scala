@@ -7,8 +7,7 @@ import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import org.apache.arrow.vector.{ ValueVector, _ }
 import zio.Chunk
 import zio.schema.{ Deriver, Schema, StandardType }
-// import org.apache.arrow.vector.complex.writer.SmallIntWriter
-// import org.apache.arrow.vector.complex.impl.SmallIntWriterImpl
+import org.apache.arrow.vector.complex.impl._
 
 object ValueVectorEncoderDeriver {
 
@@ -22,8 +21,8 @@ object ValueVectorEncoderDeriver {
 
       private val encoders = fields.map(_.unwrap)
 
-      override protected def encodeUnsafe(chunk: Chunk[A], vector: V1)(implicit alloc: BufferAllocator): V1 = {
-        val vec    = vector.asInstanceOf[StructVector]
+      override protected def encodeUnsafe(chunk: Chunk[A])(implicit alloc: BufferAllocator): V1 = {
+        val vec    = StructVector.empty("structVector", alloc)
         val len    = chunk.length
         val writer = vec.getWriter
         val it     = chunk.iterator.zipWithIndex
@@ -35,11 +34,11 @@ object ValueVectorEncoderDeriver {
         }
         writer.setValueCount(len)
 
-        vector
+        vec.asInstanceOf[V1]
       }
 
-      override def allocateVector(implicit alloc: BufferAllocator): V1 =
-        StructVector.empty("structVector", alloc).asInstanceOf[V1]
+      // override def allocateVector(implicit alloc: BufferAllocator): V1 =
+      //   StructVector.empty("structVector", alloc).asInstanceOf[V1]
 
       override def encodeValue(value: A, name: Option[String], writer: FieldWriter)(implicit
         alloc: BufferAllocator
@@ -65,20 +64,8 @@ object ValueVectorEncoderDeriver {
       summoned: => Option[ValueVectorEncoder[V1, A]]
     ): ValueVectorEncoder[V1, A] = new ValueVectorEncoder[V1, A] {
 
-      override protected def encodeUnsafe(chunk: Chunk[A], vector: V1)(implicit alloc: BufferAllocator): V1 = {
-        val len = chunk.length
-        val it  = chunk.iterator.zipWithIndex
-
-        it.foreach { case (v, i) =>
-          ValueEncoder.encodePrimitive(st, v, vector, i)
-        }
-
-        vector.setValueCount(len)
-        vector
-      }
-
-      override def allocateVector(implicit alloc: BufferAllocator): V1 = {
-        val vec = st match {
+      override protected def encodeUnsafe(chunk: Chunk[A])(implicit alloc: BufferAllocator): V1 = {
+        val vec                 = st match {
           case StandardType.StringType         =>
             new VarCharVector("stringVector", alloc)
           case StandardType.BoolType           =>
@@ -140,8 +127,77 @@ object ValueVectorEncoderDeriver {
           case other                           =>
             throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
         }
+        val writer: FieldWriter = (st, vec) match {
+          case (StandardType.StringType, vec0: VarCharVector)         =>
+            new VarCharWriterImpl(vec0)
+          case (StandardType.BoolType, vec0: BitVector)               =>
+            new BitWriterImpl(vec0)
+          case (StandardType.ByteType, vec0: UInt1Vector)             =>
+            new UInt1WriterImpl(vec0)
+          case (StandardType.ShortType, vec0: SmallIntVector)         =>
+            new SmallIntWriterImpl(vec0)
+          case (StandardType.IntType, vec0: IntVector)                =>
+            new IntWriterImpl(vec0)
+          case (StandardType.LongType, vec0: BigIntVector)            =>
+            new BigIntWriterImpl(vec0)
+          case (StandardType.FloatType, vec0: Float4Vector)           =>
+            new Float4WriterImpl(vec0)
+          case (StandardType.DoubleType, vec0: Float8Vector)          =>
+            new Float8WriterImpl(vec0)
+          case (StandardType.BinaryType, vec0: LargeVarBinaryVector)  =>
+            new LargeVarBinaryWriterImpl(vec0)
+          case (StandardType.CharType, vec0: UInt2Vector)             =>
+            new UInt2WriterImpl(vec0)
+          case (StandardType.UUIDType, vec0: VarBinaryVector)         =>
+            new VarBinaryWriterImpl(vec0)
+          case (StandardType.BigDecimalType, vec0: DecimalVector)     =>
+            new DecimalWriterImpl(vec0)
+          case (StandardType.BigIntegerType, vec0: VarBinaryVector)   =>
+            new VarBinaryWriterImpl(vec0)
+          case (StandardType.DayOfWeekType, vec0: IntVector)          =>
+            new IntWriterImpl(vec0)
+          case (StandardType.MonthType, vec0: IntVector)              =>
+            new IntWriterImpl(vec0)
+          case (StandardType.MonthDayType, vec0: BigIntVector)        =>
+            new BigIntWriterImpl(vec0)
+          case (StandardType.PeriodType, vec0: VarBinaryVector)       =>
+            new VarBinaryWriterImpl(vec0)
+          case (StandardType.YearType, vec0: IntVector)               =>
+            new IntWriterImpl(vec0)
+          case (StandardType.YearMonthType, vec0: BigIntVector)       =>
+            new BigIntWriterImpl(vec0)
+          case (StandardType.ZoneIdType, vec0: VarCharVector)         =>
+            new VarCharWriterImpl(vec0)
+          case (StandardType.ZoneOffsetType, vec0: VarCharVector)     =>
+            new VarCharWriterImpl(vec0)
+          case (StandardType.DurationType, vec0: BigIntVector)        =>
+            new BigIntWriterImpl(vec0)
+          case (StandardType.InstantType, vec0: BigIntVector)         =>
+            new BigIntWriterImpl(vec0)
+          case (StandardType.LocalDateType, vec0: VarCharVector)      =>
+            new VarCharWriterImpl(vec0)
+          case (StandardType.LocalTimeType, vec0: VarCharVector)      =>
+            new VarCharWriterImpl(vec0)
+          case (StandardType.LocalDateTimeType, vec0: VarCharVector)  =>
+            new VarCharWriterImpl(vec0)
+          case (StandardType.OffsetTimeType, vec0: VarCharVector)     =>
+            new VarCharWriterImpl(vec0)
+          case (StandardType.OffsetDateTimeType, vec0: VarCharVector) =>
+            new VarCharWriterImpl(vec0)
+          case (StandardType.ZonedDateTimeType, vec0: VarCharVector)  =>
+            new VarCharWriterImpl(vec0)
+          case _                                                      =>
+            throw EncoderError("Unsupported ZIO Schema StandardType")
+        }
+        val len                 = chunk.length
+        val it                  = chunk.iterator.zipWithIndex
 
-        vec.allocateNew()
+        it.foreach { case (v, i) =>
+          writer.setPosition(i)
+          ValueEncoder.encodePrimitive(st, v, writer)
+        }
+
+        vec.setValueCount(len)
         vec.asInstanceOf[V1]
       }
 
@@ -185,8 +241,8 @@ object ValueVectorEncoderDeriver {
     ): ValueVectorEncoder[V1, C[A]] =
       new ValueVectorEncoder[V1, C[A]] {
 
-        override protected def encodeUnsafe(chunk: Chunk[C[A]], vector: V1)(implicit alloc: BufferAllocator): V1 = {
-          val vec    = vector.asInstanceOf[ListVector]
+        override protected def encodeUnsafe(chunk: Chunk[C[A]])(implicit alloc: BufferAllocator): V1 = {
+          val vec    = ListVector.empty("listVector", alloc)
           val len    = chunk.length
           val writer = vec.getWriter
           val it     = chunk.iterator
@@ -200,9 +256,6 @@ object ValueVectorEncoderDeriver {
           vec.setValueCount(len)
           vec.asInstanceOf[V1]
         }
-
-        override def allocateVector(implicit alloc: BufferAllocator): V1 =
-          ListVector.empty("listVector", alloc).asInstanceOf[V1]
 
         override def encodeValue(value: C[A], name: Option[String], writer: FieldWriter)(implicit
           alloc: BufferAllocator
