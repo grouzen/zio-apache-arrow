@@ -7,6 +7,7 @@ import zio.schema.{ Deriver, Factory, Schema }
 import scala.annotation.unused
 import scala.util.control.NonFatal
 import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.complex.writer.FieldWriter
 
 trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
 
@@ -33,6 +34,9 @@ trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
     @unused root: VectorSchemaRoot
   )(implicit @unused alloc: BufferAllocator): VectorSchemaRoot =
     throw EncoderError(s"Given ZIO schema must be of type Schema.Record[A]")
+
+  def encodeField(value: A, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit =
+    self.encodeValue(value, None, writer)
 
   // def encodeField(@unused vec: FieldVector, writer: FieldWriter, value: A, @unused idx: Int)(implicit
   //   alloc: BufferAllocator

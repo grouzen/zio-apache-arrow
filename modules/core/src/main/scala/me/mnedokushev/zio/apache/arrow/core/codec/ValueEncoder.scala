@@ -347,7 +347,7 @@ object ValueEncoder {
         writeString(v.toString, w)
       case (StandardType.ZonedDateTimeType, v: ZonedDateTime, w: VarCharWriter)       =>
         writeString(v.toString, w)
-      case (other, _, _)                                                                 =>
+      case (other, _, _)                                                              =>
         throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
     }
   }

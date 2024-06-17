@@ -8,6 +8,8 @@ import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import zio.Chunk
 import zio.schema.{ Deriver, Schema, StandardType }
 import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.FieldVector
+import scala.annotation.tailrec
 
 object VectorSchemaRootEncoderDeriver {
 
@@ -21,14 +23,29 @@ object VectorSchemaRootEncoderDeriver {
 
       private val encoders = fields.map(_.unwrap)
 
-      private def encodeValue0[A1](
+      private def encodeField0[A1](
         encoder: VectorSchemaRootEncoder[_],
         value: A1,
         writer: FieldWriter
       )(implicit
         alloc: BufferAllocator
       ) =
-        encoder.asInstanceOf[VectorSchemaRootEncoder[A1]].encodeValue(value, None, writer)
+        encoder.asInstanceOf[VectorSchemaRootEncoder[A1]].encodeField(value, writer)
+
+      @tailrec
+      private def resolveWriter(fieldSchema0: Schema[_], vec: FieldVector): FieldWriter =
+        (fieldSchema0, vec) match {
+          case (lzy @ Schema.Lazy(_), _)                       =>
+            resolveWriter(lzy.schema, vec)
+          case (_: Schema.Record[_], vec0: StructVector)       =>
+            vec0.getWriter
+          case (_: Schema.Sequence[_, _, _], vec0: ListVector) =>
+            vec0.getWriter
+          case (Schema.Primitive(st, _), _)                    =>
+            primitiveWriter(st, vec)
+          case _                                               =>
+            null
+        }
 
       override protected def encodeUnsafe(
         chunk: Chunk[A],
@@ -41,21 +58,18 @@ object VectorSchemaRootEncoderDeriver {
 
             vec.reset()
 
-            val writer: FieldWriter = (fieldSchema, vec) match {
-              case (_: Schema.Record[_], vec0: StructVector)       => vec0.getWriter
-              case (_: Schema.Sequence[_, _, _], vec0: ListVector) => vec0.getWriter
-              case _                                               => null
-            }
+            val writer = resolveWriter(fieldSchema, vec)
 
             (encoder, vec, writer, g)
           }
 
         val len = chunk.length
-        val it  = chunk.iterator
+        val it  = chunk.iterator.zipWithIndex
 
-        it.foreach { v =>
+        it.foreach { case (v, i) =>
           fields0.foreach { case (encoder, _, writer, get) =>
-            encodeValue0(encoder, get(v), writer)
+            writer.setPosition(i)
+            encodeField0(encoder, get(v), writer)
           }
         }
 
@@ -96,6 +110,9 @@ object VectorSchemaRootEncoderDeriver {
         alloc: BufferAllocator
       ): Unit =
         ValueEncoder.encodePrimitive(st, value, name, writer)
+
+      override def encodeField(value: A, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit = 
+        ValueEncoder.encodePrimitive(st, value, writer)
 
       // override def encodeField(vec: FieldVector, writer: FieldWriter, value: A, idx: Int)(implicit
       //   alloc: BufferAllocator
