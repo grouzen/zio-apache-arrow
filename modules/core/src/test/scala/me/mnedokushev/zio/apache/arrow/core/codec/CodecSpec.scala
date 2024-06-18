@@ -5,11 +5,15 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import me.mnedokushev.zio.apache.arrow.core.Fixtures._
 import me.mnedokushev.zio.apache.arrow.core.{ Allocator, Tabular }
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.complex.{ ListVector, StructVector }
+import org.apache.arrow.vector.complex.StructVector
 import zio._
-import zio.schema.Derive
+import zio.schema._
+import zio.schema.Schema._
+import zio.schema.Factory._
 import zio.test.Assertion._
 import zio.test.{ Spec, _ }
+import me.mnedokushev.zio.apache.arrow.core.codec.ValueVectorEncoder._
+import me.mnedokushev.zio.apache.arrow.core.codec.ValueVectorDecoder._
 // import java.util.UUID
 
 object CodecSpec extends ZIOSpecDefault {
@@ -201,34 +205,115 @@ object CodecSpec extends ZIOSpecDefault {
       test("list") {
         import ValueVectorCodec._
 
-        val stringCodec     = codec(
-          Derive.derive[ValueVectorEncoder[ListVector, *], Chunk[String]](
-            ValueVectorEncoderDeriver.default[ListVector]
-          ),
-          Derive.derive[ValueVectorDecoder[ListVector, *], Chunk[String]](
-            ValueVectorDecoderDeriver.default[ListVector]
-          )
-        )
-        val primitivesCodec = codec(
-          Derive.derive[ValueVectorEncoder[ListVector, *], Chunk[Primitives]](
-            ValueVectorEncoderDeriver.default[ListVector]
-          ),
-          Derive.derive[ValueVectorDecoder[ListVector, *], Chunk[Primitives]](
-            ValueVectorDecoderDeriver.default[ListVector]
-          )
-        )
+        val stringCodec     =
+          listChunkCodec(listChunkEncoder[String], listChunkDecoder[String])
+        val boolCodec       =
+          listChunkCodec(listChunkEncoder[Boolean], listChunkDecoder[Boolean])
+        // val byteCodec       =
+        //   listChunkCodec(listChunkEncoder[Byte], listChunkDecoder[Byte])
+        val shortCodec      =
+          listChunkCodec(listChunkEncoder[Short], listChunkDecoder[Short])
+        val intCodec        = listChunkCodec(listChunkEncoder[Int], listChunkDecoder[Int])
+        val longCodec       = listChunkCodec(listChunkEncoder[Long], listChunkDecoder[Long])
+        val floatCodec      = listChunkCodec(listChunkEncoder[Float], listChunkDecoder[Float])
+        val doubleCodec     = listChunkCodec(listChunkEncoder[Double], listChunkDecoder[Double])
+        // val binaryCodec     = listChunkCodec(listChunkEncoder[Chunk[Byte]], listChunkDecoder[Chunk[Byte]])
+        val charCodec       = listChunkCodec(listChunkEncoder[Char], listChunkDecoder[Char])
+        // val uuidCodec       = listChunkCodec(listChunkEncoder[java.util.UUID], listChunkDecoder[java.util.UUID])
+        val bigDecimalCodec =
+          listChunkCodec(listChunkEncoder[java.math.BigDecimal], listChunkDecoder[java.math.BigDecimal])
+        val bigIntegerCodec =
+          listChunkCodec(listChunkEncoder[java.math.BigInteger], listChunkDecoder[java.math.BigInteger])
+        // val dayOfWeekCodec      =
+        //   listChunkCodec(listChunkEncoder[java.time.DayOfWeek], listChunkDecoder[java.time.DayOfWeek])
+        // val monthCodec          = listChunkCodec(listChunkEncoder[java.time.Month], listChunkDecoder[java.time.Month])
+        // val monthDayCodec       = listChunkCodec(listChunkEncoder[java.time.MonthDay], listChunkDecoder[java.time.MonthDay])
+        // val periodCodec         = listChunkCodec(listChunkEncoder[java.time.Period], listChunkDecoder[java.time.Period])
+        // val yearCodec           = listChunkCodec(listChunkEncoder[java.time.Year], listChunkDecoder[java.time.Year])
+        // val yearMonthCodec      =
+        //   listChunkCodec(listChunkEncoder[java.time.YearMonth], listChunkDecoder[java.time.YearMonth])
+        // val zoneIdCodec         = listChunkCodec(listChunkEncoder[java.time.ZoneId], listChunkDecoder[java.time.ZoneId])
+        // val zoneOffsetCodec     =
+        //   listChunkCodec(listChunkEncoder[java.time.ZoneOffset], listChunkDecoder[java.time.ZoneOffset])
+        // val durationCodec       = listChunkCodec(listChunkEncoder[java.time.Duration], listChunkDecoder[java.time.Duration])
+        // val instantCodec        =
+        //   listChunkCodec(listChunkEncoder[java.time.Instant], listChunkDecoder[java.time.Instant])
+        // val localDateCodec      =
+        //   listChunkCodec(listChunkEncoder[java.time.LocalDate], listChunkDecoder[java.time.LocalDate])
+        // val localTimeCodec      =
+        //   listChunkCodec(listChunkEncoder[java.time.LocalTime], listChunkDecoder[java.time.LocalTime])
+        // val localDateTimeCodec  =
+        //   listChunkCodec(listChunkEncoder[java.time.LocalDateTime], listChunkDecoder[java.time.LocalDateTime])
+        // val offsetTimeCodec     =
+        //   listChunkCodec(listChunkEncoder[java.time.OffsetTime], listChunkDecoder[java.time.OffsetTime])
+        // val offsetDateTimeCodec =
+        //   listChunkCodec(listChunkEncoder[java.time.OffsetDateTime], listChunkDecoder[java.time.OffsetDateTime])
+        // val zonedDateTimeCodec  =
+        //   listChunkCodec(listChunkEncoder[java.time.ZonedDateTime], listChunkDecoder[java.time.ZonedDateTime])
 
-        val stringPayload     = Chunk(Chunk("zio"), Chunk("cats", "monix"))
+        val primitivesCodec = listChunkCodec(listChunkEncoder[Primitives], listChunkDecoder[Primitives])
+
+        val stringPayload                            = Chunk(Chunk("zio"), Chunk("cats", "monix"))
+        val boolPayload                              = Chunk(Chunk(true), Chunk(false))
+        // val bytePayload: Chunk[Chunk[Byte]]          = Chunk(Chunk(100, 99), Chunk(23))
+        val shortPayload: Chunk[Chunk[Short]]        = Chunk(Chunk(12, 23), Chunk(12))
+        val intPayload                               = Chunk(Chunk(-456789, -123456789))
+        val longPayload                              = Chunk(Chunk(123L, 90021L))
+        val floatPayload                             = Chunk(Chunk(1.2f), Chunk(-3.4f))
+        val doublePayload                            = Chunk(Chunk(-1.2d, 3.456789d))
+        // val binaryPayload: Chunk[Chunk[Chunk[Byte]]] = Chunk(Chunk(Chunk(1, 2, 3), Chunk(1, 3)))
+        val charPayload                              = Chunk(Chunk('a', 'b'))
+        // val uuidPayload                              = Chunk(Chunk(java.util.UUID.randomUUID(), java.util.UUID.randomUUID()))
+        val bigDecimalPayload                        = Chunk(Chunk(new java.math.BigDecimal("0"), new java.math.BigDecimal("-456789")))
+        val bigIntegerPayload                        = Chunk(Chunk(new java.math.BigInteger("123")), Chunk(new java.math.BigInteger("-123")))
+        // val dayOfWeekPayload  = Chunk(Chunk(DayOfWeek.MONDAY), Chunk(DayOfWeek.SUNDAY))
+
         val primitivesPayload = Chunk(Chunk(Primitives(1, 2.0, "3")))
 
         ZIO.scoped(
           for {
             stringVec        <- stringCodec.encodeZIO(stringPayload)
             stringResult     <- stringCodec.decodeZIO(stringVec)
+            boolVec          <- boolCodec.encodeZIO(boolPayload)
+            boolResult       <- boolCodec.decodeZIO(boolVec)
+            // byteVec          <- byteCodec.encodeZIO(bytePayload)
+            // byteResult       <- byteCodec.decodeZIO(byteVec)
+            shortVec         <- shortCodec.encodeZIO(shortPayload)
+            shortResult      <- shortCodec.decodeZIO(shortVec)
+            intVec           <- intCodec.encodeZIO(intPayload)
+            intResult        <- intCodec.decodeZIO(intVec)
+            longVec          <- longCodec.encodeZIO(longPayload)
+            longResult       <- longCodec.decodeZIO(longVec)
+            floatVec         <- floatCodec.encodeZIO(floatPayload)
+            floatResult      <- floatCodec.decodeZIO(floatVec)
+            doubleVec        <- doubleCodec.encodeZIO(doublePayload)
+            doubleResult     <- doubleCodec.decodeZIO(doubleVec)
+            // binaryVec        <- binaryCodec.encodeZIO(binaryPayload)
+            // binaryResult     <- binaryCodec.decodeZIO(binaryVec)
+            charVec          <- charCodec.encodeZIO(charPayload)
+            charResult       <- charCodec.decodeZIO(charVec)
+            // uuidVec          <- uuidCodec.encodeZIO(uuidPayload)
+            // uuidResult       <- uuidCodec.decodeZIO(uuidVec)
+            bigDecimalVec    <- bigDecimalCodec.encodeZIO(bigDecimalPayload)
+            bigDecimalResult <- bigDecimalCodec.decodeZIO(bigDecimalVec)
+            bigIntegerVec    <- bigIntegerCodec.encodeZIO(bigIntegerPayload)
+            bigIntegerResult <- bigIntegerCodec.decodeZIO(bigIntegerVec)
             primitivesVec    <- primitivesCodec.encodeZIO(primitivesPayload)
             primitivesResult <- primitivesCodec.decodeZIO(primitivesVec)
           } yield assertTrue(
             stringResult == stringPayload,
+            boolResult == boolPayload,
+            // byteResult == bytePayload,
+            shortResult == shortPayload,
+            intResult == intPayload,
+            longResult == longPayload,
+            floatResult == floatPayload,
+            doubleResult == doublePayload,
+            // binaryResult == binaryPayload,
+            charResult == charPayload,
+            // uuidResult == uuidPayload,
+            bigDecimalResult == bigDecimalPayload,
+            bigIntegerResult == bigIntegerPayload,
             primitivesResult == primitivesPayload
           )
         )

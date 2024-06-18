@@ -3,8 +3,12 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import org.apache.arrow.vector._
 import zio._
 import zio.schema.Derive
+import zio.schema.Factory
 
 import scala.util.control.NonFatal
+import zio.schema.Deriver
+import org.apache.arrow.vector.complex.ListVector
+import zio.schema.Schema
 
 trait ValueVectorDecoder[V <: ValueVector, +A] extends ValueDecoder[A] { self =>
 
@@ -129,5 +133,34 @@ object ValueVectorDecoder {
     Derive.derive[ValueVectorDecoder[VarCharVector, *], java.time.ZonedDateTime](
       ValueVectorDecoderDeriver.default[VarCharVector]
     )
+
+  implicit def listDecoder[A, C[_]](implicit
+    factory: Factory[C[A]],
+    schema: Schema[C[A]]
+  ): ValueVectorDecoder[ListVector, C[A]] =
+    listFromDefaultDeriver[A, C]
+
+  implicit def listChunkDecoder[A](implicit
+    factory: Factory[Chunk[A]],
+    schema: Schema[Chunk[A]]
+  ): ValueVectorDecoder[ListVector, Chunk[A]] =
+    listDecoder[A, Chunk]
+
+  def listFromDeriver[A, C[_]](
+    deriver: Deriver[ValueVectorDecoder[ListVector, *]]
+  )(implicit factory: Factory[C[A]], schema: Schema[C[A]]): ValueVectorDecoder[ListVector, C[A]] =
+    factory.derive[ValueVectorDecoder[ListVector, *]](deriver)
+
+  def listFromDefaultDeriver[A, C[_]](implicit
+    factory: Factory[C[A]],
+    schema: Schema[C[A]]
+  ): ValueVectorDecoder[ListVector, C[A]] =
+    listFromDeriver[A, C](ValueVectorDecoderDeriver.default[ListVector])
+
+  def listFromSummonedDeriver[A, C[_]](implicit
+    factory: Factory[C[A]],
+    schema: Schema[C[A]]
+  ): ValueVectorDecoder[ListVector, C[A]] =
+    listFromDeriver(ValueVectorDecoderDeriver.summoned[ListVector])
 
 }

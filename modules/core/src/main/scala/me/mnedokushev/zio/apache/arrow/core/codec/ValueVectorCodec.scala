@@ -3,6 +3,7 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{ ValueVector, _ }
 import zio._
+import org.apache.arrow.vector.complex.ListVector
 
 final case class ValueVectorCodec[V <: ValueVector, A](
   encoder: ValueVectorEncoder[V, A],
@@ -92,5 +93,17 @@ object ValueVectorCodec {
     codec[VarCharVector, java.time.OffsetDateTime]
   implicit val zonedDateTimeCodec: ValueVectorCodec[VarCharVector, java.time.ZonedDateTime]   =
     codec[VarCharVector, java.time.ZonedDateTime]
+
+  implicit def listCodec[A, C[_]](implicit
+    encoder: ValueVectorEncoder[ListVector, C[A]],
+    decoder: ValueVectorDecoder[ListVector, C[A]]
+  ): ValueVectorCodec[ListVector, C[A]] =
+    ValueVectorCodec[ListVector, C[A]](encoder, decoder)
+
+  implicit def listChunkCodec[A](implicit
+    encoder: ValueVectorEncoder[ListVector, Chunk[A]],
+    decoder: ValueVectorDecoder[ListVector, Chunk[A]]
+  ): ValueVectorCodec[ListVector, Chunk[A]] = 
+    listCodec[A, Chunk]
 
 }
