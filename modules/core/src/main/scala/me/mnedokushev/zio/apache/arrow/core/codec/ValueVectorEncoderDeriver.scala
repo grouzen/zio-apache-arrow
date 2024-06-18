@@ -183,9 +183,10 @@ object ValueVectorEncoderDeriver {
           val vec    = ListVector.empty("listVector", alloc)
           val len    = chunk.length
           val writer = vec.getWriter
-          val it     = chunk.iterator
+          val it     = chunk.iterator.zipWithIndex
 
-          it.foreach { vs =>
+          it.foreach { case (vs, i) =>
+            writer.setPosition(i)
             writer.startList()
             sequence.toChunk(vs).foreach(inner.encodeValue(_, None, writer))
             writer.endList()
