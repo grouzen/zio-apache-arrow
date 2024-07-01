@@ -103,7 +103,13 @@ object ValueVectorCodec {
   implicit def listChunkCodec[A](implicit
     encoder: ValueVectorEncoder[ListVector, Chunk[A]],
     decoder: ValueVectorDecoder[ListVector, Chunk[A]]
-  ): ValueVectorCodec[ListVector, Chunk[A]] = 
+  ): ValueVectorCodec[ListVector, Chunk[A]] =
     listCodec[A, Chunk]
+
+  implicit def optionCodec[V <: ValueVector, A](implicit
+    encoder: ValueVectorEncoder[V, Option[A]],
+    decoder: ValueVectorDecoder[V, Option[A]]
+  ): ValueVectorCodec[V, Option[A]] =
+    ValueVectorCodec[V, Option[A]](encoder, decoder)
 
 }

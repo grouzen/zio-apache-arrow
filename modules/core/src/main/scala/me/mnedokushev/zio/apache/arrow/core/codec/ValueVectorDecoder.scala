@@ -23,7 +23,9 @@ trait ValueVectorDecoder[V <: ValueVector, +A] extends ValueDecoder[A] { self =>
       case NonFatal(ex)               => Left(DecoderError("Error decoding vector", Some(ex)))
     }
 
-  protected def decodeUnsafe(vec: V): Chunk[A]
+  def decodeUnsafe(vec: V): Chunk[A]
+
+  def decodeNullableUnsafe(vec: V): Chunk[Option[A]]
 
   // final def map[B](f: A => B): ValueVectorDecoder[V, B] =
   //   new ValueVectorDecoder[V, B] {
@@ -138,7 +140,7 @@ object ValueVectorDecoder {
     factory: Factory[C[A]],
     schema: Schema[C[A]]
   ): ValueVectorDecoder[ListVector, C[A]] =
-    listFromDefaultDeriver[A, C]
+    listDecoderFromDefaultDeriver[A, C]
 
   implicit def listChunkDecoder[A](implicit
     factory: Factory[Chunk[A]],
@@ -146,21 +148,38 @@ object ValueVectorDecoder {
   ): ValueVectorDecoder[ListVector, Chunk[A]] =
     listDecoder[A, Chunk]
 
-  def listFromDeriver[A, C[_]](
+  def listDecoderFromDeriver[A, C[_]](
     deriver: Deriver[ValueVectorDecoder[ListVector, *]]
   )(implicit factory: Factory[C[A]], schema: Schema[C[A]]): ValueVectorDecoder[ListVector, C[A]] =
     factory.derive[ValueVectorDecoder[ListVector, *]](deriver)
 
-  def listFromDefaultDeriver[A, C[_]](implicit
+  def listDecoderFromDefaultDeriver[A, C[_]](implicit
     factory: Factory[C[A]],
     schema: Schema[C[A]]
   ): ValueVectorDecoder[ListVector, C[A]] =
-    listFromDeriver[A, C](ValueVectorDecoderDeriver.default[ListVector])
+    listDecoderFromDeriver[A, C](ValueVectorDecoderDeriver.default[ListVector])
 
-  def listFromSummonedDeriver[A, C[_]](implicit
+  def listDecoderFromSummonedDeriver[A, C[_]](implicit
     factory: Factory[C[A]],
     schema: Schema[C[A]]
   ): ValueVectorDecoder[ListVector, C[A]] =
-    listFromDeriver(ValueVectorDecoderDeriver.summoned[ListVector])
+    listDecoderFromDeriver(ValueVectorDecoderDeriver.summoned[ListVector])
+
+  implicit def optionDecoder[V <: ValueVector, A](implicit
+    factory: Factory[Option[A]],
+    schema: Schema[Option[A]]
+  ): ValueVectorDecoder[V, Option[A]] =
+    optionDecoderFromDefaultDeriver[V, A]
+
+  def optionDecoderFromDeriver[V <: ValueVector, A](
+    deriver: Deriver[ValueVectorDecoder[V, *]]
+  )(implicit factory: Factory[Option[A]], schema: Schema[Option[A]]): ValueVectorDecoder[V, Option[A]] =
+    factory.derive[ValueVectorDecoder[V, *]](deriver)
+
+  def optionDecoderFromDefaultDeriver[V <: ValueVector, A](implicit
+    factory: Factory[Option[A]],
+    schema: Schema[Option[A]]
+  ): ValueVectorDecoder[V, Option[A]] =
+    optionDecoderFromDeriver(ValueVectorDecoderDeriver.default[V])
 
 }

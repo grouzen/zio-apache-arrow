@@ -14,6 +14,7 @@ import zio.test.Assertion._
 import zio.test.{ Spec, _ }
 import me.mnedokushev.zio.apache.arrow.core.codec.ValueVectorEncoder._
 import me.mnedokushev.zio.apache.arrow.core.codec.ValueVectorDecoder._
+import org.apache.arrow.vector._
 // import java.util.UUID
 
 object CodecSpec extends ZIOSpecDefault {
@@ -253,19 +254,19 @@ object CodecSpec extends ZIOSpecDefault {
 
         val primitivesCodec = listChunkCodec(listChunkEncoder[Primitives], listChunkDecoder[Primitives])
 
-        val stringPayload                            = Chunk(Chunk("zio"), Chunk("cats", "monix"))
-        val boolPayload                              = Chunk(Chunk(true), Chunk(false))
+        val stringPayload                     = Chunk(Chunk("zio"), Chunk("cats", "monix"))
+        val boolPayload                       = Chunk(Chunk(true), Chunk(false))
         // val bytePayload: Chunk[Chunk[Byte]]          = Chunk(Chunk(100, 99), Chunk(23))
-        val shortPayload: Chunk[Chunk[Short]]        = Chunk(Chunk(12, 23), Chunk(12))
-        val intPayload                               = Chunk(Chunk(-456789, -123456789))
-        val longPayload                              = Chunk(Chunk(123L, 90021L))
-        val floatPayload                             = Chunk(Chunk(1.2f), Chunk(-3.4f))
-        val doublePayload                            = Chunk(Chunk(-1.2d, 3.456789d))
+        val shortPayload: Chunk[Chunk[Short]] = Chunk(Chunk(12, 23), Chunk(12))
+        val intPayload                        = Chunk(Chunk(-456789, -123456789))
+        val longPayload                       = Chunk(Chunk(123L, 90021L))
+        val floatPayload                      = Chunk(Chunk(1.2f), Chunk(-3.4f))
+        val doublePayload                     = Chunk(Chunk(-1.2d, 3.456789d))
         // val binaryPayload: Chunk[Chunk[Chunk[Byte]]] = Chunk(Chunk(Chunk(1, 2, 3), Chunk(1, 3)))
-        val charPayload                              = Chunk(Chunk('a', 'b'))
+        val charPayload                       = Chunk(Chunk('a', 'b'))
         // val uuidPayload                              = Chunk(Chunk(java.util.UUID.randomUUID(), java.util.UUID.randomUUID()))
-        val bigDecimalPayload                        = Chunk(Chunk(new java.math.BigDecimal("0"), new java.math.BigDecimal("-456789")))
-        val bigIntegerPayload                        = Chunk(Chunk(new java.math.BigInteger("123")), Chunk(new java.math.BigInteger("-123")))
+        val bigDecimalPayload                 = Chunk(Chunk(new java.math.BigDecimal("0"), new java.math.BigDecimal("-456789")))
+        val bigIntegerPayload                 = Chunk(Chunk(new java.math.BigInteger("123")), Chunk(new java.math.BigInteger("-123")))
         // val dayOfWeekPayload  = Chunk(Chunk(DayOfWeek.MONDAY), Chunk(DayOfWeek.SUNDAY))
 
         val primitivesPayload = Chunk(Chunk(Primitives(1, 2.0, "3")))
@@ -363,6 +364,32 @@ object CodecSpec extends ZIOSpecDefault {
         //           } yield assert(result)(equalTo(payload))
         //         )
         //       },
+      },
+      test("option") {
+        import ValueVectorCodec._
+
+        val stringPayload                      = Chunk(Some("zio"), None, Some("arrow"))
+        val shortPayload: Chunk[Option[Short]] = Chunk(Some(3), Some(2), None)
+        val intPayload                         = Chunk(Some(1), None, Some(3))
+
+        val optionStringCodec = optionCodec(optionEncoder[VarCharVector, String], optionDecoder[VarCharVector, String])
+        val optionShortCodec  = optionCodec(optionEncoder[SmallIntVector, Short], optionDecoder[SmallIntVector, Short])
+        val optionIntCodec    = optionCodec(optionEncoder[IntVector, Int], optionDecoder[IntVector, Int])
+
+        ZIO.scoped(
+          for {
+            stringVec    <- optionStringCodec.encodeZIO(stringPayload)
+            stringResult <- optionStringCodec.decodeZIO(stringVec)
+            shortVec     <- optionShortCodec.encodeZIO(shortPayload)
+            shortResult  <- optionShortCodec.decodeZIO(shortVec)
+            intVec       <- optionIntCodec.encodeZIO(intPayload)
+            intResult    <- optionIntCodec.decodeZIO(intVec)
+          } yield assertTrue(
+            stringResult == stringPayload,
+            shortResult == shortPayload,
+            intResult == intPayload
+          )
+        )
       }
     )
 

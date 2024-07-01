@@ -20,24 +20,26 @@ object ValueVectorEncoderDeriver {
 
       private val encoders = fields.map(_.unwrap)
 
-      override protected def encodeUnsafe(chunk: Chunk[A])(implicit alloc: BufferAllocator): V1 = {
+      override def encodeUnsafe(chunk: Chunk[Option[A]], nullable: Boolean)(implicit alloc: BufferAllocator): V1 = {
         val vec    = StructVector.empty("structVector", alloc)
-        val len    = chunk.length
         val writer = vec.getWriter
+        val len    = chunk.length
         val it     = chunk.iterator.zipWithIndex
 
         it.foreach { case (v, i) =>
           writer.setPosition(i)
-          ValueEncoder.encodeStruct(v, record.fields, encoders, writer)
+
+          if (nullable && v.isEmpty)
+            writer.writeNull()
+          else
+            ValueEncoder.encodeStruct(v.get, record.fields, encoders, writer)
+
           vec.setIndexDefined(i)
         }
         writer.setValueCount(len)
 
         vec.asInstanceOf[V1]
       }
-
-      // override def allocateVector(implicit alloc: BufferAllocator): V1 =
-      //   StructVector.empty("structVector", alloc).asInstanceOf[V1]
 
       override def encodeValue(value: A, name: Option[String], writer: FieldWriter)(implicit
         alloc: BufferAllocator
@@ -63,7 +65,7 @@ object ValueVectorEncoderDeriver {
       summoned: => Option[ValueVectorEncoder[V1, A]]
     ): ValueVectorEncoder[V1, A] = new ValueVectorEncoder[V1, A] {
 
-      override protected def encodeUnsafe(chunk: Chunk[A])(implicit alloc: BufferAllocator): V1 = {
+      override def encodeUnsafe(chunk: Chunk[Option[A]], nullable: Boolean)(implicit alloc: BufferAllocator): V1 = {
         val vec: FieldVector    = st match {
           case StandardType.StringType         =>
             new VarCharVector("stringVector", alloc)
@@ -132,7 +134,11 @@ object ValueVectorEncoderDeriver {
 
         it.foreach { case (v, i) =>
           writer.setPosition(i)
-          ValueEncoder.encodePrimitive(st, v, writer)
+
+          if (nullable && v.isEmpty) {
+            writer.writeNull()
+          } else
+            ValueEncoder.encodePrimitive(st, v.get, writer)
         }
 
         vec.setValueCount(len)
@@ -141,7 +147,8 @@ object ValueVectorEncoderDeriver {
 
       override def encodeValue(value: A, name: Option[String], writer: FieldWriter)(implicit
         alloc: BufferAllocator
-      ): Unit = ValueEncoder.encodePrimitive(st, value, name, writer)
+      ): Unit =
+        ValueEncoder.encodePrimitive(st, value, name, writer)
 
     }
 
@@ -149,28 +156,24 @@ object ValueVectorEncoderDeriver {
       option: Schema.Optional[A],
       inner: => ValueVectorEncoder[V1, A],
       summoned: => Option[ValueVectorEncoder[V1, Option[A]]]
-    ): ValueVectorEncoder[V1, Option[A]] = ???
+    ): ValueVectorEncoder[V1, Option[A]] = new ValueVectorEncoder[V1, Option[A]] {
 
-    // override def deriveOption[A](
-    //   option: Schema.Optional[A],
-    //   inner: => ValueVectorEncoder[V1, A],
-    //   summoned: => Option[ValueVectorEncoder[V1, Option[A]]]
-    // ): ValueVectorEncoder[V1, Option[A]] = new ValueVectorEncoder[V1, Option[A]] {
+      override def encodeUnsafe(chunk: Chunk[Option[Option[A]]], nullable: Boolean)(implicit
+        alloc: BufferAllocator
+      ): V1 =
+        inner.encodeUnsafe(chunk.map(_.get), nullable = true)
 
-    //   override protected def encodeUnsafe(chunk: Chunk[Option[A]], vector: V1)(implicit alloc: BufferAllocator): V1 = {
-    //     val writer = vector.getWriter
+      override def encodeValue(value: Option[A], name: Option[String], writer: FieldWriter)(implicit
+        alloc: BufferAllocator
+      ): Unit =
+        value match {
+          case Some(value0) =>
+            inner.encodeValue(value0, name, writer)
+          case None         =>
+            writer.writeNull()
+        }
 
-    //     writer
-    //   }
-
-    //   override def allocateVector(implicit alloc: BufferAllocator): V1 =
-    //     inner.allocateVector
-
-    //   override def encodeValue(value: Option[A], name: Option[String], writer: FieldWriter)(implicit
-    //     alloc: BufferAllocator
-    //   ): Unit = ???
-
-    // }
+    }
 
     override def deriveSequence[C[_], A](
       sequence: Schema.Sequence[C[A], A, _],
@@ -179,17 +182,24 @@ object ValueVectorEncoderDeriver {
     ): ValueVectorEncoder[V1, C[A]] =
       new ValueVectorEncoder[V1, C[A]] {
 
-        override protected def encodeUnsafe(chunk: Chunk[C[A]])(implicit alloc: BufferAllocator): V1 = {
+        override def encodeUnsafe(chunk: Chunk[Option[C[A]]], nullable: Boolean)(implicit
+          alloc: BufferAllocator
+        ): V1 = {
           val vec    = ListVector.empty("listVector", alloc)
-          val len    = chunk.length
           val writer = vec.getWriter
+          val len    = chunk.length
           val it     = chunk.iterator.zipWithIndex
 
           it.foreach { case (vs, i) =>
             writer.setPosition(i)
-            writer.startList()
-            sequence.toChunk(vs).foreach(inner.encodeValue(_, None, writer))
-            writer.endList()
+
+            if (nullable && vs.isEmpty) {
+              writer.writeNull()
+            } else {
+              writer.startList()
+              sequence.toChunk(vs.get).foreach(inner.encodeValue(_, None, writer))
+              writer.endList()
+            }
           }
 
           vec.setValueCount(len)

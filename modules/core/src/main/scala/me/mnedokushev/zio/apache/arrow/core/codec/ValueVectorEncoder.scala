@@ -22,14 +22,14 @@ trait ValueVectorEncoder[V <: ValueVector, -A] extends ValueEncoder[A] { self =>
 
   final def encode(chunk: Chunk[A])(implicit alloc: BufferAllocator): Either[Throwable, V] =
     try
-      Right(encodeUnsafe(chunk))
+      Right(encodeUnsafe(chunk.map(Some(_)), nullable = false))
     catch {
       case encoderError: EncoderError => Left(encoderError)
       case NonFatal(ex)               => Left(EncoderError("Error encoding vector", Some(ex)))
 
     }
 
-  protected def encodeUnsafe(chunk: Chunk[A])(implicit alloc: BufferAllocator): V
+  def encodeUnsafe(chunk: Chunk[Option[A]], nullable: Boolean)(implicit alloc: BufferAllocator): V
 
   // def allocateVector(implicit alloc: BufferAllocator): V
 
@@ -148,29 +148,47 @@ object ValueVectorEncoder {
     factory: Factory[C[A]],
     schema: Schema[C[A]]
   ): ValueVectorEncoder[ListVector, C[A]] =
-    listFromDefaultDeriver[A, C]
+    listEncoderFromDefaultDeriver[A, C]
 
-  implicit def listChunkEncoder[A](
-    implicit factory: Factory[Chunk[A]],
+  implicit def listChunkEncoder[A](implicit
+    factory: Factory[Chunk[A]],
     schema: Schema[Chunk[A]]
-  ): ValueVectorEncoder[ListVector, Chunk[A]] = 
+  ): ValueVectorEncoder[ListVector, Chunk[A]] =
     listEncoder[A, Chunk]
 
-  def listFromDeriver[A, C[_]](
+  def listEncoderFromDeriver[A, C[_]](
     deriver: Deriver[ValueVectorEncoder[ListVector, *]]
   )(implicit factory: Factory[C[A]], schema: Schema[C[A]]): ValueVectorEncoder[ListVector, C[A]] =
     factory.derive[ValueVectorEncoder[ListVector, *]](deriver)
 
-  def listFromDefaultDeriver[A, C[_]](implicit
+  def listEncoderFromDefaultDeriver[A, C[_]](implicit
     factory: Factory[C[A]],
     schema: Schema[C[A]]
   ): ValueVectorEncoder[ListVector, C[A]] =
-    listFromDeriver[A, C](ValueVectorEncoderDeriver.default[ListVector])
+    listEncoderFromDeriver[A, C](ValueVectorEncoderDeriver.default[ListVector])
 
-  def listFromSummonedDeriver[A, C[_]](implicit
+  def listEncoderFromSummonedDeriver[A, C[_]](implicit
     factory: Factory[C[A]],
     schema: Schema[C[A]]
   ): ValueVectorEncoder[ListVector, C[A]] =
-    listFromDeriver[A, C](ValueVectorEncoderDeriver.summoned[ListVector])
+    listEncoderFromDeriver[A, C](ValueVectorEncoderDeriver.summoned[ListVector])
+
+  implicit def optionEncoder[V <: ValueVector, A](implicit
+    factory: Factory[Option[A]],
+    schema: Schema[Option[A]]
+  ): ValueVectorEncoder[V, Option[A]] =
+    optionEncoderFromDefaultDeriver[V, A]
+
+  def optionEncoderFromDeriver[V <: ValueVector, A](deriver: Deriver[ValueVectorEncoder[V, *]])(implicit
+    factory: Factory[Option[A]],
+    schema: Schema[Option[A]]
+  ): ValueVectorEncoder[V, Option[A]] =
+    factory.derive[ValueVectorEncoder[V, *]](deriver)
+
+  def optionEncoderFromDefaultDeriver[V <: ValueVector, A](implicit
+    factory: Factory[Option[A]],
+    schema: Schema[Option[A]]
+  ): ValueVectorEncoder[V, Option[A]] =
+    optionEncoderFromDeriver(ValueVectorEncoderDeriver.default[V])
 
 }
