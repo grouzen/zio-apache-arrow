@@ -9,8 +9,10 @@ import scala.util.control.NonFatal
 import zio.schema.Deriver
 import org.apache.arrow.vector.complex.ListVector
 import zio.schema.Schema
+import org.apache.arrow.vector.complex.reader.FieldReader
+import zio.schema.DynamicValue
 
-trait ValueVectorDecoder[V <: ValueVector, +A] extends ValueDecoder[A] { self =>
+trait ValueVectorDecoder[V <: ValueVector, A] extends ValueDecoder[A] { self =>
 
   final def decodeZIO(vec: V): Task[Chunk[A]] =
     ZIO.fromEither(decode(vec))
@@ -27,15 +29,24 @@ trait ValueVectorDecoder[V <: ValueVector, +A] extends ValueDecoder[A] { self =>
 
   def decodeNullableUnsafe(vec: V): Chunk[Option[A]]
 
-  // final def map[B](f: A => B): ValueVectorDecoder[V, B] =
-  //   new ValueVectorDecoder[V, B] {
+  final def map[B](f: A => B)(implicit schemaSrc: Schema[A], schemaDst: Schema[B]): ValueVectorDecoder[V, B] =
+    new ValueVectorDecoder[V, B] {
 
-  //     // TODO: how to convert to B
-  //     override def decodeValue(name: Option[String], reader: FieldReader): DynamicValue = ???
+      override def decodeUnsafe(vec: V): Chunk[B] =
+        self.decodeUnsafe(vec).map(f)
 
-  //     override protected def decodeUnsafe(vec: V): Chunk[B] =
-  //       self.decodeUnsafe(vec).map(f)
-  //   }
+      override def decodeNullableUnsafe(vec: V): Chunk[Option[B]] =
+        self.decodeNullableUnsafe(vec).map(_.map(f))
+
+      override def decodeValue(name: Option[String], reader: FieldReader): DynamicValue =
+        self
+          .decodeValue(name, reader)
+          .toValue(schemaSrc)
+          .map(a => schemaDst.toDynamic(f(a)))
+          .toTry
+          .get
+
+    }
 
 }
 

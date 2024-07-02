@@ -21,37 +21,39 @@ object CodecSpec extends ZIOSpecDefault {
 
   override def spec: Spec[TestEnvironment with Scope, Any] =
     suite("Codec")(
+      valueVectorDecoderSpec,
+      valueVectorEncoderSpec,
       valueVectorCodecSpec,
       vectorSchemaRootCodecSpec
     ).provideLayerShared(Allocator.rootLayer())
 
-  // val valueVectorDecoderSpec: Spec[BufferAllocator, Throwable] =
-  //   suite("ValueVectorDecoder")(
-  //     test("map") {
-  //       val codec = ValueVectorCodec.primitive[Int, IntVector]
+  val valueVectorDecoderSpec: Spec[BufferAllocator, Throwable] =
+    suite("ValueVectorDecoder")(
+      test("map") {
+        import ValueVectorCodec._
 
-  //       ZIO.scoped(
-  //         for {
-  //           intVec <- codec.encodeZIO(Chunk(1, 2, 3))
-  //           result <- codec.decoder.map(_.toString).decodeZIO(intVec)
-  //         } yield assert(result)(equalTo(Chunk("1", "2", "3")))
-  //       )
-  //     }
-  //   )
+        ZIO.scoped(
+          for {
+            intVec <- intCodec.encodeZIO(Chunk(1, 2, 3))
+            result <- intCodec.decoder.map(_.toString).decodeZIO(intVec)
+          } yield assert(result)(equalTo(Chunk("1", "2", "3")))
+        )
+      }
+    )
 
-  // val valueVectorEncoderSpec: Spec[BufferAllocator, Throwable] =
-  //   suite("ValueVectorEncoder")(
-  //     test("contramap") {
-  //       val codec = ValueVectorCodec.primitive[Int, IntVector]
+  val valueVectorEncoderSpec: Spec[BufferAllocator, Throwable] =
+    suite("ValueVectorEncoder")(
+      test("contramap") {
+        import ValueVectorCodec._
 
-  //       ZIO.scoped(
-  //         for {
-  //           intVec <- codec.encoder.contramap[String](s => s.toInt).encodeZIO(Chunk("1", "2", "3"))
-  //           result <- codec.decodeZIO(intVec)
-  //         } yield assert(result)(equalTo(Chunk(1, 2, 3)))
-  //       )
-  //     }
-  //   )
+        ZIO.scoped(
+          for {
+            intVec <- intCodec.encoder.contramap[String](s => s.toInt).encodeZIO(Chunk("1", "2", "3"))
+            result <- intCodec.decodeZIO(intVec)
+          } yield assert(result)(equalTo(Chunk(1, 2, 3)))
+        )
+      }
+    )
 
   val valueVectorCodecSpec: Spec[BufferAllocator, Throwable] =
     suite("ValueVectorCodec")(

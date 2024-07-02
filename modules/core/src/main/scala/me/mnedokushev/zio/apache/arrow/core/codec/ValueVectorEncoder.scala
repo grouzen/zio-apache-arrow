@@ -10,6 +10,7 @@ import zio.schema.Factory
 import zio.schema.Schema
 import zio.schema.Deriver
 import org.apache.arrow.vector.complex.ListVector
+import org.apache.arrow.vector.complex.writer.FieldWriter
 
 trait ValueVectorEncoder[V <: ValueVector, -A] extends ValueEncoder[A] { self =>
 
@@ -31,21 +32,20 @@ trait ValueVectorEncoder[V <: ValueVector, -A] extends ValueEncoder[A] { self =>
 
   def encodeUnsafe(chunk: Chunk[Option[A]], nullable: Boolean)(implicit alloc: BufferAllocator): V
 
+  final def contramap[B](f: B => A): ValueVectorEncoder[V, B] =
+    new ValueVectorEncoder[V, B] {
+
+      override def encodeUnsafe(chunk: Chunk[Option[B]], nullable: Boolean)(implicit alloc: BufferAllocator): V =
+        self.encodeUnsafe(chunk.map(_.map(f)), nullable)
+
+      override def encodeValue(value: B, name: Option[String], writer: FieldWriter)(implicit
+        alloc: BufferAllocator
+      ): Unit =
+        self.encodeValue(f(value), name, writer)
+
+    }
+
   // def allocateVector(implicit alloc: BufferAllocator): V
-
-  // final def contramap[B](f: B => A): ValueVectorEncoder[B, V] =
-  //   new ValueVectorEncoder[B, V] {
-  //     override protected def encodeUnsafe(chunk: Chunk[B])(implicit alloc: BufferAllocator): V =
-  //       self.encodeUnsafe(chunk.map(f))
-
-  //     override def encodeValue(
-  //       value: B,
-  //       name: Option[String],
-  //       writer: FieldWriter
-  //     )(implicit alloc: BufferAllocator): Unit =
-  //       self.encodeValue(f(value), name, writer)
-
-  //   }
 
 }
 
