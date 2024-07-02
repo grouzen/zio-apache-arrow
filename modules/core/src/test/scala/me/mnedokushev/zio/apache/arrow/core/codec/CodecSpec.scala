@@ -373,23 +373,31 @@ object CodecSpec extends ZIOSpecDefault {
         val stringPayload                      = Chunk(Some("zio"), None, Some("arrow"))
         val shortPayload: Chunk[Option[Short]] = Chunk(Some(3), Some(2), None)
         val intPayload                         = Chunk(Some(1), None, Some(3))
+        val listStringPayload                  = Chunk(Some(Chunk("zio", "cats")), None)
 
-        val optionStringCodec = optionCodec(optionEncoder[VarCharVector, String], optionDecoder[VarCharVector, String])
-        val optionShortCodec  = optionCodec(optionEncoder[SmallIntVector, Short], optionDecoder[SmallIntVector, Short])
-        val optionIntCodec    = optionCodec(optionEncoder[IntVector, Int], optionDecoder[IntVector, Int])
+        val stringCodec     = optionCodec(optionEncoder[VarCharVector, String], optionDecoder[VarCharVector, String])
+        val shortCodec      = optionCodec(optionEncoder[SmallIntVector, Short], optionDecoder[SmallIntVector, Short])
+        val intCodec        = optionCodec(optionEncoder[IntVector, Int], optionDecoder[IntVector, Int])
+        val listStringCodec = optionListChunkCodec(
+          optionListChunkEncoder[String],
+          optionListChunkDecoder[String]
+        )
 
         ZIO.scoped(
           for {
-            stringVec    <- optionStringCodec.encodeZIO(stringPayload)
-            stringResult <- optionStringCodec.decodeZIO(stringVec)
-            shortVec     <- optionShortCodec.encodeZIO(shortPayload)
-            shortResult  <- optionShortCodec.decodeZIO(shortVec)
-            intVec       <- optionIntCodec.encodeZIO(intPayload)
-            intResult    <- optionIntCodec.decodeZIO(intVec)
+            stringVec        <- stringCodec.encodeZIO(stringPayload)
+            stringResult     <- stringCodec.decodeZIO(stringVec)
+            shortVec         <- shortCodec.encodeZIO(shortPayload)
+            shortResult      <- shortCodec.decodeZIO(shortVec)
+            intVec           <- intCodec.encodeZIO(intPayload)
+            intResult        <- intCodec.decodeZIO(intVec)
+            listStringVec    <- listStringCodec.encodeZIO(listStringPayload)
+            listStringResult <- listStringCodec.decodeZIO(listStringVec)
           } yield assertTrue(
             stringResult == stringPayload,
             shortResult == shortPayload,
-            intResult == intPayload
+            intResult == intPayload,
+            listStringResult == listStringPayload
           )
         )
       }

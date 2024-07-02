@@ -4,14 +4,12 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.{ ValueVector, _ }
 import zio._
 import org.apache.arrow.vector.complex.ListVector
+import zio.schema.Schema
 
 final case class ValueVectorCodec[V <: ValueVector, A](
   encoder: ValueVectorEncoder[V, A],
   decoder: ValueVectorDecoder[V, A]
 ) { self =>
-
-  // def transform[B](f: A => B, g: B => A): ValueVectorCodec[B, V] =
-  //   ValueVectorCodec(encoder.contramap(g), decoder.map(f))
 
   def decodeZIO(vec: V): Task[Chunk[A]] =
     decoder.decodeZIO(vec)
@@ -24,6 +22,9 @@ final case class ValueVectorCodec[V <: ValueVector, A](
 
   def encode(chunk: Chunk[A])(implicit alloc: BufferAllocator): Either[Throwable, V] =
     encoder.encode(chunk)
+
+  def transform[B](f: A => B, g: B => A)(implicit schemaSrc: Schema[A], schemaDst: Schema[B]): ValueVectorCodec[V, B] =
+    ValueVectorCodec(encoder.contramap(g), decoder.map(f))
 
 }
 
@@ -111,5 +112,17 @@ object ValueVectorCodec {
     decoder: ValueVectorDecoder[V, Option[A]]
   ): ValueVectorCodec[V, Option[A]] =
     ValueVectorCodec[V, Option[A]](encoder, decoder)
+
+  implicit def optionListCodec[A, C[_]](implicit
+    encoder: ValueVectorEncoder[ListVector, Option[C[A]]],
+    decoder: ValueVectorDecoder[ListVector, Option[C[A]]]
+  ): ValueVectorCodec[ListVector, Option[C[A]]] =
+    optionCodec[ListVector, C[A]]
+
+  implicit def optionListChunkCodec[A](implicit
+    encoder: ValueVectorEncoder[ListVector, Option[Chunk[A]]],
+    decoder: ValueVectorDecoder[ListVector, Option[Chunk[A]]]
+  ): ValueVectorCodec[ListVector, Option[Chunk[A]]] =
+    optionListCodec[A, Chunk]
 
 }

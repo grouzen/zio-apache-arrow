@@ -182,6 +182,18 @@ object ValueVectorDecoder {
   ): ValueVectorDecoder[V, Option[A]] =
     optionDecoderFromDefaultDeriver[V, A]
 
+  implicit def optionListDecoder[A, C[_]](implicit
+    factory: Factory[Option[C[A]]],
+    schema: Schema[Option[C[A]]]
+  ): ValueVectorDecoder[ListVector, Option[C[A]]] =
+    optionDecoder[ListVector, C[A]]
+
+  implicit def optionListChunkDecoder[A](implicit
+    factory: Factory[Option[Chunk[A]]],
+    schema: Schema[Option[Chunk[A]]]
+  ): ValueVectorDecoder[ListVector, Option[Chunk[A]]] =
+    optionDecoder[ListVector, Chunk[A]]
+
   def optionDecoderFromDeriver[V <: ValueVector, A](
     deriver: Deriver[ValueVectorDecoder[V, *]]
   )(implicit factory: Factory[Option[A]], schema: Schema[Option[A]]): ValueVectorDecoder[V, Option[A]] =
