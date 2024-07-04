@@ -11,7 +11,7 @@ import scala.collection.immutable.ListMap
 
 trait ValueDecoder[+A] {
 
-  def decodeValue(name: Option[String], reader: FieldReader): DynamicValue
+  def decodeValue(name: Option[String], reader: FieldReader, isNull: Boolean = false): DynamicValue
 
 }
 

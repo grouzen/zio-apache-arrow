@@ -53,7 +53,7 @@ object VectorSchemaRootDecoderDeriver {
         builder.result()
       }
 
-      override def decodeValue(name: Option[String], reader: FieldReader): DynamicValue =
+      override def decodeValue(name: Option[String], reader: FieldReader, isNull: Boolean = false): DynamicValue =
         ValueDecoder.decodeStruct(record.fields, decoders, reader)
 
     }
@@ -69,7 +69,7 @@ object VectorSchemaRootDecoderDeriver {
       summoned: => Option[VectorSchemaRootDecoder[A]]
     ): VectorSchemaRootDecoder[A] = new VectorSchemaRootDecoder[A] {
 
-      override def decodeValue(name: Option[String], reader: FieldReader): DynamicValue =
+      override def decodeValue(name: Option[String], reader: FieldReader, isNull: Boolean = false): DynamicValue =
         ValueDecoder.decodePrimitive(st, reader)
 
     }
@@ -86,7 +86,7 @@ object VectorSchemaRootDecoderDeriver {
       summoned: => Option[VectorSchemaRootDecoder[C[A]]]
     ): VectorSchemaRootDecoder[C[A]] = new VectorSchemaRootDecoder[C[A]] {
 
-      override def decodeValue(name: Option[String], reader: FieldReader): DynamicValue =
+      override def decodeValue(name: Option[String], reader: FieldReader, isNull: Boolean = false): DynamicValue =
         ValueDecoder.decodeList(inner, reader)
 
     }

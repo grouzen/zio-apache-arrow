@@ -107,6 +107,18 @@ object ValueVectorCodec {
   ): ValueVectorCodec[ListVector, Chunk[A]] =
     listCodec[A, Chunk]
 
+  implicit def listOptionCodec[A, C[_]](implicit
+    encoder: ValueVectorEncoder[ListVector, C[Option[A]]],
+    decoder: ValueVectorDecoder[ListVector, C[Option[A]]]
+  ): ValueVectorCodec[ListVector, C[Option[A]]] =
+    listCodec[Option[A], C]
+
+  implicit def listChunkOptionCodec[A](implicit
+    encoder: ValueVectorEncoder[ListVector, Chunk[Option[A]]],
+    decoder: ValueVectorDecoder[ListVector, Chunk[Option[A]]]
+  ): ValueVectorCodec[ListVector, Chunk[Option[A]]] =
+    listChunkCodec[Option[A]]
+
   implicit def optionCodec[V <: ValueVector, A](implicit
     encoder: ValueVectorEncoder[V, Option[A]],
     decoder: ValueVectorDecoder[V, Option[A]]

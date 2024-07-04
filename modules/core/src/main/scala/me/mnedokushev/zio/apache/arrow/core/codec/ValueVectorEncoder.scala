@@ -156,6 +156,18 @@ object ValueVectorEncoder {
   ): ValueVectorEncoder[ListVector, Chunk[A]] =
     listEncoder[A, Chunk]
 
+  implicit def listOptionEncoder[A, C[_]](implicit
+    factory: Factory[C[Option[A]]],
+    schema: Schema[C[Option[A]]]
+  ): ValueVectorEncoder[ListVector, C[Option[A]]] =
+    listEncoder[Option[A], C]
+
+  implicit def listChunkOptionEncoder[A](implicit
+    factory: Factory[Chunk[Option[A]]],
+    schema: Schema[Chunk[Option[A]]]
+  ): ValueVectorEncoder[ListVector, Chunk[Option[A]]] =
+    listChunkEncoder[Option[A]]
+
   def listEncoderFromDeriver[A, C[_]](
     deriver: Deriver[ValueVectorEncoder[ListVector, *]]
   )(implicit factory: Factory[C[A]], schema: Schema[C[A]]): ValueVectorEncoder[ListVector, C[A]] =

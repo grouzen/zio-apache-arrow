@@ -256,6 +256,8 @@ object CodecSpec extends ZIOSpecDefault {
 
         val primitivesCodec = listChunkCodec(listChunkEncoder[Primitives], listChunkDecoder[Primitives])
 
+        val optionStringCodec = listChunkOptionCodec(listChunkOptionEncoder[String], listChunkOptionDecoder[String])
+
         val stringPayload                     = Chunk(Chunk("zio"), Chunk("cats", "monix"))
         val boolPayload                       = Chunk(Chunk(true), Chunk(false))
         // val bytePayload: Chunk[Chunk[Byte]]          = Chunk(Chunk(100, 99), Chunk(23))
@@ -273,36 +275,40 @@ object CodecSpec extends ZIOSpecDefault {
 
         val primitivesPayload = Chunk(Chunk(Primitives(1, 2.0, "3")))
 
+        val optionStringPayload = Chunk(Chunk(Some("zio")), Chunk(None, Some("cats")))
+
         ZIO.scoped(
           for {
-            stringVec        <- stringCodec.encodeZIO(stringPayload)
-            stringResult     <- stringCodec.decodeZIO(stringVec)
-            boolVec          <- boolCodec.encodeZIO(boolPayload)
-            boolResult       <- boolCodec.decodeZIO(boolVec)
+            stringVec          <- stringCodec.encodeZIO(stringPayload)
+            stringResult       <- stringCodec.decodeZIO(stringVec)
+            boolVec            <- boolCodec.encodeZIO(boolPayload)
+            boolResult         <- boolCodec.decodeZIO(boolVec)
             // byteVec          <- byteCodec.encodeZIO(bytePayload)
             // byteResult       <- byteCodec.decodeZIO(byteVec)
-            shortVec         <- shortCodec.encodeZIO(shortPayload)
-            shortResult      <- shortCodec.decodeZIO(shortVec)
-            intVec           <- intCodec.encodeZIO(intPayload)
-            intResult        <- intCodec.decodeZIO(intVec)
-            longVec          <- longCodec.encodeZIO(longPayload)
-            longResult       <- longCodec.decodeZIO(longVec)
-            floatVec         <- floatCodec.encodeZIO(floatPayload)
-            floatResult      <- floatCodec.decodeZIO(floatVec)
-            doubleVec        <- doubleCodec.encodeZIO(doublePayload)
-            doubleResult     <- doubleCodec.decodeZIO(doubleVec)
+            shortVec           <- shortCodec.encodeZIO(shortPayload)
+            shortResult        <- shortCodec.decodeZIO(shortVec)
+            intVec             <- intCodec.encodeZIO(intPayload)
+            intResult          <- intCodec.decodeZIO(intVec)
+            longVec            <- longCodec.encodeZIO(longPayload)
+            longResult         <- longCodec.decodeZIO(longVec)
+            floatVec           <- floatCodec.encodeZIO(floatPayload)
+            floatResult        <- floatCodec.decodeZIO(floatVec)
+            doubleVec          <- doubleCodec.encodeZIO(doublePayload)
+            doubleResult       <- doubleCodec.decodeZIO(doubleVec)
             // binaryVec        <- binaryCodec.encodeZIO(binaryPayload)
             // binaryResult     <- binaryCodec.decodeZIO(binaryVec)
-            charVec          <- charCodec.encodeZIO(charPayload)
-            charResult       <- charCodec.decodeZIO(charVec)
+            charVec            <- charCodec.encodeZIO(charPayload)
+            charResult         <- charCodec.decodeZIO(charVec)
             // uuidVec          <- uuidCodec.encodeZIO(uuidPayload)
             // uuidResult       <- uuidCodec.decodeZIO(uuidVec)
-            bigDecimalVec    <- bigDecimalCodec.encodeZIO(bigDecimalPayload)
-            bigDecimalResult <- bigDecimalCodec.decodeZIO(bigDecimalVec)
-            bigIntegerVec    <- bigIntegerCodec.encodeZIO(bigIntegerPayload)
-            bigIntegerResult <- bigIntegerCodec.decodeZIO(bigIntegerVec)
-            primitivesVec    <- primitivesCodec.encodeZIO(primitivesPayload)
-            primitivesResult <- primitivesCodec.decodeZIO(primitivesVec)
+            bigDecimalVec      <- bigDecimalCodec.encodeZIO(bigDecimalPayload)
+            bigDecimalResult   <- bigDecimalCodec.decodeZIO(bigDecimalVec)
+            bigIntegerVec      <- bigIntegerCodec.encodeZIO(bigIntegerPayload)
+            bigIntegerResult   <- bigIntegerCodec.decodeZIO(bigIntegerVec)
+            primitivesVec      <- primitivesCodec.encodeZIO(primitivesPayload)
+            primitivesResult   <- primitivesCodec.decodeZIO(primitivesVec)
+            optionStringVec    <- optionStringCodec.encodeZIO(optionStringPayload)
+            optionStringResult <- optionStringCodec.decodeZIO(optionStringVec)
           } yield assertTrue(
             stringResult == stringPayload,
             boolResult == boolPayload,
@@ -317,7 +323,8 @@ object CodecSpec extends ZIOSpecDefault {
             // uuidResult == uuidPayload,
             bigDecimalResult == bigDecimalPayload,
             bigIntegerResult == bigIntegerPayload,
-            primitivesResult == primitivesPayload
+            primitivesResult == primitivesPayload,
+            optionStringResult == optionStringPayload
           )
         )
       },
