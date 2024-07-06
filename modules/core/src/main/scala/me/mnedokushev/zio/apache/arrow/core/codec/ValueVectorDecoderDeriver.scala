@@ -187,30 +187,22 @@ object ValueVectorDecoderDeriver {
 
       override def decodeUnsafe(vec: V1): Chunk[C[A]] = {
         var idx      = 0
-        var innerIdx = 0
         val len      = vec.getValueCount
         val builder  = ChunkBuilder.make[C[A]](len)
         val reader   = vec.getReader
-        // NOTE: the hack to check if the element of an inner list is null
-        // TODO: figure out a better way to implement this check
         val innerVec = vec.asInstanceOf[ListVector].getDataVector()
 
         while (idx < len) {
-          val innerBuilder = ChunkBuilder.make[A]()
-
           reader.setPosition(idx)
-          while (reader.next()) {
-            val dynamicValue = inner.decodeValue(None, reader, innerVec, innerIdx)
+          val dynamicValue = ValueDecoder.decodeList(inner, reader, innerVec, idx)
 
-            dynamicValue.toTypedValue(sequence.elementSchema) match {
-              case Right(v)      => innerBuilder.addOne(v)
-              case Left(message) => throw DecoderError(message)
-            }
-
-            innerIdx += 1
+          dynamicValue.toTypedValue(sequence) match {
+            case Right(v)      =>
+              builder.addOne(v)
+            case Left(message) =>
+              throw DecoderError(message)
           }
 
-          builder.addOne(sequence.fromChunk(innerBuilder.result()))
           idx += 1
         }
 
@@ -219,31 +211,22 @@ object ValueVectorDecoderDeriver {
 
       override def decodeNullableUnsafe(vec: V1): Chunk[Option[C[A]]] = {
         var idx      = 0
-        var innerIdx = 0
         val len      = vec.getValueCount
         val builder  = ChunkBuilder.make[Option[C[A]]](len)
         val reader   = vec.getReader
-        // NOTE: the hack to check if the element of an inner list is null
-        // TODO: figure out a better way to implement this check
         val innerVec = vec.asInstanceOf[ListVector].getDataVector()
 
         while (idx < len) {
           if (!vec.isNull(idx)) {
-            val innerBuilder = ChunkBuilder.make[A]()
-
             reader.setPosition(idx)
-            while (reader.next()) {
-              val dynamicValue = inner.decodeValue(None, reader, innerVec, innerIdx)
+            val dynamicValue = ValueDecoder.decodeList(inner, reader, innerVec, idx)
 
-              dynamicValue.toTypedValue(sequence.elementSchema) match {
-                case Right(v)      => innerBuilder.addOne(v)
-                case Left(message) => throw DecoderError(message)
-              }
-
-              innerIdx += 1
+            dynamicValue.toTypedValue(sequence) match {
+              case Right(v)      =>
+                builder.addOne(Some(v))
+              case Left(message) =>
+                throw DecoderError(message)
             }
-
-            builder.addOne(Some(sequence.fromChunk(innerBuilder.result())))
           } else {
             builder.addOne(None)
           }

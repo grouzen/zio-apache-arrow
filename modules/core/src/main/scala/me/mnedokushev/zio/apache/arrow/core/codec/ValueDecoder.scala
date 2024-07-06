@@ -34,12 +34,19 @@ object ValueDecoder {
     DynamicValue.Record(TypeId.Structural, values)
   }
 
-  private[codec] def decodeList[V0 <: ValueVector, A](decoder: ValueDecoder[A], reader: FieldReader, vec: V0, idx: Int): DynamicValue = {
+  private[codec] def decodeList[V0 <: ValueVector, A](
+    decoder: ValueDecoder[A],
+    reader: FieldReader,
+    vec: V0,
+    idx: Int
+  ): DynamicValue = {
     val builder = ChunkBuilder.make[DynamicValue]()
+    var idx0    = idx
 
-    while (reader.next())
-      if (reader.isSet)
-        builder.addOne(decoder.decodeValue(None, reader, vec, idx))
+    while (reader.next()) {
+      builder.addOne(decoder.decodeValue(None, reader, vec, idx0))
+      idx0 += 1
+    }
 
     DynamicValue.Sequence(builder.result())
   }
