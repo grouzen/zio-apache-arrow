@@ -38,9 +38,14 @@ trait ValueVectorDecoder[V <: ValueVector, A] extends ValueDecoder[A] { self =>
       override def decodeNullableUnsafe(vec: V): Chunk[Option[B]] =
         self.decodeNullableUnsafe(vec).map(_.map(f))
 
-      override def decodeValue(name: Option[String], reader: FieldReader, isNull: Boolean = false): DynamicValue =
+      override def decodeValue[V0 <: ValueVector](
+        name: Option[String],
+        reader: FieldReader,
+        vec: V0,
+        idx: Int
+      ): DynamicValue =
         self
-          .decodeValue(name, reader, isNull)
+          .decodeValue(name, reader, vec, idx)
           .toValue(schemaSrc)
           .map(a => schemaDst.toDynamic(f(a)))
           .toTry

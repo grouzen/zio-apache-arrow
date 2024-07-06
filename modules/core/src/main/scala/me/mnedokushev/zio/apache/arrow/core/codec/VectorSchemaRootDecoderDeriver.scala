@@ -6,6 +6,7 @@ import zio.schema.{ Deriver, DynamicValue, Schema, StandardType, TypeId }
 import zio.{ Chunk, ChunkBuilder }
 
 import scala.collection.immutable.ListMap
+import org.apache.arrow.vector.ValueVector
 
 object VectorSchemaRootDecoderDeriver {
 
@@ -26,7 +27,7 @@ object VectorSchemaRootDecoderDeriver {
               .getOrElse(throw DecoderError(s"Couldn't get vector by name ${field.name}"))
           val reader = vec.getReader
 
-          (decoder, field.name.toString, reader)
+          (decoder, field.name.toString, reader, vec)
         }
 
         var idx     = 0
@@ -34,9 +35,9 @@ object VectorSchemaRootDecoderDeriver {
         val builder = ChunkBuilder.make[A]()
 
         while (idx < len) {
-          val values = ListMap(fields0.map { case (decoder, name, reader) =>
+          val values = ListMap(fields0.map { case (decoder, name, reader, vec) =>
             reader.setPosition(idx)
-            val value = decoder.decodeField(reader)
+            val value = decoder.decodeField(reader, vec, idx)
 
             name.toString -> value
           }: _*)
@@ -53,8 +54,13 @@ object VectorSchemaRootDecoderDeriver {
         builder.result()
       }
 
-      override def decodeValue(name: Option[String], reader: FieldReader, isNull: Boolean = false): DynamicValue =
-        ValueDecoder.decodeStruct(record.fields, decoders, reader)
+      override def decodeValue[V0 <: ValueVector](
+        name: Option[String],
+        reader: FieldReader,
+        vec: V0,
+        idx: Int
+      ): DynamicValue =
+        ValueDecoder.decodeStruct(record.fields, decoders, reader, vec, idx)
 
     }
 
@@ -69,7 +75,12 @@ object VectorSchemaRootDecoderDeriver {
       summoned: => Option[VectorSchemaRootDecoder[A]]
     ): VectorSchemaRootDecoder[A] = new VectorSchemaRootDecoder[A] {
 
-      override def decodeValue(name: Option[String], reader: FieldReader, isNull: Boolean = false): DynamicValue =
+      override def decodeValue[V0 <: ValueVector](
+        name: Option[String],
+        reader: FieldReader,
+        vec: V0,
+        idx: Int
+      ): DynamicValue =
         ValueDecoder.decodePrimitive(st, reader)
 
     }
@@ -86,8 +97,8 @@ object VectorSchemaRootDecoderDeriver {
       summoned: => Option[VectorSchemaRootDecoder[C[A]]]
     ): VectorSchemaRootDecoder[C[A]] = new VectorSchemaRootDecoder[C[A]] {
 
-      override def decodeValue(name: Option[String], reader: FieldReader, isNull: Boolean = false): DynamicValue =
-        ValueDecoder.decodeList(inner, reader)
+      override def decodeValue[V0 <: ValueVector](name: Option[String], reader: FieldReader, vec: V0, idx: Int): DynamicValue =
+        ValueDecoder.decodeList(inner, reader, vec, idx)
 
     }
 

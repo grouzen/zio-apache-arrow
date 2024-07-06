@@ -7,6 +7,7 @@ import zio.schema.{ Deriver, DynamicValue, Factory, Schema }
 
 import scala.annotation.unused
 import scala.util.control.NonFatal
+import org.apache.arrow.vector.ValueVector
 
 trait VectorSchemaRootDecoder[+A] extends ValueDecoder[A] { self =>
 
@@ -24,8 +25,8 @@ trait VectorSchemaRootDecoder[+A] extends ValueDecoder[A] { self =>
   protected def decodeUnsafe(@unused root: VectorSchemaRoot): Chunk[A] =
     throw DecoderError(s"Given ZIO schema must be of type Schema.Record[A]")
 
-  def decodeField(reader: FieldReader): DynamicValue =
-    self.decodeValue(None, reader)
+  def decodeField[V0 <: ValueVector](reader: FieldReader, vec: V0, idx: Int): DynamicValue =
+    self.decodeValue(None, reader, vec, idx)
 
   // final def map[B](f: A => B): VectorSchemaRootDecoder[B] =
   //   new VectorSchemaRootDecoder[B] {

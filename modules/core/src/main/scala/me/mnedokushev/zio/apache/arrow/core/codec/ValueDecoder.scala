@@ -8,22 +8,25 @@ import java.nio.ByteBuffer
 import java.time._
 import java.util.UUID
 import scala.collection.immutable.ListMap
+import org.apache.arrow.vector.ValueVector
 
 trait ValueDecoder[+A] {
 
-  def decodeValue(name: Option[String], reader: FieldReader, isNull: Boolean = false): DynamicValue
+  def decodeValue[V0 <: ValueVector](name: Option[String], reader: FieldReader, vec: V0, idx: Int): DynamicValue
 
 }
 
 object ValueDecoder {
 
-  private[codec] def decodeStruct[A](
+  private[codec] def decodeStruct[V0 <: ValueVector, A](
     fields: Chunk[Schema.Field[A, _]],
     decoders: Chunk[ValueDecoder[_]],
-    reader: FieldReader
+    reader: FieldReader,
+    vec: V0,
+    idx: Int
   ): DynamicValue = {
     val values = ListMap(fields.zip(decoders).map { case (field, decoder) =>
-      val value: DynamicValue = decoder.decodeValue(Some(field.name), reader)
+      val value: DynamicValue = decoder.decodeValue(Some(field.name), reader, vec, idx)
 
       field.name.toString -> value
     }: _*)
@@ -31,12 +34,12 @@ object ValueDecoder {
     DynamicValue.Record(TypeId.Structural, values)
   }
 
-  private[codec] def decodeList[A](decoder: ValueDecoder[A], reader: FieldReader): DynamicValue = {
+  private[codec] def decodeList[V0 <: ValueVector, A](decoder: ValueDecoder[A], reader: FieldReader, vec: V0, idx: Int): DynamicValue = {
     val builder = ChunkBuilder.make[DynamicValue]()
 
     while (reader.next())
       if (reader.isSet)
-        builder.addOne(decoder.decodeValue(None, reader))
+        builder.addOne(decoder.decodeValue(None, reader, vec, idx))
 
     DynamicValue.Sequence(builder.result())
   }
