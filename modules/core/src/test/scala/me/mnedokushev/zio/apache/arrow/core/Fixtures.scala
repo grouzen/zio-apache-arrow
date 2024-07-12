@@ -23,16 +23,16 @@ object Fixtures {
   }
 
   // TODO: implement deriveOption
-  // final case class NullablePrimitives(a: Option[Int], b: Option[Double])
-  // object NullablePrimitives {
-  //   implicit val schema: Schema[NullablePrimitives]                                   =
-  //     DeriveSchema.gen[NullablePrimitives]
-  //   implicit val schemaEncoder: SchemaEncoder[NullablePrimitives]                     =
-  //     Derive.derive[SchemaEncoder, NullablePrimitives](SchemaEncoderDeriver.default)
-  //   implicit val deriverFactory: Factory[NullablePrimitives]                          = factory[NullablePrimitives]
-  //   implicit val vectorSchemaRootDecoder: VectorSchemaRootDecoder[NullablePrimitives] =
-  //     VectorSchemaRootDecoder[NullablePrimitives]
-  // }
+  final case class NullablePrimitives(a: Option[Int], b: Option[Double])
+  object NullablePrimitives {
+    implicit val schema: Schema[NullablePrimitives]                                   =
+      DeriveSchema.gen[NullablePrimitives]
+    implicit val schemaEncoder: SchemaEncoder[NullablePrimitives]                     =
+      Derive.derive[SchemaEncoder, NullablePrimitives](SchemaEncoderDeriver.default)
+    implicit val deriverFactory: Factory[NullablePrimitives]                          = factory[NullablePrimitives]
+    implicit val vectorSchemaRootDecoder: VectorSchemaRootDecoder[NullablePrimitives] =
+      VectorSchemaRootDecoder[NullablePrimitives]
+  }
 
   final case class StructOfPrimitives(struct: Primitives)
   object StructOfPrimitives {

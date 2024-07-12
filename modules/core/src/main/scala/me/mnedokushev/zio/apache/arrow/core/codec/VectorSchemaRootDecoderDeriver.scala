@@ -89,7 +89,20 @@ object VectorSchemaRootDecoderDeriver {
       option: Schema.Optional[A],
       inner: => VectorSchemaRootDecoder[A],
       summoned: => Option[VectorSchemaRootDecoder[Option[A]]]
-    ): VectorSchemaRootDecoder[Option[A]] = ???
+    ): VectorSchemaRootDecoder[Option[A]] = new VectorSchemaRootDecoder[Option[A]] {
+
+      override def decodeValue[V0 <: ValueVector](
+        name: Option[String],
+        reader: FieldReader,
+        vec: V0,
+        idx: Int
+      ): DynamicValue =
+        if (vec.isNull(idx))
+          DynamicValue.NoneValue
+        else
+          DynamicValue.SomeValue(inner.decodeValue(name, reader, vec, idx))
+
+    }
 
     override def deriveSequence[C[_], A](
       sequence: Schema.Sequence[C[A], A, _],
@@ -97,7 +110,13 @@ object VectorSchemaRootDecoderDeriver {
       summoned: => Option[VectorSchemaRootDecoder[C[A]]]
     ): VectorSchemaRootDecoder[C[A]] = new VectorSchemaRootDecoder[C[A]] {
 
-      override def decodeValue[V0 <: ValueVector](name: Option[String], reader: FieldReader, vec: V0, idx: Int): DynamicValue =
+      override def decodeValue[V0 <: ValueVector](
+        name: Option[String],
+        reader: FieldReader,
+        vec: V0,
+        idx: Int
+      ): DynamicValue =
+        // TODO: val innerVec = vec.asInstanceOf[ListVector].getDataVector()
         ValueDecoder.decodeList(inner, reader, vec, idx)
 
     }

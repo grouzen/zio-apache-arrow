@@ -37,6 +37,8 @@ object VectorSchemaRootEncoderDeriver {
         (fieldSchema0, vec) match {
           case (lzy @ Schema.Lazy(_), _)                       =>
             resolveWriter(lzy.schema, vec)
+          case (opt @ Schema.Optional(_, _), _)                =>
+            resolveWriter(opt.schema, vec)
           case (_: Schema.Record[_], vec0: StructVector)       =>
             vec0.getWriter
           case (_: Schema.Sequence[_, _, _], vec0: ListVector) =>
@@ -44,7 +46,7 @@ object VectorSchemaRootEncoderDeriver {
           case (Schema.Primitive(st, _), _)                    =>
             primitiveWriter(st, vec)
           case _                                               =>
-            null
+            null // TODO: throw exception?
         }
 
       override protected def encodeUnsafe(
@@ -111,13 +113,8 @@ object VectorSchemaRootEncoderDeriver {
       ): Unit =
         ValueEncoder.encodePrimitive(st, value, name, writer)
 
-      override def encodeField(value: A, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit = 
+      override def encodeField(value: A, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit =
         ValueEncoder.encodePrimitive(st, value, writer)
-
-      // override def encodeField(vec: FieldVector, writer: FieldWriter, value: A, idx: Int)(implicit
-      //   alloc: BufferAllocator
-      // ): Unit =
-      //   ValueEncoder.encodePrimitive(st, value, vec, idx)
 
     }
 
@@ -125,7 +122,27 @@ object VectorSchemaRootEncoderDeriver {
       option: Schema.Optional[A],
       inner: => VectorSchemaRootEncoder[A],
       summoned: => Option[VectorSchemaRootEncoder[Option[A]]]
-    ): VectorSchemaRootEncoder[Option[A]] = ???
+    ): VectorSchemaRootEncoder[Option[A]] = new VectorSchemaRootEncoder[Option[A]] {
+
+      override def encodeValue(value: Option[A], name: Option[String], writer: FieldWriter)(implicit
+        alloc: BufferAllocator
+      ): Unit =
+        value match {
+          case Some(value0) =>
+            inner.encodeValue(value0, name, writer)
+          case None         =>
+            writer.writeNull()
+        }
+
+      override def encodeField(value: Option[A], writer: FieldWriter)(implicit alloc: BufferAllocator): Unit =
+        value match {
+          case Some(value0) =>
+            inner.encodeField(value0, writer)
+          case None         =>
+            writer.writeNull()
+        }
+
+    }
 
     override def deriveSequence[C[_], A](
       sequence: Schema.Sequence[C[A], A, _],

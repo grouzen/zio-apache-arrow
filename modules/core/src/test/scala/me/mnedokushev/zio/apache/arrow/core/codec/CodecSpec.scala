@@ -410,6 +410,40 @@ object CodecSpec extends ZIOSpecDefault {
       }
     )
 
+  val vectorSchemaRootCodecSpec: Spec[BufferAllocator, Throwable] =
+    suite("VectorSchemaRootCodec")(
+      test("primitives") {
+        import VectorSchemaRootCodec._
+
+        val primitivesCodec         = codec(
+          VectorSchemaRootEncoder[Primitives],
+          VectorSchemaRootDecoder[Primitives]
+        )
+        val nullablePrimitivesCodec = codec(
+          VectorSchemaRootEncoder[NullablePrimitives],
+          VectorSchemaRootDecoder[NullablePrimitives]
+        )
+
+        val primitivesPayload         = Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))
+        val nullablePrimitivesPayload = Chunk(NullablePrimitives(Some(7), None))
+
+        ZIO.scoped(
+          for {
+            primitivesRoot           <- Tabular.empty[Primitives]
+            primitivesVec            <- primitivesCodec.encodeZIO(primitivesPayload, primitivesRoot)
+            primitivesResult         <- primitivesCodec.decodeZIO(primitivesVec)
+            nullablePrimitivesRoot   <- Tabular.empty[NullablePrimitives]
+            nullablePrimitivesVec    <-
+              nullablePrimitivesCodec.encodeZIO(nullablePrimitivesPayload, nullablePrimitivesRoot)
+            nullablePrimitivesResult <- nullablePrimitivesCodec.decodeZIO(nullablePrimitivesVec)
+          } yield assertTrue(
+            primitivesResult == primitivesPayload,
+            nullablePrimitivesResult == nullablePrimitivesPayload
+          )
+        )
+      }
+    )
+
 //   val valueVectorCodecPrimitiveSpec: Spec[BufferAllocator, Throwable] =
 //     suite("ValueVectorCodec primitive")(
 //       test("empty") {
@@ -1291,27 +1325,5 @@ object CodecSpec extends ZIOSpecDefault {
   //       )
   //     }
   //   )
-
-  val vectorSchemaRootCodecSpec: Spec[BufferAllocator, Throwable] =
-    suite("VectorSchemaRootCodec")(
-      test("flat primitives") {
-        import VectorSchemaRootCodec._
-
-        val flatPrimitivesCodec = codec(
-          Derive.derive[VectorSchemaRootEncoder, Primitives](VectorSchemaRootEncoderDeriver.default),
-          Derive.derive[VectorSchemaRootDecoder, Primitives](VectorSchemaRootDecoderDeriver.default)
-        )
-
-        val flatPrimitivesPayload = Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))
-
-        ZIO.scoped(
-          for {
-            root                 <- Tabular.empty[Primitives]
-            flatPrimitivesVec    <- flatPrimitivesCodec.encodeZIO(flatPrimitivesPayload, root)
-            flatPrimitivesResult <- flatPrimitivesCodec.decodeZIO(flatPrimitivesVec)
-          } yield assert(flatPrimitivesResult)(equalTo(flatPrimitivesPayload))
-        )
-      }
-    )
 
 }
