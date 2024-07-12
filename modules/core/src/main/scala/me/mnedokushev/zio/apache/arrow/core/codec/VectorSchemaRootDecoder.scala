@@ -43,7 +43,7 @@ trait VectorSchemaRootDecoder[+A] extends ValueDecoder[A] { self =>
 
 object VectorSchemaRootDecoder {
 
-  implicit def apply[A: Factory: Schema]: VectorSchemaRootDecoder[A] =
+  implicit def decoder[A: Factory: Schema]: VectorSchemaRootDecoder[A] =
     fromDefaultDeriver[A]
 
   def fromDeriver[A: Factory: Schema](deriver: Deriver[VectorSchemaRootDecoder]): VectorSchemaRootDecoder[A] =

@@ -12,8 +12,6 @@ import zio.schema.Schema._
 import zio.schema.Factory._
 import zio.test.Assertion._
 import zio.test.{ Spec, _ }
-import me.mnedokushev.zio.apache.arrow.core.codec.ValueVectorEncoder._
-import me.mnedokushev.zio.apache.arrow.core.codec.ValueVectorDecoder._
 import org.apache.arrow.vector._
 // import java.util.UUID
 
@@ -206,6 +204,8 @@ object CodecSpec extends ZIOSpecDefault {
         )
       },
       test("list") {
+        import ValueVectorEncoder._
+        import ValueVectorDecoder._
         import ValueVectorCodec._
 
         val stringCodec     =
@@ -375,6 +375,8 @@ object CodecSpec extends ZIOSpecDefault {
         //       },
       },
       test("option") {
+        import ValueVectorEncoder._
+        import ValueVectorDecoder._
         import ValueVectorCodec._
 
         val stringPayload                      = Chunk(Some("zio"), None, Some("arrow"))
@@ -413,16 +415,12 @@ object CodecSpec extends ZIOSpecDefault {
   val vectorSchemaRootCodecSpec: Spec[BufferAllocator, Throwable] =
     suite("VectorSchemaRootCodec")(
       test("primitives") {
+        import VectorSchemaRootEncoder._
+        import VectorSchemaRootDecoder._
         import VectorSchemaRootCodec._
 
-        val primitivesCodec         = codec(
-          VectorSchemaRootEncoder[Primitives],
-          VectorSchemaRootDecoder[Primitives]
-        )
-        val nullablePrimitivesCodec = codec(
-          VectorSchemaRootEncoder[NullablePrimitives],
-          VectorSchemaRootDecoder[NullablePrimitives]
-        )
+        val primitivesCodec         = codec[Primitives]
+        val nullablePrimitivesCodec = codec[NullablePrimitives]
 
         val primitivesPayload         = Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))
         val nullablePrimitivesPayload = Chunk(NullablePrimitives(Some(7), None))

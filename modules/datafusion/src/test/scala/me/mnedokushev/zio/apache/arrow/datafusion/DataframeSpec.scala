@@ -19,7 +19,7 @@ object DataframeSpec extends ZIOSpecDefault {
     implicit val schemaEncoder: SchemaEncoder[TestData]                     =
       Derive.derive[SchemaEncoder, TestData](SchemaEncoderDeriver.default)
     implicit val vectorSchemaRootDecoder: VectorSchemaRootDecoder[TestData] =
-      VectorSchemaRootDecoder[TestData]
+      VectorSchemaRootDecoder.decoder[TestData]
 
   }
 

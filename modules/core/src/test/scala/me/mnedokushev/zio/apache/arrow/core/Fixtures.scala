@@ -16,7 +16,7 @@ object Fixtures {
       Derive.derive[SchemaEncoder, Primitives](SchemaEncoderDeriver.default)
     implicit val deriverFactory: Factory[Primitives]                          = factory[Primitives]
     implicit val vectorSchemaRootDecoder: VectorSchemaRootDecoder[Primitives] =
-      VectorSchemaRootDecoder[Primitives]
+      VectorSchemaRootDecoder.decoder[Primitives]
     implicit val vectorSchemaRootCodec: VectorSchemaRootCodec[Primitives]     =
       VectorSchemaRootCodec.codec[Primitives]
 
@@ -31,7 +31,7 @@ object Fixtures {
       Derive.derive[SchemaEncoder, NullablePrimitives](SchemaEncoderDeriver.default)
     implicit val deriverFactory: Factory[NullablePrimitives]                          = factory[NullablePrimitives]
     implicit val vectorSchemaRootDecoder: VectorSchemaRootDecoder[NullablePrimitives] =
-      VectorSchemaRootDecoder[NullablePrimitives]
+      VectorSchemaRootDecoder.decoder[NullablePrimitives]
   }
 
   final case class StructOfPrimitives(struct: Primitives)
