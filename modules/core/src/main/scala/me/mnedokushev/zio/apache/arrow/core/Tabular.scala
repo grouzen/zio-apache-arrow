@@ -18,9 +18,9 @@ object Tabular {
       ZIO.serviceWithZIO[BufferAllocator] { implicit alloc =>
         for {
           schema0 <- ZIO.fromEither(schemaEncoder.encode)
-          vectors <- ZIO.foreach(schema0.getFields.asScala.toList) { f =>
+          vectors <- ZIO.foreach(schema0.getFields.asScala.toList) { field =>
                        for {
-                         vec <- ZIO.attempt(f.createVector(alloc))
+                         vec <- ZIO.attempt(field.createVector(alloc))
                          _   <- ZIO.attempt(vec.allocateNew())
                        } yield vec
                      }

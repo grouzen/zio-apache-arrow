@@ -31,8 +31,16 @@ object SchemaEncoderDeriver {
           case NonFatal(ex)              => Left(EncoderError("Error encoding schema", Some(ex)))
         }
 
-      override def encodeField(name: String, nullable: Boolean): Field =
-        SchemaEncoder.field(name, new ArrowType.Struct, nullable)
+      override def encodeField(name: String, nullable: Boolean): Field = {
+        val fields0 = record.fields
+          .zip(fields.map(_.unwrap))
+          .map { case (field, encoder) =>
+            encoder.encodeField(field.name, nullable = false)
+          }
+          .toList
+
+        SchemaEncoder.struct(name, fields0, nullable)
+      }
 
     }
 
@@ -54,8 +62,8 @@ object SchemaEncoderDeriver {
     ): SchemaEncoder[A] = new SchemaEncoder[A] {
 
       override def encodeField(name: String, nullable: Boolean): Field = {
-        def namedField(arrowType: ArrowType) =
-          SchemaEncoder.field(name, arrowType, nullable)
+        def namedField(arrowType: ArrowType.PrimitiveType) =
+          SchemaEncoder.primitive(name, arrowType, nullable)
 
         st match {
           case StandardType.StringType         =>
@@ -141,7 +149,7 @@ object SchemaEncoderDeriver {
     ): SchemaEncoder[C[A]] = new SchemaEncoder[C[A]] {
 
       override def encodeField(name: String, nullable: Boolean): Field =
-        SchemaEncoder.field(name, new ArrowType.List, nullable)
+        SchemaEncoder.list(name, inner.encodeField("element", nullable = false), nullable)
 
     }
 

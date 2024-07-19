@@ -419,11 +419,14 @@ object CodecSpec extends ZIOSpecDefault {
         import VectorSchemaRootDecoder._
         import VectorSchemaRootCodec._
 
-        val primitivesCodec         = codec[Primitives]
-        val nullablePrimitivesCodec = codec[NullablePrimitives]
+        val primitivesCodec               = codec[Primitives]
+        val nullablePrimitivesCodec       = codec[NullablePrimitives]
+        // val nullableListOfPrimitivesCodec = codec[NullableListOfPrimitives]
 
-        val primitivesPayload         = Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))
-        val nullablePrimitivesPayload = Chunk(NullablePrimitives(Some(7), None))
+        val primitivesPayload               = Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))
+        val nullablePrimitivesPayload       = Chunk(NullablePrimitives(Some(7), None))
+        // val nullableListOfPrimitivesPayload =
+        //   Chunk(NullableListOfPrimitives(Some(List(1, 2, 3))))
 
         ZIO.scoped(
           for {
@@ -434,9 +437,16 @@ object CodecSpec extends ZIOSpecDefault {
             nullablePrimitivesVec    <-
               nullablePrimitivesCodec.encodeZIO(nullablePrimitivesPayload, nullablePrimitivesRoot)
             nullablePrimitivesResult <- nullablePrimitivesCodec.decodeZIO(nullablePrimitivesVec)
+
+            // nullableListOfPrimitivesRoot   <- Tabular.empty[NullableListOfPrimitives]
+            // nullableListOfPrimitivesVec    <-
+            //   nullableListOfPrimitivesCodec.encodeZIO(nullableListOfPrimitivesPayload, nullableListOfPrimitivesRoot)
+            // nullableListOfPrimitivesResult <-
+            //   nullableListOfPrimitivesCodec.decodeZIO(nullableListOfPrimitivesVec)
           } yield assertTrue(
             primitivesResult == primitivesPayload,
-            nullablePrimitivesResult == nullablePrimitivesPayload
+            nullablePrimitivesResult == nullablePrimitivesPayload,
+            // nullableListOfPrimitivesResult == nullableListOfPrimitivesPayload
           )
         )
       }
