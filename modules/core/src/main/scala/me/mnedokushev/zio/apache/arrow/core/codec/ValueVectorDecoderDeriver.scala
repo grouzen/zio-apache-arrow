@@ -165,7 +165,6 @@ object ValueVectorDecoderDeriver {
       override def decodeUnsafe(vec: V1): Chunk[Option[A]] =
         inner.decodeNullableUnsafe(vec)
 
-      // TODO: move to ValueDecoder to re-use it in VectorSchemaRootDecoderDeriver (???)
       override def decodeValue[V0 <: ValueVector](
         name: Option[String],
         reader: FieldReader,

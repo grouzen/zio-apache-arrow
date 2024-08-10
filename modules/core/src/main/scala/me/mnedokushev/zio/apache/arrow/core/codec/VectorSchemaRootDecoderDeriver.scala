@@ -7,8 +7,12 @@ import zio.{ Chunk, ChunkBuilder }
 
 import scala.collection.immutable.ListMap
 import org.apache.arrow.vector.ValueVector
+import org.apache.arrow.vector.complex.ListVector
 
 object VectorSchemaRootDecoderDeriver {
+
+  private def resolveReaderByName(name: Option[String], reader: FieldReader) =
+    name.fold[FieldReader](reader.reader())(reader.reader(_))
 
   val default: Deriver[VectorSchemaRootDecoder] = new Deriver[VectorSchemaRootDecoder] {
 
@@ -60,6 +64,9 @@ object VectorSchemaRootDecoderDeriver {
         vec: V0,
         idx: Int
       ): DynamicValue =
+        ValueDecoder.decodeStruct(record.fields, decoders, resolveReaderByName(name, reader), vec, idx)
+
+      override def decodeField[V0 <: ValueVector](reader: FieldReader, vec: V0, idx: Int): DynamicValue =
         ValueDecoder.decodeStruct(record.fields, decoders, reader, vec, idx)
 
     }
@@ -81,6 +88,9 @@ object VectorSchemaRootDecoderDeriver {
         vec: V0,
         idx: Int
       ): DynamicValue =
+        ValueDecoder.decodePrimitive(st, resolveReaderByName(name, reader))
+
+      override def decodeField[V0 <: ValueVector](reader: FieldReader, vec: V0, idx: Int): DynamicValue =
         ValueDecoder.decodePrimitive(st, reader)
 
     }
@@ -102,6 +112,12 @@ object VectorSchemaRootDecoderDeriver {
         else
           DynamicValue.SomeValue(inner.decodeValue(name, reader, vec, idx))
 
+      override def decodeField[V0 <: ValueVector](reader: FieldReader, vec: V0, idx: Int): DynamicValue =
+        if (vec.isNull(idx))
+          DynamicValue.NoneValue
+        else
+          DynamicValue.SomeValue(inner.decodeField(reader, vec, idx))
+
     }
 
     override def deriveSequence[C[_], A](
@@ -115,9 +131,17 @@ object VectorSchemaRootDecoderDeriver {
         reader: FieldReader,
         vec: V0,
         idx: Int
-      ): DynamicValue =
-        // TODO: val innerVec = vec.asInstanceOf[ListVector].getDataVector()
-        ValueDecoder.decodeList(inner, reader, vec, idx)
+      ): DynamicValue = {
+        val innerVec = vec.asInstanceOf[ListVector].getDataVector()
+
+        ValueDecoder.decodeList(inner, resolveReaderByName(name, reader), innerVec, idx)
+      }
+
+      override def decodeField[V0 <: ValueVector](reader: FieldReader, vec: V0, idx: Int): DynamicValue = {
+        val innerVec = vec.asInstanceOf[ListVector].getDataVector()
+
+        ValueDecoder.decodeList(inner, reader, innerVec, idx)
+      }
 
     }
 

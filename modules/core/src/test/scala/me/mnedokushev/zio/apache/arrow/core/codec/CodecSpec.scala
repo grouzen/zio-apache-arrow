@@ -416,17 +416,16 @@ object CodecSpec extends ZIOSpecDefault {
     suite("VectorSchemaRootCodec")(
       test("primitives") {
         import VectorSchemaRootEncoder._
-        import VectorSchemaRootDecoder._
         import VectorSchemaRootCodec._
 
         val primitivesCodec               = codec[Primitives]
         val nullablePrimitivesCodec       = codec[NullablePrimitives]
-        // val nullableListOfPrimitivesCodec = codec[NullableListOfPrimitives]
+        val nullableListOfPrimitivesCodec = codec[NullableListOfPrimitives]
 
         val primitivesPayload               = Chunk(Primitives(1, 2.0, "3"), Primitives(4, 5.0, "6"))
         val nullablePrimitivesPayload       = Chunk(NullablePrimitives(Some(7), None))
-        // val nullableListOfPrimitivesPayload =
-        //   Chunk(NullableListOfPrimitives(Some(List(1, 2, 3))))
+        val nullableListOfPrimitivesPayload =
+          Chunk(NullableListOfPrimitives(Some(List(1, 2, 3))))
 
         ZIO.scoped(
           for {
@@ -438,15 +437,15 @@ object CodecSpec extends ZIOSpecDefault {
               nullablePrimitivesCodec.encodeZIO(nullablePrimitivesPayload, nullablePrimitivesRoot)
             nullablePrimitivesResult <- nullablePrimitivesCodec.decodeZIO(nullablePrimitivesVec)
 
-            // nullableListOfPrimitivesRoot   <- Tabular.empty[NullableListOfPrimitives]
-            // nullableListOfPrimitivesVec    <-
-            //   nullableListOfPrimitivesCodec.encodeZIO(nullableListOfPrimitivesPayload, nullableListOfPrimitivesRoot)
-            // nullableListOfPrimitivesResult <-
-            //   nullableListOfPrimitivesCodec.decodeZIO(nullableListOfPrimitivesVec)
+            nullableListOfPrimitivesRoot   <- Tabular.empty[NullableListOfPrimitives]
+            nullableListOfPrimitivesVec    <-
+              nullableListOfPrimitivesCodec.encodeZIO(nullableListOfPrimitivesPayload, nullableListOfPrimitivesRoot)
+            nullableListOfPrimitivesResult <-
+              nullableListOfPrimitivesCodec.decodeZIO(nullableListOfPrimitivesVec)
           } yield assertTrue(
             primitivesResult == primitivesPayload,
             nullablePrimitivesResult == nullablePrimitivesPayload,
-            // nullableListOfPrimitivesResult == nullableListOfPrimitivesPayload
+            nullableListOfPrimitivesResult == nullableListOfPrimitivesPayload
           )
         )
       }

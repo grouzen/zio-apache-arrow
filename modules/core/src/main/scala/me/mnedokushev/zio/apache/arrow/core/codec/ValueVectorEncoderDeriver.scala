@@ -193,13 +193,10 @@ object ValueVectorEncoderDeriver {
           it.foreach { case (vs, i) =>
             writer.setPosition(i)
 
-            if (nullable && vs.isEmpty) {
+            if (nullable && vs.isEmpty)
               writer.writeNull()
-            } else {
-              writer.startList()
-              sequence.toChunk(vs.get).foreach(inner.encodeValue(_, None, writer))
-              writer.endList()
-            }
+            else
+              ValueEncoder.encodeList(sequence.toChunk(vs.get), inner, writer)
           }
 
           vec.setValueCount(len)

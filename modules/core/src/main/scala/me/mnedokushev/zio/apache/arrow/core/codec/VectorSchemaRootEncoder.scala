@@ -35,8 +35,7 @@ trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
   )(implicit @unused alloc: BufferAllocator): VectorSchemaRoot =
     throw EncoderError(s"Given ZIO schema must be of type Schema.Record[A]")
 
-  def encodeField(value: A, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit =
-    self.encodeValue(value, None, writer)
+  def encodeField(value: A, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit
 
   // def encodeField(@unused vec: FieldVector, writer: FieldWriter, value: A, @unused idx: Int)(implicit
   //   alloc: BufferAllocator

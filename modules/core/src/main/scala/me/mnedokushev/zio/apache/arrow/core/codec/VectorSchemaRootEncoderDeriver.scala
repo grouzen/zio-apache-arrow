@@ -95,6 +95,9 @@ object VectorSchemaRootEncoderDeriver {
         ValueEncoder.encodeStruct(value, record.fields, encoders, writer0)
       }
 
+      override def encodeField(value: A, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit =
+        ValueEncoder.encodeStruct(value, record.fields, encoders, writer)
+
     }
 
     override def deriveEnum[A](
@@ -157,6 +160,9 @@ object VectorSchemaRootEncoderDeriver {
 
         ValueEncoder.encodeList(sequence.toChunk(value), inner, writer0)
       }
+
+      override def encodeField(value: C[A], writer: FieldWriter)(implicit alloc: BufferAllocator): Unit =
+        ValueEncoder.encodeList(sequence.toChunk(value), inner, writer)
 
     }
 

@@ -25,8 +25,7 @@ trait VectorSchemaRootDecoder[+A] extends ValueDecoder[A] { self =>
   protected def decodeUnsafe(@unused root: VectorSchemaRoot): Chunk[A] =
     throw DecoderError(s"Given ZIO schema must be of type Schema.Record[A]")
 
-  def decodeField[V0 <: ValueVector](reader: FieldReader, vec: V0, idx: Int): DynamicValue =
-    self.decodeValue(None, reader, vec, idx)
+  def decodeField[V0 <: ValueVector](reader: FieldReader, vec: V0, idx: Int): DynamicValue
 
   // final def map[B](f: A => B): VectorSchemaRootDecoder[B] =
   //   new VectorSchemaRootDecoder[B] {
