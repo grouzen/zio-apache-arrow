@@ -37,11 +37,6 @@ trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
 
   def encodeField(value: A, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit
 
-  // def encodeField(@unused vec: FieldVector, writer: FieldWriter, value: A, @unused idx: Int)(implicit
-  //   alloc: BufferAllocator
-  // ): Unit =
-  //   self.encodeValue(value, None, writer)
-
   // final def contramap[B](f: B => A): VectorSchemaRootEncoder[B] =
   //   new VectorSchemaRootEncoder[B] {
 

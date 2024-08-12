@@ -67,7 +67,7 @@ object ValueEncoder {
 
     def resolveWriter[W <: BaseWriter](f1: => W)(f2: String => W): W =
       if (nested)
-        name.fold(f1)(f2(_))
+        name.fold(f1)(f2)
       else
         writer.asInstanceOf[W]
 

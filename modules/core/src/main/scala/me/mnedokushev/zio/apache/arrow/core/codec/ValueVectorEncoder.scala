@@ -46,11 +46,43 @@ trait ValueVectorEncoder[V <: ValueVector, -A] extends ValueEncoder[A] { self =>
 
     }
 
-  // def allocateVector(implicit alloc: BufferAllocator): V
-
 }
 
 object ValueVectorEncoder {
+
+  def overridePrimitive[V <: ValueVector, A](
+    allocateVec: BufferAllocator => V,
+    getWriter: V => FieldWriter,
+    encodeTop: (A, FieldWriter, BufferAllocator) => Unit,
+    encodeNested: (A, Option[String], FieldWriter, BufferAllocator) => Unit
+  ): ValueVectorEncoder[V, A] =
+    new ValueVectorEncoder[V, A] {
+
+      override def encodeUnsafe(chunk: Chunk[Option[A]], nullable: Boolean)(implicit alloc: BufferAllocator): V = {
+        val vec                 = allocateVec(alloc)
+        val writer: FieldWriter = getWriter(vec)
+        val len                 = chunk.length
+        val it                  = chunk.iterator.zipWithIndex
+
+        it.foreach { case (v, i) =>
+          writer.setPosition(i)
+
+          if (nullable && v.isEmpty)
+            writer.writeNull()
+          else
+            encodeTop(v.get, writer, alloc)
+        }
+
+        vec.setValueCount(len)
+        vec.asInstanceOf[V]
+      }
+
+      override def encodeValue(value: A, name: Option[String], writer: FieldWriter)(implicit
+        alloc: BufferAllocator
+      ): Unit =
+        encodeNested(value, name, writer, alloc)
+
+    }
 
   implicit val stringEncoder: ValueVectorEncoder[VarCharVector, String]                           =
     Derive.derive[ValueVectorEncoder[VarCharVector, *], String](ValueVectorEncoderDeriver.default[VarCharVector])

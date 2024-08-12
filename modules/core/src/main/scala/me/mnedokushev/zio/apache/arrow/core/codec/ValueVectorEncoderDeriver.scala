@@ -63,94 +63,77 @@ object ValueVectorEncoderDeriver {
     override def derivePrimitive[A](
       st: StandardType[A],
       summoned: => Option[ValueVectorEncoder[V1, A]]
-    ): ValueVectorEncoder[V1, A] = new ValueVectorEncoder[V1, A] {
-
-      override def encodeUnsafe(chunk: Chunk[Option[A]], nullable: Boolean)(implicit alloc: BufferAllocator): V1 = {
-        val vec: FieldVector    = st match {
-          case StandardType.StringType         =>
-            new VarCharVector("stringVector", alloc)
-          case StandardType.BoolType           =>
-            new BitVector("boolVector", alloc)
-          case StandardType.ByteType           =>
-            new UInt1Vector("byteVector", alloc)
-          case StandardType.ShortType          =>
-            new SmallIntVector("shortVector", alloc)
-          case StandardType.IntType            =>
-            new IntVector("intVector", alloc)
-          case StandardType.LongType           =>
-            new BigIntVector("longVector", alloc)
-          case StandardType.FloatType          =>
-            new Float4Vector("floatVector", alloc)
-          case StandardType.DoubleType         =>
-            new Float8Vector("doubleVector", alloc)
-          case StandardType.BinaryType         =>
-            new LargeVarBinaryVector("binaryVector", alloc)
-          case StandardType.CharType           =>
-            new UInt2Vector("charVector", alloc)
-          case StandardType.UUIDType           =>
-            new VarBinaryVector("uuidVector", alloc)
-          case StandardType.BigDecimalType     =>
-            new DecimalVector("bigDecimalVector", alloc, 11, 2)
-          case StandardType.BigIntegerType     =>
-            new VarBinaryVector("bigIntVector", alloc)
-          case StandardType.DayOfWeekType      =>
-            new IntVector("dayOfWeekVector", alloc)
-          case StandardType.MonthType          =>
-            new IntVector("monthVector", alloc)
-          case StandardType.MonthDayType       =>
-            new BigIntVector("monthDayVector", alloc)
-          case StandardType.PeriodType         =>
-            new VarBinaryVector("periodVector", alloc)
-          case StandardType.YearType           =>
-            new IntVector("yearVector", alloc)
-          case StandardType.YearMonthType      =>
-            new BigIntVector("yearMonthVector", alloc)
-          case StandardType.ZoneIdType         =>
-            new VarCharVector("zoneIdVector", alloc)
-          case StandardType.ZoneOffsetType     =>
-            new VarCharVector("zoneOffsetVector", alloc)
-          case StandardType.DurationType       =>
-            new BigIntVector("durationVector", alloc)
-          case StandardType.InstantType        =>
-            new BigIntVector("instantVector", alloc)
-          case StandardType.LocalDateType      =>
-            new VarCharVector("localDateVector", alloc)
-          case StandardType.LocalTimeType      =>
-            new VarCharVector("localTimeVector", alloc)
-          case StandardType.LocalDateTimeType  =>
-            new VarCharVector("localDateTimeVector", alloc)
-          case StandardType.OffsetTimeType     =>
-            new VarCharVector("offsetTimeVector", alloc)
-          case StandardType.OffsetDateTimeType =>
-            new VarCharVector("offsetDateTimeVector", alloc)
-          case StandardType.ZonedDateTimeType  =>
-            new VarCharVector("zoneDateTimeVector", alloc)
-          case other                           =>
-            throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
-        }
-        val writer: FieldWriter = primitiveWriter(st, vec)
-        val len                 = chunk.length
-        val it                  = chunk.iterator.zipWithIndex
-
-        it.foreach { case (v, i) =>
-          writer.setPosition(i)
-
-          if (nullable && v.isEmpty) {
-            writer.writeNull()
-          } else
-            ValueEncoder.encodePrimitive(st, v.get, writer)
-        }
-
-        vec.setValueCount(len)
-        vec.asInstanceOf[V1]
-      }
-
-      override def encodeValue(value: A, name: Option[String], writer: FieldWriter)(implicit
-        alloc: BufferAllocator
-      ): Unit =
-        ValueEncoder.encodePrimitive(st, value, name, writer)
-
-    }
+    ): ValueVectorEncoder[V1, A] =
+      ValueVectorEncoder.overridePrimitive[V1, A](
+        allocateVec = { alloc =>
+          val vec = st match {
+            case StandardType.StringType         =>
+              new VarCharVector("stringVector", alloc)
+            case StandardType.BoolType           =>
+              new BitVector("boolVector", alloc)
+            case StandardType.ByteType           =>
+              new UInt1Vector("byteVector", alloc)
+            case StandardType.ShortType          =>
+              new SmallIntVector("shortVector", alloc)
+            case StandardType.IntType            =>
+              new IntVector("intVector", alloc)
+            case StandardType.LongType           =>
+              new BigIntVector("longVector", alloc)
+            case StandardType.FloatType          =>
+              new Float4Vector("floatVector", alloc)
+            case StandardType.DoubleType         =>
+              new Float8Vector("doubleVector", alloc)
+            case StandardType.BinaryType         =>
+              new LargeVarBinaryVector("binaryVector", alloc)
+            case StandardType.CharType           =>
+              new UInt2Vector("charVector", alloc)
+            case StandardType.UUIDType           =>
+              new VarBinaryVector("uuidVector", alloc)
+            case StandardType.BigDecimalType     =>
+              new DecimalVector("bigDecimalVector", alloc, 11, 2)
+            case StandardType.BigIntegerType     =>
+              new VarBinaryVector("bigIntVector", alloc)
+            case StandardType.DayOfWeekType      =>
+              new IntVector("dayOfWeekVector", alloc)
+            case StandardType.MonthType          =>
+              new IntVector("monthVector", alloc)
+            case StandardType.MonthDayType       =>
+              new BigIntVector("monthDayVector", alloc)
+            case StandardType.PeriodType         =>
+              new VarBinaryVector("periodVector", alloc)
+            case StandardType.YearType           =>
+              new IntVector("yearVector", alloc)
+            case StandardType.YearMonthType      =>
+              new BigIntVector("yearMonthVector", alloc)
+            case StandardType.ZoneIdType         =>
+              new VarCharVector("zoneIdVector", alloc)
+            case StandardType.ZoneOffsetType     =>
+              new VarCharVector("zoneOffsetVector", alloc)
+            case StandardType.DurationType       =>
+              new BigIntVector("durationVector", alloc)
+            case StandardType.InstantType        =>
+              new BigIntVector("instantVector", alloc)
+            case StandardType.LocalDateType      =>
+              new VarCharVector("localDateVector", alloc)
+            case StandardType.LocalTimeType      =>
+              new VarCharVector("localTimeVector", alloc)
+            case StandardType.LocalDateTimeType  =>
+              new VarCharVector("localDateTimeVector", alloc)
+            case StandardType.OffsetTimeType     =>
+              new VarCharVector("offsetTimeVector", alloc)
+            case StandardType.OffsetDateTimeType =>
+              new VarCharVector("offsetDateTimeVector", alloc)
+            case StandardType.ZonedDateTimeType  =>
+              new VarCharVector("zoneDateTimeVector", alloc)
+            case other                           =>
+              throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
+          }
+          vec.asInstanceOf[V1]
+        },
+        getWriter = { vec => primitiveWriter(st, vec.asInstanceOf[FieldVector]) },
+        encodeTop = { (v, writer, alloc) => ValueEncoder.encodePrimitive(st, v, writer)(alloc) },
+        encodeNested = { (v, name, writer, alloc) => ValueEncoder.encodePrimitive(st, v, name, writer)(alloc) }
+      )
 
     override def deriveOption[A](
       option: Schema.Optional[A],
