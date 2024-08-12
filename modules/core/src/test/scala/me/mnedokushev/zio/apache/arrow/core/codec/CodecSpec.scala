@@ -5,7 +5,6 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import me.mnedokushev.zio.apache.arrow.core.Fixtures._
 import me.mnedokushev.zio.apache.arrow.core.{ Allocator, Tabular }
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.complex.StructVector
 import zio._
 import zio.schema._
 import zio.schema.Schema._
@@ -256,7 +255,7 @@ object CodecSpec extends ZIOSpecDefault {
         val zonedDateTimeCodec  =
           listChunkCodec(listChunkEncoder[java.time.ZonedDateTime], listChunkDecoder[java.time.ZonedDateTime])
 
-        val primitivesCodec = listChunkCodec(listChunkEncoder[Primitives], listChunkDecoder[Primitives])
+        val primitivesCodec   = listChunkCodec(listChunkEncoder[Primitives], listChunkDecoder[Primitives])
         val optionStringCodec = listChunkOptionCodec(listChunkOptionEncoder[String], listChunkOptionDecoder[String])
 
         val stringPayload                     = Chunk(Chunk("zio"), Chunk("cats", "monix"))
@@ -440,48 +439,63 @@ object CodecSpec extends ZIOSpecDefault {
       test("struct") {
         import ValueVectorCodec._
 
-        val primitivesCodec = codec(
-          Derive.derive[ValueVectorEncoder[StructVector, *], Primitives](
-            ValueVectorEncoderDeriver.default[StructVector]
-          ),
-          Derive.derive[ValueVectorDecoder[StructVector, *], Primitives](
-            ValueVectorDecoderDeriver.default[StructVector]
-          )
-        )
+        val primitivesCodec             = structCodec[Primitives]
+        val structOfPrimitivesCodec     = structCodec[StructOfPrimitives]
+        val structOfListsCodec          = structCodec[StructOfLists]
+        val structOfListsOfStructsCodec = structCodec[StructOfListsOfStructs]
+        val structOfStructsCodec        = structCodec[StructOfStructs]
+        val listOfPrimitivesCodec       = structCodec[ListOfPrimitives]
+        val listOfStructsCodec          = structCodec[ListOfStructs]
+        val listOfListsCodec            = structCodec[ListOfLists]
+        val listOfStructsOfListsCodec   = structCodec[ListOfStructsOfLists]
 
-        val primitivesPayload = Chunk(Primitives(1, 2.0, "3"))
+        val primitivesPayload             = Chunk(Primitives(1, 2.0, "3"))
+        val structOfPrimitivesPayload     = Chunk(StructOfPrimitives(Primitives(1, 2.0, "4")))
+        val structOfListsPayload          = Chunk(StructOfLists(ListOfPrimitives(List(1, 2, 3))))
+        val structOfListsOfStructsPayload = Chunk(
+          StructOfListsOfStructs(ListOfStructs(List(Primitives(1, 2.0, "3"), Primitives(11, 22.0, "33"))))
+        )
+        val structOfStructsPayload        = Chunk(StructOfStructs(StructOfPrimitives(Primitives(1, 2.0, "3"))))
+        val listOfPrimitivesPayload       = Chunk(ListOfPrimitives(List(1, 2, 3)))
+        val listOfStructsPayload          = Chunk(ListOfStructs(List(Primitives(1, 2.0, "3"), Primitives(11, 22.0, "33"))))
+        val listOfListsPayload            = Chunk(ListOfLists(List(List(1, 2), List(3))))
+        val listOfStructsOfListsPayload   = Chunk(
+          ListOfStructsOfLists(List(ListOfPrimitives(List(1, 2)), ListOfPrimitives(List(3)))),
+          ListOfStructsOfLists(List(ListOfPrimitives(List(11, 22)), ListOfPrimitives(List(33))))
+        )
 
         ZIO.scoped(
           for {
-            primitivesVec    <- primitivesCodec.encodeZIO(primitivesPayload)
-            primitivesResult <- primitivesCodec.decodeZIO(primitivesVec)
+            primitivesVec                  <- primitivesCodec.encodeZIO(primitivesPayload)
+            primitivesResult               <- primitivesCodec.decodeZIO(primitivesVec)
+            structOfPrimitivesVec          <- structOfPrimitivesCodec.encodeZIO(structOfPrimitivesPayload)
+            structOfPrimitivesResult       <- structOfPrimitivesCodec.decodeZIO(structOfPrimitivesVec)
+            structOfListsVec               <- structOfListsCodec.encodeZIO(structOfListsPayload)
+            structOfListsResult            <- structOfListsCodec.decodeZIO(structOfListsVec)
+            structOfListsOfStructsVec      <- structOfListsOfStructsCodec.encodeZIO(structOfListsOfStructsPayload)
+            structOfListsOfStructsResult   <- structOfListsOfStructsCodec.decodeZIO(structOfListsOfStructsVec)
+            structOfStructsVec             <- structOfStructsCodec.encodeZIO(structOfStructsPayload)
+            structOfStructsResult          <- structOfStructsCodec.decodeZIO(structOfStructsVec)
+            structOfListOfPrimitivesVec    <- listOfPrimitivesCodec.encodeZIO(listOfPrimitivesPayload)
+            structOfListOfPrimitivesResult <- listOfPrimitivesCodec.decodeZIO(structOfListOfPrimitivesVec)
+            listOfStructsVec               <- listOfStructsCodec.encodeZIO(listOfStructsPayload)
+            listOfStructsResult            <- listOfStructsCodec.decodeZIO(listOfStructsVec)
+            listOfListsVec                 <- listOfListsCodec.encodeZIO(listOfListsPayload)
+            listOfListsResult              <- listOfListsCodec.decodeZIO(listOfListsVec)
+            listOfStructsOfListVec         <- listOfStructsOfListsCodec.encodeZIO(listOfStructsOfListsPayload)
+            listOfListsOfStructsResult     <- listOfStructsOfListsCodec.decodeZIO(listOfStructsOfListVec)
           } yield assertTrue(
-            primitivesResult == primitivesPayload
+            primitivesResult == primitivesPayload,
+            structOfPrimitivesResult == structOfPrimitivesPayload,
+            structOfListsResult == structOfListsPayload,
+            structOfListsOfStructsResult == structOfListsOfStructsPayload,
+            structOfStructsResult == structOfStructsPayload,
+            structOfListOfPrimitivesResult == listOfPrimitivesPayload,
+            listOfStructsResult == listOfStructsPayload,
+            listOfListsResult == listOfListsPayload,
+            listOfListsOfStructsResult == listOfStructsOfListsPayload
           )
         )
-
-        //       test("struct primitives") {
-        //         val codec   = ValueVectorCodec.struct[Primitives]
-        //         val payload = Chunk(Primitives(1, 2.0, "3"))
-
-        //         ZIO.scoped(
-        //           for {
-        //             vec    <- codec.encodeZIO(payload)
-        //             result <- codec.decodeZIO(vec)
-        //           } yield assert(result)(equalTo(payload))
-        //         )
-        //       },
-        //       test("struct of primitives") {
-        //         val codec   = ValueVectorCodec.struct[StructOfPrimitives]
-        //         val payload = Chunk(StructOfPrimitives(Primitives(1, 2.0, "3")))
-
-        //         ZIO.scoped(
-        //           for {
-        //             vec    <- codec.encodeZIO(payload)
-        //             result <- codec.decodeZIO(vec)
-        //           } yield assert(result)(equalTo(payload))
-        //         )
-        //       },
       },
       test("option") {
         import ValueVectorEncoder._
@@ -558,125 +572,6 @@ object CodecSpec extends ZIOSpecDefault {
         )
       }
     )
-
-//   val valueVectorCodecStructSpec: Spec[BufferAllocator, Throwable] =
-//     suite("ValueVectorCodec struct")(
-//       test("struct empty") {
-//         val codec   = ValueVectorCodec.struct[Primitives]
-//         val payload = Chunk.empty[Primitives]
-
-//         ZIO.scoped(
-//           for {
-//             vec    <- codec.encodeZIO(payload)
-//             result <- codec.decodeZIO(vec)
-//           } yield assert(result)(equalTo(payload))
-//         )
-//       },
-//       test("struct primitives") {
-//         val codec   = ValueVectorCodec.struct[Primitives]
-//         val payload = Chunk(Primitives(1, 2.0, "3"))
-
-//         ZIO.scoped(
-//           for {
-//             vec    <- codec.encodeZIO(payload)
-//             result <- codec.decodeZIO(vec)
-//           } yield assert(result)(equalTo(payload))
-//         )
-//       },
-//       test("struct of primitives") {
-//         val codec   = ValueVectorCodec.struct[StructOfPrimitives]
-//         val payload = Chunk(StructOfPrimitives(Primitives(1, 2.0, "3")))
-
-//         ZIO.scoped(
-//           for {
-//             vec    <- codec.encodeZIO(payload)
-//             result <- codec.decodeZIO(vec)
-//           } yield assert(result)(equalTo(payload))
-//         )
-//       },
-//       test("struct of lists") {
-//         val codec   = ValueVectorCodec.struct[StructOfLists]
-//         val payload = Chunk(StructOfLists(ListOfPrimitives(List(1, 2, 3))))
-
-//         ZIO.scoped(
-//           for {
-//             vec    <- codec.encodeZIO(payload)
-//             result <- codec.decodeZIO(vec)
-//           } yield assert(result)(equalTo(payload))
-//         )
-//       },
-//       test("struct of structs") {
-//         val codec   = ValueVectorCodec.struct[StructOfListsOfStructs]
-//         val payload = Chunk(
-//           StructOfListsOfStructs(ListOfStructs(List(Primitives(1, 2.0, "3"), Primitives(11, 22.0, "33"))))
-//         )
-
-//         ZIO.scoped(
-//           for {
-//             vec    <- codec.encodeZIO(payload)
-//             result <- codec.decodeZIO(vec)
-//           } yield assert(result)(equalTo(payload))
-//         )
-//       },
-//       test("struct of lists of structs") {
-//         val codec   = ValueVectorCodec.struct[StructOfStructs]
-//         val payload = Chunk(StructOfStructs(StructOfPrimitives(Primitives(1, 2.0, "3"))))
-
-//         ZIO.scoped(
-//           for {
-//             vec    <- codec.encodeZIO(payload)
-//             result <- codec.decodeZIO(vec)
-//           } yield assert(result)(equalTo(payload))
-//         )
-//       },
-//       test("struct of list of primitives") {
-//         val codec   = ValueVectorCodec.struct[ListOfPrimitives]
-//         val payload = Chunk(ListOfPrimitives(List(1, 2, 3)))
-
-//         ZIO.scoped(
-//           for {
-//             vec    <- codec.encodeZIO(payload)
-//             result <- codec.decodeZIO(vec)
-//           } yield assert(result)(equalTo(payload))
-//         )
-//       },
-//       test("struct of list of structs") {
-//         val codec   = ValueVectorCodec.struct[ListOfStructs]
-//         val payload = Chunk(ListOfStructs(List(Primitives(1, 2.0, "3"), Primitives(11, 22.0, "33"))))
-
-//         ZIO.scoped(
-//           for {
-//             vec    <- codec.encodeZIO(payload)
-//             result <- codec.decodeZIO(vec)
-//           } yield assert(result)(equalTo(payload))
-//         )
-//       },
-//       test("struct of list of lists") {
-//         val codec   = ValueVectorCodec.struct[ListOfLists]
-//         val payload = Chunk(ListOfLists(List(List(1, 2), List(3))))
-
-//         ZIO.scoped(
-//           for {
-//             vec    <- codec.encodeZIO(payload)
-//             result <- codec.decodeZIO(vec)
-//           } yield assert(result)(equalTo(payload))
-//         )
-//       },
-//       test("struct of list of structs of lists") {
-//         val codec   = ValueVectorCodec.struct[ListOfStructsOfLists]
-//         val payload = Chunk(
-//           ListOfStructsOfLists(List(ListOfPrimitives(List(1, 2)), ListOfPrimitives(List(3)))),
-//           ListOfStructsOfLists(List(ListOfPrimitives(List(11, 22)), ListOfPrimitives(List(33))))
-//         )
-
-//         ZIO.scoped(
-//           for {
-//             vec    <- codec.encodeZIO(payload)
-//             result <- codec.decodeZIO(vec)
-//           } yield assert(result)(equalTo(payload))
-//         )
-//       }
-//     )
 
   // val vectorSchemaRootDecoderSpec: Spec[BufferAllocator, Throwable] =
   //   suite("VectorSchemaRootDecoder")(

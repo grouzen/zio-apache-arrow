@@ -5,6 +5,7 @@ import org.apache.arrow.vector.{ ValueVector, _ }
 import zio._
 import org.apache.arrow.vector.complex.ListVector
 import zio.schema.Schema
+import org.apache.arrow.vector.complex.StructVector
 
 final case class ValueVectorCodec[V <: ValueVector, A](
   encoder: ValueVectorEncoder[V, A],
@@ -118,6 +119,12 @@ object ValueVectorCodec {
     decoder: ValueVectorDecoder[ListVector, Chunk[Option[A]]]
   ): ValueVectorCodec[ListVector, Chunk[Option[A]]] =
     listChunkCodec[Option[A]]
+
+  implicit def structCodec[A](implicit
+    encoder: ValueVectorEncoder[StructVector, A],
+    decoder: ValueVectorDecoder[StructVector, A]
+  ): ValueVectorCodec[StructVector, A] =
+    ValueVectorCodec[StructVector, A](encoder, decoder)
 
   implicit def optionCodec[V <: ValueVector, A](implicit
     encoder: ValueVectorEncoder[V, Option[A]],

@@ -11,6 +11,7 @@ import zio.schema.Schema
 import zio.schema.Deriver
 import org.apache.arrow.vector.complex.ListVector
 import org.apache.arrow.vector.complex.writer.FieldWriter
+import org.apache.arrow.vector.complex.StructVector
 
 trait ValueVectorEncoder[V <: ValueVector, -A] extends ValueEncoder[A] { self =>
 
@@ -184,6 +185,23 @@ object ValueVectorEncoder {
     schema: Schema[C[A]]
   ): ValueVectorEncoder[ListVector, C[A]] =
     listEncoderFromDeriver[A, C](ValueVectorEncoderDeriver.summoned[ListVector])
+
+  implicit def structEncoder[A](implicit
+    factory: Factory[A],
+    schema: Schema[A]
+  ): ValueVectorEncoder[StructVector, A] =
+    structEncoderFromDefaultDeriver[A]
+
+  def structEncoderFromDeriver[A](
+    deriver: Deriver[ValueVectorEncoder[StructVector, *]]
+  )(implicit factory: Factory[A], schema: Schema[A]): ValueVectorEncoder[StructVector, A] =
+    factory.derive[ValueVectorEncoder[StructVector, *]](deriver)
+
+  def structEncoderFromDefaultDeriver[A](implicit
+    factory: Factory[A],
+    schema: Schema[A]
+  ): ValueVectorEncoder[StructVector, A] =
+    structEncoderFromDeriver[A](ValueVectorEncoderDeriver.default[StructVector])
 
   implicit def optionEncoder[V <: ValueVector, A](implicit
     factory: Factory[Option[A]],

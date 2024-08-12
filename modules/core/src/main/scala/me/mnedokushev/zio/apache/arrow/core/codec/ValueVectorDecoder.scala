@@ -11,6 +11,7 @@ import org.apache.arrow.vector.complex.ListVector
 import zio.schema.Schema
 import org.apache.arrow.vector.complex.reader.FieldReader
 import zio.schema.DynamicValue
+import org.apache.arrow.vector.complex.StructVector
 
 trait ValueVectorDecoder[V <: ValueVector, A] extends ValueDecoder[A] { self =>
 
@@ -192,6 +193,23 @@ object ValueVectorDecoder {
     schema: Schema[C[A]]
   ): ValueVectorDecoder[ListVector, C[A]] =
     listDecoderFromDeriver(ValueVectorDecoderDeriver.summoned[ListVector])
+
+  implicit def structDecoder[A](implicit
+    factory: Factory[A],
+    schema: Schema[A]
+  ): ValueVectorDecoder[StructVector, A] =
+    structDecoderFromDefaultDeriver[A]
+
+  def structDecoderFromDeriver[A](
+    deriver: Deriver[ValueVectorDecoder[StructVector, *]]
+  )(implicit factory: Factory[A], schema: Schema[A]): ValueVectorDecoder[StructVector, A] =
+    factory.derive[ValueVectorDecoder[StructVector, *]](deriver)
+
+  def structDecoderFromDefaultDeriver[A](implicit
+    factory: Factory[A],
+    schema: Schema[A]
+  ): ValueVectorDecoder[StructVector, A] =
+    structDecoderFromDeriver(ValueVectorDecoderDeriver.default[StructVector])
 
   implicit def optionDecoder[V <: ValueVector, A](implicit
     factory: Factory[Option[A]],
