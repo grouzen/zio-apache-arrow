@@ -75,7 +75,7 @@ object ValueDecoder {
         DynamicValue.Primitive[Char](reader.readCharacter(), t)
       case t: StandardType.UUIDType.type           =>
         val bb = ByteBuffer.wrap(reader.readByteArray())
-        DynamicValue.Primitive[UUID](new UUID(bb.getLong, bb.getLong), t)
+        DynamicValue.Primitive[UUID](new UUID(bb.getLong(0), bb.getLong(8)), t)
       case t: StandardType.BigDecimalType.type     =>
         DynamicValue.Primitive[java.math.BigDecimal](reader.readBigDecimal(), t)
       case t: StandardType.BigIntegerType.type     =>

@@ -116,8 +116,8 @@ object ValueEncoder {
         resolveWriter(writer.uInt2)(writer.uInt2).writeUInt2(v)
       case (StandardType.UUIDType, v: UUID)                       =>
         withBuffer(16) { buffer =>
-          buffer.writeLong(v.getLeastSignificantBits)
           buffer.writeLong(v.getMostSignificantBits)
+          buffer.writeLong(v.getLeastSignificantBits)
           resolveWriter(writer.varBinary)(writer.varBinary).writeVarBinary(0, 16, buffer)
         }
       case (StandardType.BigDecimalType, v: java.math.BigDecimal) =>
