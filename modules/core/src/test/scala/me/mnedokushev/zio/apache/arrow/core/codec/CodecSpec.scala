@@ -207,56 +207,40 @@ object CodecSpec extends ZIOSpecDefault {
         import ValueVectorDecoder._
         import ValueVectorCodec._
 
-        val stringCodec         =
-          listChunkCodec(listChunkEncoder[String], listChunkDecoder[String])
-        val boolCodec           =
-          listChunkCodec(listChunkEncoder[Boolean], listChunkDecoder[Boolean])
-        val byteCodec           =
-          listCodec(listEncoder[Byte, List], listDecoder[Byte, List])
-        val shortCodec          =
-          listChunkCodec(listChunkEncoder[Short], listChunkDecoder[Short])
-        val intCodec            = listChunkCodec(listChunkEncoder[Int], listChunkDecoder[Int])
-        val longCodec           = listChunkCodec(listChunkEncoder[Long], listChunkDecoder[Long])
-        val floatCodec          = listChunkCodec(listChunkEncoder[Float], listChunkDecoder[Float])
-        val doubleCodec         = listChunkCodec(listChunkEncoder[Double], listChunkDecoder[Double])
+        val stringCodec         = listChunkCodec[String]
+        val boolCodec           = listChunkCodec[Boolean]
+        val byteCodec           = listCodec[Byte, List]
+        val shortCodec          = listChunkCodec[Short]
+        val intCodec            = listChunkCodec[Int]
+        val longCodec           = listChunkCodec[Long]
+        val floatCodec          = listChunkCodec[Float]
+        val doubleCodec         = listChunkCodec[Double]
         // FIX: me.mnedokushev.zio.apache.arrow.core.codec.DecoderError: Failed to cast Primitive(Chunk(1,2,3),binary) to schema Sequence(Primitive(byte,Chunk()), Chunk)
         // val binaryCodec     = listCodec(listEncoder[Chunk[Byte], List], listDecoder[Chunk[Byte], List])
-        val charCodec           = listChunkCodec(listChunkEncoder[Char], listChunkDecoder[Char])
+        val charCodec           = listChunkCodec[Char]
         // FIX: Chunk(Chunk(f04b88ba-6004-4e64-a903-f271c4672a95, ec472cee-ab02-0e20-ca14-e3208adfef9e)) was not equal to Chunk(Chunk(644e0460-ba88-4bf0-952a-67c471f203a9, 200e02ab-ee2c-47ec-9eef-df8a20e314ca))
         // val uuidCodec       = listChunkCodec(listChunkEncoder[java.util.UUID], listChunkDecoder[java.util.UUID])
-        val bigDecimalCodec     =
-          listChunkCodec(listChunkEncoder[java.math.BigDecimal], listChunkDecoder[java.math.BigDecimal])
-        val bigIntegerCodec     =
-          listChunkCodec(listChunkEncoder[java.math.BigInteger], listChunkDecoder[java.math.BigInteger])
-        val dayOfWeekCodec      =
-          listChunkCodec(listChunkEncoder[java.time.DayOfWeek], listChunkDecoder[java.time.DayOfWeek])
-        val monthCodec          = listChunkCodec(listChunkEncoder[java.time.Month], listChunkDecoder[java.time.Month])
-        val monthDayCodec       = listChunkCodec(listChunkEncoder[java.time.MonthDay], listChunkDecoder[java.time.MonthDay])
+        val bigDecimalCodec     = listChunkCodec[java.math.BigDecimal]
+        val bigIntegerCodec     = listChunkCodec[java.math.BigInteger]
+        val dayOfWeekCodec      = listChunkCodec[java.time.DayOfWeek]
+        val monthCodec          = listChunkCodec[java.time.Month]
+        val monthDayCodec       = listChunkCodec[java.time.MonthDay]
         // val periodCodec         = listChunkCodec(listChunkEncoder[java.time.Period], listChunkDecoder[java.time.Period])
-        val yearCodec           = listChunkCodec(listChunkEncoder[java.time.Year], listChunkDecoder[java.time.Year])
-        val yearMonthCodec      =
-          listChunkCodec(listChunkEncoder[java.time.YearMonth], listChunkDecoder[java.time.YearMonth])
-        val zoneIdCodec         = listChunkCodec(listChunkEncoder[java.time.ZoneId], listChunkDecoder[java.time.ZoneId])
-        val zoneOffsetCodec     =
-          listChunkCodec(listChunkEncoder[java.time.ZoneOffset], listChunkDecoder[java.time.ZoneOffset])
-        val durationCodec       = listChunkCodec(listChunkEncoder[java.time.Duration], listChunkDecoder[java.time.Duration])
-        val instantCodec        =
-          listChunkCodec(listChunkEncoder[java.time.Instant], listChunkDecoder[java.time.Instant])
-        val localDateCodec      =
-          listChunkCodec(listChunkEncoder[java.time.LocalDate], listChunkDecoder[java.time.LocalDate])
-        val localTimeCodec      =
-          listChunkCodec(listChunkEncoder[java.time.LocalTime], listChunkDecoder[java.time.LocalTime])
-        val localDateTimeCodec  =
-          listChunkCodec(listChunkEncoder[java.time.LocalDateTime], listChunkDecoder[java.time.LocalDateTime])
-        val offsetTimeCodec     =
-          listChunkCodec(listChunkEncoder[java.time.OffsetTime], listChunkDecoder[java.time.OffsetTime])
-        val offsetDateTimeCodec =
-          listChunkCodec(listChunkEncoder[java.time.OffsetDateTime], listChunkDecoder[java.time.OffsetDateTime])
-        val zonedDateTimeCodec  =
-          listChunkCodec(listChunkEncoder[java.time.ZonedDateTime], listChunkDecoder[java.time.ZonedDateTime])
+        val yearCodec           = listChunkCodec[java.time.Year]
+        val yearMonthCodec      = listChunkCodec[java.time.YearMonth]
+        val zoneIdCodec         = listChunkCodec[java.time.ZoneId]
+        val zoneOffsetCodec     = listChunkCodec[java.time.ZoneOffset]
+        val durationCodec       = listChunkCodec[java.time.Duration]
+        val instantCodec        = listChunkCodec[java.time.Instant]
+        val localDateCodec      = listChunkCodec[java.time.LocalDate]
+        val localTimeCodec      = listChunkCodec[java.time.LocalTime]
+        val localDateTimeCodec  = listChunkCodec[java.time.LocalDateTime]
+        val offsetTimeCodec     = listChunkCodec[java.time.OffsetTime]
+        val offsetDateTimeCodec = listChunkCodec[java.time.OffsetDateTime]
+        val zonedDateTimeCodec  = listChunkCodec[java.time.ZonedDateTime]
 
-        val primitivesCodec   = listChunkCodec(listChunkEncoder[Primitives], listChunkDecoder[Primitives])
-        val optionStringCodec = listChunkOptionCodec(listChunkOptionEncoder[String], listChunkOptionDecoder[String])
+        val primitivesCodec   = listChunkCodec[Primitives]
+        val optionStringCodec = listChunkOptionCodec[String]
 
         val stringPayload                     = Chunk(Chunk("zio"), Chunk("cats", "monix"))
         val boolPayload                       = Chunk(Chunk(true), Chunk(false))
@@ -507,13 +491,10 @@ object CodecSpec extends ZIOSpecDefault {
         val intPayload                         = Chunk(Some(1), None, Some(3))
         val listStringPayload                  = Chunk(Some(Chunk("zio", "cats")), None)
 
-        val stringCodec     = optionCodec(optionEncoder[VarCharVector, String], optionDecoder[VarCharVector, String])
-        val shortCodec      = optionCodec(optionEncoder[SmallIntVector, Short], optionDecoder[SmallIntVector, Short])
-        val intCodec        = optionCodec(optionEncoder[IntVector, Int], optionDecoder[IntVector, Int])
-        val listStringCodec = optionListChunkCodec(
-          optionListChunkEncoder[String],
-          optionListChunkDecoder[String]
-        )
+        val stringCodec     = optionCodec[VarCharVector, String]
+        val shortCodec      = optionCodec[SmallIntVector, Short]
+        val intCodec        = optionCodec[IntVector, Int]
+        val listStringCodec = optionListChunkCodec[String]
 
         ZIO.scoped(
           for {
