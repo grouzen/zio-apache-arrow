@@ -66,6 +66,8 @@ object CodecSpec extends ZIOSpecDefault {
       valueVectorDecoderSpec,
       valueVectorEncoderSpec,
       valueVectorCodecSpec,
+      vectorSchemaRootDecoderSpec,
+      vectorSchemaRootEncoderSpec,
       vectorSchemaRootCodecSpec
     ).provideLayerShared(Allocator.rootLayer())
 
@@ -613,36 +615,36 @@ object CodecSpec extends ZIOSpecDefault {
       }
     )
 
-  // val vectorSchemaRootDecoderSpec: Spec[BufferAllocator, Throwable] =
-  //   suite("VectorSchemaRootDecoder")(
-  //     test("map") {
-  //       val codec = VectorSchemaRootCodec[Primitives]
+  val vectorSchemaRootDecoderSpec: Spec[BufferAllocator, Throwable] =
+    suite("VectorSchemaRootDecoder")(
+      test("map") {
+        val codec = VectorSchemaRootCodec.codec[Primitives]
 
-  //       ZIO.scoped(
-  //         for {
-  //           root   <- Tabular.empty[Primitives]
-  //           _      <- codec.encodeZIO(Chunk(Primitives(1, 2.0, "3")), root)
-  //           result <- codec.decoder.map(p => s"${p.a}, ${p.b}, ${p.c}").decodeZIO(root)
-  //         } yield assert(result)(equalTo(Chunk("1, 2.0, 3")))
-  //       )
-  //     }
-  //   )
+        ZIO.scoped(
+          for {
+            root   <- Tabular.empty[Primitives]
+            _      <- codec.encodeZIO(Chunk(Primitives(1, 2.0, "3")), root)
+            result <- codec.decoder.map(p => s"${p.a}, ${p.b}, ${p.c}").decodeZIO(root)
+          } yield assert(result)(equalTo(Chunk("1, 2.0, 3")))
+        )
+      }
+    )
 
-  // val vectorSchemaRootEncoderSpec: Spec[BufferAllocator, Throwable] =
-  //   suite("VectorSchemaRootEncoder")(
-  //     test("contramap") {
-  //       val codec = VectorSchemaRootCodec[Primitives]
+  val vectorSchemaRootEncoderSpec: Spec[BufferAllocator, Throwable] =
+    suite("VectorSchemaRootEncoder")(
+      test("contramap") {
+        val codec = VectorSchemaRootCodec.codec[Primitives]
 
-  //       ZIO.scoped(
-  //         for {
-  //           root   <- Tabular.empty[Primitives]
-  //           _      <- codec.encoder
-  //                       .contramap[String](s => Primitives(s.toInt, s.toDouble, s))
-  //                       .encodeZIO(Chunk("1", "2"), root)
-  //           result <- codec.decodeZIO(root)
-  //         } yield assert(result)(equalTo(Chunk(Primitives(1, 1.0, "1"), Primitives(2, 2.0, "2"))))
-  //       )
-  //     }
-  //   )
+        ZIO.scoped(
+          for {
+            root   <- Tabular.empty[Primitives]
+            _      <- codec.encoder
+                        .contramap[String](s => Primitives(s.toInt, s.toDouble, s))
+                        .encodeZIO(Chunk("1", "2"), root)
+            result <- codec.decodeZIO(root)
+          } yield assert(result)(equalTo(Chunk(Primitives(1, 1.0, "1"), Primitives(2, 2.0, "2"))))
+        )
+      }
+    )
 
 }

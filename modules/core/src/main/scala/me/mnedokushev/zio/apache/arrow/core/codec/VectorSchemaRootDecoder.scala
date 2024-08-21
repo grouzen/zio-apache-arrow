@@ -8,7 +8,7 @@ import zio.schema.{ Deriver, DynamicValue, Factory, Schema }
 import scala.annotation.unused
 import scala.util.control.NonFatal
 
-trait VectorSchemaRootDecoder[+A] extends ValueDecoder[A] { self =>
+trait VectorSchemaRootDecoder[A] extends ValueDecoder[A] { self =>
 
   final def decodeZIO(root: VectorSchemaRoot): Task[Chunk[A]] =
     ZIO.fromEither(decode(root))
@@ -26,16 +26,34 @@ trait VectorSchemaRootDecoder[+A] extends ValueDecoder[A] { self =>
 
   def decodeField[V0 <: ValueVector](reader: FieldReader, vec: V0, idx: Int): DynamicValue
 
-  // final def map[B](f: A => B): VectorSchemaRootDecoder[B] =
-  //   new VectorSchemaRootDecoder[B] {
+  final def map[B](f: A => B)(implicit schemaSrc: Schema[A], schemaDst: Schema[B]): VectorSchemaRootDecoder[B] =
+    new VectorSchemaRootDecoder[B] {
 
-  //     override def decodeField(reader: FieldReader): DynamicValue = ???
+      override protected def decodeUnsafe(root: VectorSchemaRoot): Chunk[B] =
+        self.decodeUnsafe(root).map(f)
 
-  //     override def decodeValue(name: Option[String], reader: FieldReader): DynamicValue = ???
+      override def decodeValue[V0 <: ValueVector](
+        name: Option[String],
+        reader: FieldReader,
+        vec: V0,
+        idx: Int
+      ): DynamicValue =
+        self
+          .decodeValue(name, reader, vec, idx)
+          .toValue(schemaSrc)
+          .map(a => schemaDst.toDynamic(f(a)))
+          .toTry
+          .get
 
-  //     override def decodeUnsafe(root: VectorSchemaRoot): Chunk[B] =
-  //       self.decodeUnsafe(root).map(f)
-  //   }
+      override def decodeField[V0 <: ValueVector](reader: FieldReader, vec: V0, idx: Int): DynamicValue =
+        self
+          .decodeField(reader, vec, idx)
+          .toValue(schemaSrc)
+          .map(a => schemaDst.toDynamic(f(a)))
+          .toTry
+          .get
+
+    }
 
 }
 

@@ -3,14 +3,12 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.VectorSchemaRoot
 import zio._
+import zio.schema.Schema
 
 final case class VectorSchemaRootCodec[A](
   encoder: VectorSchemaRootEncoder[A],
   decoder: VectorSchemaRootDecoder[A]
 ) { self =>
-
-  // def transform[B](f: A => B, g: B => A): VectorSchemaRootCodec[B] =
-  //   VectorSchemaRootCodec(encoder.contramap(g), decoder.map(f))
 
   def decodeZIO(root: VectorSchemaRoot): Task[Chunk[A]] =
     decoder.decodeZIO(root)
@@ -26,6 +24,12 @@ final case class VectorSchemaRootCodec[A](
     root: VectorSchemaRoot
   )(implicit alloc: BufferAllocator): Either[Throwable, VectorSchemaRoot] =
     encoder.encode(chunk, root)
+
+  def transform[B](f: A => B, g: B => A)(implicit
+    schemaSrc: Schema[A],
+    schemaDst: Schema[B]
+  ): VectorSchemaRootCodec[B] =
+    VectorSchemaRootCodec(encoder.contramap(g), decoder.map(f))
 
 }
 

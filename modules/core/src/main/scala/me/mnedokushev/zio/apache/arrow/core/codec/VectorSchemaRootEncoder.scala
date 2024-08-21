@@ -37,21 +37,23 @@ trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
 
   def encodeField(value: A, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit
 
-  // final def contramap[B](f: B => A): VectorSchemaRootEncoder[B] =
-  //   new VectorSchemaRootEncoder[B] {
+  final def contramap[B](f: B => A): VectorSchemaRootEncoder[B] =
+    new VectorSchemaRootEncoder[B] {
 
-  //     override def encodeValue(
-  //       value: B,
-  //       name: Option[String],
-  //       writer: FieldWriter
-  //     )(implicit alloc: BufferAllocator): Unit =
-  //       self.encodeValue(f(value), name, writer)
+      override protected def encodeUnsafe(chunk: Chunk[B], root: VectorSchemaRoot)(implicit
+        alloc: BufferAllocator
+      ): VectorSchemaRoot =
+        self.encodeUnsafe(chunk.map(f), root)
 
-  //     override protected def encodeUnsafe(chunk: Chunk[B], root: VectorSchemaRoot)(implicit
-  //       alloc: BufferAllocator
-  //     ): VectorSchemaRoot =
-  //       self.encodeUnsafe(chunk.map(f), root)
-  //   }
+      override def encodeValue(value: B, name: Option[String], writer: FieldWriter)(implicit
+        alloc: BufferAllocator
+      ): Unit =
+        self.encodeValue(f(value), name, writer)
+
+      override def encodeField(value: B, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit =
+        self.encodeField(f(value), writer)
+
+    }
 
 }
 
