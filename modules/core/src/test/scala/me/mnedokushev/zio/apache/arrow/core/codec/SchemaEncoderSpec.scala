@@ -4,7 +4,6 @@ import me.mnedokushev.zio.apache.arrow.core.Fixtures._
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.pojo.{ ArrowType, Field, Schema => JSchema }
 import zio.Scope
-import zio.schema.Factory._
 import zio.schema._
 import zio.test.Assertion._
 import zio.test.{ Spec, _ }
@@ -29,6 +28,8 @@ object SchemaEncoderSpec extends ZIOSpecDefault {
     // TODO: fix fromSummonedDeriver
     // implicit val schemaEncoder: SchemaEncoder[Summoned] =
     //   SchemaEncoder.fromSummonedDeriver[Summoned]
+    // implicit val schemaEncoder: SchemaEncoder[Summoned] =
+    //   SchemaEncoder.encoder[Summoned](SchemaEncoderDeriver.summoned)
     implicit val schemaEncoder: SchemaEncoder[Summoned] =
       Derive.derive[SchemaEncoder, Summoned](SchemaEncoderDeriver.summoned)
   }

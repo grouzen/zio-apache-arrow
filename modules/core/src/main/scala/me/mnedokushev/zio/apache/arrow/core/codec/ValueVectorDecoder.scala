@@ -117,67 +117,69 @@ object ValueVectorDecoder {
 
     }
 
-  implicit def decoder[V <: ValueVector, A: Schema](implicit factory: Factory[A]): ValueVectorDecoder[V, A] =
-    factory.derive(ValueVectorDecoderDeriver.default[V])
+  implicit def decoder[V <: ValueVector, A: Schema](deriver: Deriver[ValueVectorDecoder[V, *]])(implicit
+    factory: Factory[A]
+  ): ValueVectorDecoder[V, A] =
+    factory.derive(deriver)
 
   implicit val stringDecoder: ValueVectorDecoder[VarCharVector, String]                           =
-    decoder[VarCharVector, String]
+    decoder[VarCharVector, String](ValueVectorDecoderDeriver.default)
   implicit val boolDecoder: ValueVectorDecoder[BitVector, Boolean]                                =
-    decoder[BitVector, Boolean]
+    decoder[BitVector, Boolean](ValueVectorDecoderDeriver.default)
   implicit val byteDecoder: ValueVectorDecoder[UInt1Vector, Byte]                                 =
-    decoder[UInt1Vector, Byte]
+    decoder[UInt1Vector, Byte](ValueVectorDecoderDeriver.default)
   implicit val shortDecoder: ValueVectorDecoder[SmallIntVector, Short]                            =
-    decoder[SmallIntVector, Short]
+    decoder[SmallIntVector, Short](ValueVectorDecoderDeriver.default)
   implicit val intDecoder: ValueVectorDecoder[IntVector, Int]                                     =
-    decoder[IntVector, Int]
+    decoder[IntVector, Int](ValueVectorDecoderDeriver.default)
   implicit val longDecoder: ValueVectorDecoder[BigIntVector, Long]                                =
-    decoder[BigIntVector, Long]
+    decoder[BigIntVector, Long](ValueVectorDecoderDeriver.default)
   implicit val floatDecoder: ValueVectorDecoder[Float4Vector, Float]                              =
-    decoder[Float4Vector, Float]
+    decoder[Float4Vector, Float](ValueVectorDecoderDeriver.default)
   implicit val doubleDecoder: ValueVectorDecoder[Float8Vector, Double]                            =
-    decoder[Float8Vector, Double]
+    decoder[Float8Vector, Double](ValueVectorDecoderDeriver.default)
   implicit val binaryDecoder: ValueVectorDecoder[LargeVarBinaryVector, Chunk[Byte]]               =
-    decoder[LargeVarBinaryVector, Chunk[Byte]]
+    decoder[LargeVarBinaryVector, Chunk[Byte]](ValueVectorDecoderDeriver.default)
   implicit val charDecoder: ValueVectorDecoder[UInt2Vector, Char]                                 =
-    decoder[UInt2Vector, Char]
+    decoder[UInt2Vector, Char](ValueVectorDecoderDeriver.default)
   implicit val uuidDecoder: ValueVectorDecoder[VarBinaryVector, java.util.UUID]                   =
-    decoder[VarBinaryVector, java.util.UUID]
+    decoder[VarBinaryVector, java.util.UUID](ValueVectorDecoderDeriver.default)
   implicit val bigDecimalDecoder: ValueVectorDecoder[DecimalVector, java.math.BigDecimal]         =
-    decoder[DecimalVector, java.math.BigDecimal]
+    decoder[DecimalVector, java.math.BigDecimal](ValueVectorDecoderDeriver.default)
   implicit val bigIntegerDecoder: ValueVectorDecoder[VarBinaryVector, java.math.BigInteger]       =
-    decoder[VarBinaryVector, java.math.BigInteger]
+    decoder[VarBinaryVector, java.math.BigInteger](ValueVectorDecoderDeriver.default)
   implicit val dayOfWeekDecoder: ValueVectorDecoder[IntVector, java.time.DayOfWeek]               =
-    decoder[IntVector, java.time.DayOfWeek]
+    decoder[IntVector, java.time.DayOfWeek](ValueVectorDecoderDeriver.default)
   implicit val monthDecoder: ValueVectorDecoder[IntVector, java.time.Month]                       =
-    decoder[IntVector, java.time.Month]
+    decoder[IntVector, java.time.Month](ValueVectorDecoderDeriver.default)
   implicit val monthDayDecoder: ValueVectorDecoder[BigIntVector, java.time.MonthDay]              =
-    decoder[BigIntVector, java.time.MonthDay]
+    decoder[BigIntVector, java.time.MonthDay](ValueVectorDecoderDeriver.default)
   implicit val periodDecoder: ValueVectorDecoder[VarBinaryVector, java.time.Period]               =
-    decoder[VarBinaryVector, java.time.Period]
+    decoder[VarBinaryVector, java.time.Period](ValueVectorDecoderDeriver.default)
   implicit val yearDecoder: ValueVectorDecoder[IntVector, java.time.Year]                         =
-    decoder[IntVector, java.time.Year]
+    decoder[IntVector, java.time.Year](ValueVectorDecoderDeriver.default)
   implicit val yearMonthDecoder: ValueVectorDecoder[BigIntVector, java.time.YearMonth]            =
-    decoder[BigIntVector, java.time.YearMonth]
+    decoder[BigIntVector, java.time.YearMonth](ValueVectorDecoderDeriver.default)
   implicit val zoneIdDecoder: ValueVectorDecoder[VarCharVector, java.time.ZoneId]                 =
-    decoder[VarCharVector, java.time.ZoneId]
+    decoder[VarCharVector, java.time.ZoneId](ValueVectorDecoderDeriver.default)
   implicit val zoneOffsetDecoder: ValueVectorDecoder[VarCharVector, java.time.ZoneOffset]         =
-    decoder[VarCharVector, java.time.ZoneOffset]
+    decoder[VarCharVector, java.time.ZoneOffset](ValueVectorDecoderDeriver.default)
   implicit val durationDecoder: ValueVectorDecoder[BigIntVector, java.time.Duration]              =
-    decoder[BigIntVector, java.time.Duration]
+    decoder[BigIntVector, java.time.Duration](ValueVectorDecoderDeriver.default)
   implicit val instantDecoder: ValueVectorDecoder[BigIntVector, java.time.Instant]                =
-    decoder[BigIntVector, java.time.Instant]
+    decoder[BigIntVector, java.time.Instant](ValueVectorDecoderDeriver.default)
   implicit val localDateDecoder: ValueVectorDecoder[VarCharVector, java.time.LocalDate]           =
-    decoder[VarCharVector, java.time.LocalDate]
+    decoder[VarCharVector, java.time.LocalDate](ValueVectorDecoderDeriver.default)
   implicit val localTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.LocalTime]           =
-    decoder[VarCharVector, java.time.LocalTime]
+    decoder[VarCharVector, java.time.LocalTime](ValueVectorDecoderDeriver.default)
   implicit val localDateTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.LocalDateTime]   =
-    decoder[VarCharVector, java.time.LocalDateTime]
+    decoder[VarCharVector, java.time.LocalDateTime](ValueVectorDecoderDeriver.default)
   implicit val offsetTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.OffsetTime]         =
-    decoder[VarCharVector, java.time.OffsetTime]
+    decoder[VarCharVector, java.time.OffsetTime](ValueVectorDecoderDeriver.default)
   implicit val offsetDateTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.OffsetDateTime] =
-    decoder[VarCharVector, java.time.OffsetDateTime]
+    decoder[VarCharVector, java.time.OffsetDateTime](ValueVectorDecoderDeriver.default)
   implicit val zonedDateTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.ZonedDateTime]   =
-    decoder[VarCharVector, java.time.ZonedDateTime]
+    decoder[VarCharVector, java.time.ZonedDateTime](ValueVectorDecoderDeriver.default)
 
   implicit def listDecoder[A, C[_]](implicit
     factory: Factory[C[A]],

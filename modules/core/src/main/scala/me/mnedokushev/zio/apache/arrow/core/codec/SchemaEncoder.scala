@@ -4,6 +4,7 @@ import org.apache.arrow.vector.types.pojo.{ ArrowType, Field, FieldType, Schema 
 import zio.schema.{ Deriver, Factory, Schema, StandardType }
 
 import scala.jdk.CollectionConverters._
+import scala.annotation.nowarn
 
 trait SchemaEncoder[A] { self =>
 
@@ -16,14 +17,15 @@ trait SchemaEncoder[A] { self =>
 
 object SchemaEncoder {
 
-  def primitive[A: StandardType](encode0: (String, Boolean) => Field): SchemaEncoder[A] =
+  def primitive[A](encode0: (String, Boolean) => Field)(implicit @nowarn ev: StandardType[A]): SchemaEncoder[A] =
     new SchemaEncoder[A] {
+
       override def encodeField(name: String, nullable: Boolean): Field =
         encode0(name, nullable)
     }
 
-  implicit def encoder[A: Factory: Schema]: SchemaEncoder[A] =
-    fromDefaultDeriver[A]
+  implicit def encoder[A: Factory: Schema](deriver: Deriver[SchemaEncoder]): SchemaEncoder[A] =
+    implicitly[Factory[A]].derive[SchemaEncoder](deriver)
 
   def fromDeriver[A: Factory: Schema](deriver: Deriver[SchemaEncoder]): SchemaEncoder[A] =
     implicitly[Factory[A]].derive[SchemaEncoder](deriver)
