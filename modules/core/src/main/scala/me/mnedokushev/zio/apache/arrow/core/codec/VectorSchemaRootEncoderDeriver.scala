@@ -8,8 +8,6 @@ import org.apache.arrow.vector.{ FieldVector, VectorSchemaRoot }
 import zio.Chunk
 import zio.schema.{ Deriver, Schema, StandardType }
 
-import scala.annotation.tailrec
-
 object VectorSchemaRootEncoderDeriver {
 
   val default: Deriver[VectorSchemaRootEncoder] = new Deriver[VectorSchemaRootEncoder] {
@@ -31,35 +29,19 @@ object VectorSchemaRootEncoderDeriver {
       ) =
         encoder.asInstanceOf[VectorSchemaRootEncoder[A1]].encodeField(value, writer)
 
-      @tailrec
-      private def resolveWriter(fieldSchema0: Schema[_], vec: FieldVector): FieldWriter =
-        (fieldSchema0, vec) match {
-          case (lzy @ Schema.Lazy(_), _)                       =>
-            resolveWriter(lzy.schema, vec)
-          case (opt @ Schema.Optional(_, _), _)                =>
-            resolveWriter(opt.schema, vec)
-          case (_: Schema.Record[_], vec0: StructVector)       =>
-            vec0.getWriter
-          case (_: Schema.Sequence[_, _, _], vec0: ListVector) =>
-            vec0.getWriter
-          case (Schema.Primitive(st, _), _)                    =>
-            primitiveWriter(st, vec)
-          case _                                               =>
-            null // TODO: throw exception?
-        }
-
       override protected def encodeUnsafe(
         chunk: Chunk[A],
         root: VectorSchemaRoot
       )(implicit alloc: BufferAllocator): VectorSchemaRoot = {
         val fields0 =
-          record.fields.zip(encoders).map { case (Schema.Field(name, fieldSchema, _, _, g, _), encoder) =>
+          record.fields.zip(encoders).map { case (Schema.Field(name, _, _, _, g, _), encoder) =>
             val vec = Option(root.getVector(name))
               .getOrElse(throw EncoderError(s"Couldn't find vector by name $name"))
 
             vec.reset()
 
-            val writer = resolveWriter(fieldSchema, vec)
+            // val writer = resolveWriter(fieldSchema, vec)
+            val writer = encoder.getWriter(vec)
 
             (encoder, vec, writer, g)
           }
@@ -97,6 +79,9 @@ object VectorSchemaRootEncoderDeriver {
       override def encodeField(value: A, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit =
         ValueEncoder.encodeStruct(value, record.fields, encoders, writer)
 
+      override def getWriter(vec: FieldVector): FieldWriter =
+        vec.asInstanceOf[StructVector].getWriter
+
     }
 
     override def deriveEnum[A](
@@ -108,17 +93,12 @@ object VectorSchemaRootEncoderDeriver {
     override def derivePrimitive[A](
       st: StandardType[A],
       summoned: => Option[VectorSchemaRootEncoder[A]]
-    ): VectorSchemaRootEncoder[A] = new VectorSchemaRootEncoder[A] {
-
-      override def encodeValue(value: A, name: Option[String], writer: FieldWriter)(implicit
-        alloc: BufferAllocator
-      ): Unit =
-        ValueEncoder.encodePrimitive(st, value, name, writer)
-
-      override def encodeField(value: A, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit =
-        ValueEncoder.encodePrimitive(st, value, writer)
-
-    }
+    ): VectorSchemaRootEncoder[A] =
+      VectorSchemaRootEncoder.primitive[A](
+        encodeValue0 = (v, name, writer, alloc) => ValueEncoder.encodePrimitive(st, v, name, writer)(alloc),
+        encodeField0 = (v, writer, alloc) => ValueEncoder.encodePrimitive(st, v, writer)(alloc),
+        getWriter0 = vec => primitiveWriter(st, vec)
+      )(st)
 
     override def deriveOption[A](
       option: Schema.Optional[A],
@@ -144,6 +124,9 @@ object VectorSchemaRootEncoderDeriver {
             writer.writeNull()
         }
 
+      override def getWriter(vec: FieldVector): FieldWriter =
+        inner.getWriter(vec)
+
     }
 
     override def deriveSequence[C[_], A](
@@ -162,6 +145,9 @@ object VectorSchemaRootEncoderDeriver {
 
       override def encodeField(value: C[A], writer: FieldWriter)(implicit alloc: BufferAllocator): Unit =
         ValueEncoder.encodeList(sequence.toChunk(value), inner, writer)
+
+      override def getWriter(vec: FieldVector): FieldWriter =
+        vec.asInstanceOf[ListVector].getWriter
 
     }
 

@@ -1,12 +1,12 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.memory.BufferAllocator
-import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.arrow.vector.complex.writer.FieldWriter
+import org.apache.arrow.vector.{FieldVector, VectorSchemaRoot}
 import zio._
-import zio.schema.{ Deriver, Factory, Schema }
+import zio.schema.{Deriver, Factory, Schema, StandardType}
 
-import scala.annotation.unused
+import scala.annotation.{nowarn, unused}
 import scala.util.control.NonFatal
 
 trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
@@ -37,6 +37,8 @@ trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
 
   def encodeField(value: A, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit
 
+  def getWriter(vec: FieldVector): FieldWriter
+
   final def contramap[B](f: B => A): VectorSchemaRootEncoder[B] =
     new VectorSchemaRootEncoder[B] {
 
@@ -53,11 +55,34 @@ trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
       override def encodeField(value: B, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit =
         self.encodeField(f(value), writer)
 
+      override def getWriter(vec: FieldVector): FieldWriter =
+        self.getWriter(vec)
+
     }
 
 }
 
 object VectorSchemaRootEncoder {
+
+  def primitive[A](
+    encodeValue0: (A, Option[String], FieldWriter, BufferAllocator) => Unit,
+    encodeField0: (A, FieldWriter, BufferAllocator) => Unit,
+    getWriter0: FieldVector => FieldWriter
+  )(implicit @nowarn ev: StandardType[A]): VectorSchemaRootEncoder[A] =
+    new VectorSchemaRootEncoder[A] {
+
+      override def encodeValue(value: A, name: Option[String], writer: FieldWriter)(implicit
+        alloc: BufferAllocator
+      ): Unit =
+        encodeValue0(value, name, writer, alloc)
+
+      override def encodeField(value: A, writer: FieldWriter)(implicit alloc: BufferAllocator): Unit =
+        encodeField0(value, writer, alloc)
+
+      override def getWriter(vec: FieldVector): FieldWriter =
+        getWriter0(vec)
+
+    }
 
   implicit def encoder[A: Factory: Schema]: VectorSchemaRootEncoder[A] =
     fromDefaultDeriver[A]

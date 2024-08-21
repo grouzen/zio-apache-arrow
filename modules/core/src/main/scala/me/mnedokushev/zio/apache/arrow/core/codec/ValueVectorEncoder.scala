@@ -81,7 +81,9 @@ object ValueVectorEncoder {
 
     }
 
-  implicit def encoder[V <: ValueVector, A: Schema](deriver: Deriver[ValueVectorEncoder[V, *]])(implicit factory: Factory[A]): ValueVectorEncoder[V, A] =
+  implicit def encoder[V <: ValueVector, A: Schema](deriver: Deriver[ValueVectorEncoder[V, *]])(implicit
+    factory: Factory[A]
+  ): ValueVectorEncoder[V, A] =
     factory.derive(deriver)
 
   implicit val stringEncoder: ValueVectorEncoder[VarCharVector, String]                           =

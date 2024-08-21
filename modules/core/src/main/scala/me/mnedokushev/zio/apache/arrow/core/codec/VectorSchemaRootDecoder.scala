@@ -3,7 +3,7 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import org.apache.arrow.vector.complex.reader.FieldReader
 import org.apache.arrow.vector.{ ValueVector, VectorSchemaRoot }
 import zio._
-import zio.schema.{ Deriver, DynamicValue, Factory, Schema }
+import zio.schema.{Deriver, DynamicValue, Factory, Schema, StandardType}
 
 import scala.annotation.unused
 import scala.util.control.NonFatal
@@ -58,6 +58,24 @@ trait VectorSchemaRootDecoder[A] extends ValueDecoder[A] { self =>
 }
 
 object VectorSchemaRootDecoder {
+
+  def primitive[A](
+    decode0: (StandardType[A], FieldReader) => DynamicValue
+  )(implicit st: StandardType[A]): VectorSchemaRootDecoder[A] =
+    new VectorSchemaRootDecoder[A] {
+
+      override def decodeValue[V0 <: ValueVector](
+        name: Option[String],
+        reader: FieldReader,
+        vec: V0,
+        idx: Int
+      ): DynamicValue =
+        decode0(st, resolveReaderByName(name, reader))
+
+      override def decodeField[V0 <: ValueVector](reader: FieldReader, vec: V0, idx: Int): DynamicValue =
+        decode0(st, reader)
+
+    }
 
   implicit def decoder[A: Factory: Schema]: VectorSchemaRootDecoder[A] =
     fromDefaultDeriver[A]

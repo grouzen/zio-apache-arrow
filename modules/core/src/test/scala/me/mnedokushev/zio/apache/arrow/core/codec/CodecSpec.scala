@@ -8,6 +8,7 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.StructVector
 import org.apache.arrow.vector.complex.impl.VarCharWriterImpl
+import org.apache.arrow.vector.types.pojo.ArrowType
 import zio._
 import zio.schema.Factory._
 import zio.schema.Schema._
@@ -59,6 +60,54 @@ object CodecSpec extends ZIOSpecDefault {
       Derive.derive[ValueVectorEncoder[StructVector, *], Summoned](ValueVectorEncoderDeriver.summoned[StructVector])
     implicit val decoder: ValueVectorDecoder[StructVector, Summoned] =
       Derive.derive[ValueVectorDecoder[StructVector, *], Summoned](ValueVectorDecoderDeriver.summoned[StructVector])
+  }
+
+  final case class Summoned0(a: Int, b: String)
+  object Summoned0 {
+    implicit val schema: Schema[Summoned0] =
+      DeriveSchema.gen[Summoned0]
+
+    implicit val intSchemaEncoder: SchemaEncoder[Int]    =
+      SchemaEncoder.primitive[Int] { case (name, nullable) =>
+        SchemaEncoder.primitiveField(name, new ArrowType.Utf8, nullable)
+      }
+    implicit val schemaEncoder: SchemaEncoder[Summoned0] =
+      Derive.derive[SchemaEncoder, Summoned0](SchemaEncoderDeriver.summoned)
+
+    implicit val intEncoder: VectorSchemaRootEncoder[Int] =
+      VectorSchemaRootEncoder.primitive(
+        encodeValue0 = { case (v, name, writer, alloc) =>
+          val s      = v.toString
+          val len    = s.length
+          val buffer = alloc.buffer(len.toLong)
+
+          buffer.writeBytes(s.getBytes(StandardCharsets.UTF_8))
+          name.fold(writer.varChar)(writer.varChar).writeVarChar(0, len, buffer)
+
+          buffer.close()
+        },
+        encodeField0 = { case (v, writer, alloc) =>
+          val s      = v.toString
+          val len    = s.length
+          val buffer = alloc.buffer(len.toLong)
+
+          buffer.writeBytes(s.getBytes(StandardCharsets.UTF_8))
+          writer.writeVarChar(0, len, buffer)
+
+          buffer.close()
+        },
+        getWriter0 = vec => new VarCharWriterImpl(vec.asInstanceOf[VarCharVector])
+      )
+
+    implicit val intDecoder: VectorSchemaRootDecoder[Int] =
+      VectorSchemaRootDecoder.primitive(
+        decode0 = (st, reader) => DynamicValue.Primitive[Int](reader.readText().toString.toInt, st)
+      )
+
+    implicit val encoder: VectorSchemaRootEncoder[Summoned0] =
+      Derive.derive[VectorSchemaRootEncoder, Summoned0](VectorSchemaRootEncoderDeriver.summoned)
+    implicit val decoder: VectorSchemaRootDecoder[Summoned0] =
+      Derive.derive[VectorSchemaRootDecoder, Summoned0](VectorSchemaRootDecoderDeriver.summoned)
   }
 
   override def spec: Spec[TestEnvironment with Scope, Any] =
@@ -611,6 +660,17 @@ object CodecSpec extends ZIOSpecDefault {
             nullablePrimitivesResult == nullablePrimitivesPayload,
             nullableListOfPrimitivesResult == nullableListOfPrimitivesPayload
           )
+        )
+      },
+      test("summoned") {
+        val payload = Chunk(Summoned0(1, "a"), Summoned0(2, "b"))
+
+        ZIO.scoped(
+          for {
+            root   <- Tabular.empty[Summoned0]
+            vec    <- Summoned0.encoder.encodeZIO(payload, root)
+            result <- Summoned0.decoder.decodeZIO(vec)
+          } yield assertTrue(result == payload)
         )
       }
     )

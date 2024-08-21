@@ -10,9 +10,6 @@ import scala.collection.immutable.ListMap
 
 object VectorSchemaRootDecoderDeriver {
 
-  private def resolveReaderByName(name: Option[String], reader: FieldReader) =
-    name.fold[FieldReader](reader.reader())(reader.reader(_))
-
   val default: Deriver[VectorSchemaRootDecoder] = new Deriver[VectorSchemaRootDecoder] {
 
     override def deriveRecord[A](
@@ -79,20 +76,8 @@ object VectorSchemaRootDecoderDeriver {
     override def derivePrimitive[A](
       st: StandardType[A],
       summoned: => Option[VectorSchemaRootDecoder[A]]
-    ): VectorSchemaRootDecoder[A] = new VectorSchemaRootDecoder[A] {
-
-      override def decodeValue[V0 <: ValueVector](
-        name: Option[String],
-        reader: FieldReader,
-        vec: V0,
-        idx: Int
-      ): DynamicValue =
-        ValueDecoder.decodePrimitive(st, resolveReaderByName(name, reader))
-
-      override def decodeField[V0 <: ValueVector](reader: FieldReader, vec: V0, idx: Int): DynamicValue =
-        ValueDecoder.decodePrimitive(st, reader)
-
-    }
+    ): VectorSchemaRootDecoder[A] =
+      VectorSchemaRootDecoder.primitive[A](ValueDecoder.decodePrimitive)(st)
 
     override def deriveOption[A](
       option: Schema.Optional[A],
