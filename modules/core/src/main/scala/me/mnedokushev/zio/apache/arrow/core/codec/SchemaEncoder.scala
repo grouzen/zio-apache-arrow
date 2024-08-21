@@ -3,8 +3,8 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import org.apache.arrow.vector.types.pojo.{ ArrowType, Field, FieldType, Schema => JSchema }
 import zio.schema.{ Deriver, Factory, Schema, StandardType }
 
-import scala.jdk.CollectionConverters._
 import scala.annotation.nowarn
+import scala.jdk.CollectionConverters._
 
 trait SchemaEncoder[A] { self =>
 
