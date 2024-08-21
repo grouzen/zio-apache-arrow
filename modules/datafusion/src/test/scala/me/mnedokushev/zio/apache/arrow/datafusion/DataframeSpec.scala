@@ -1,14 +1,13 @@
 package me.mnedokushev.zio.apache.arrow.datafusion
 
 import me.mnedokushev.zio.apache.arrow.core.Allocator
-import me.mnedokushev.zio.apache.arrow.core.codec.{ SchemaEncoder, SchemaEncoderDeriver }
+import me.mnedokushev.zio.apache.arrow.core.codec.{ SchemaEncoder, SchemaEncoderDeriver, VectorSchemaRootDecoder }
 import zio._
 import zio.schema._
 import zio.test.Assertion._
 import zio.test._
 
 import java.nio.file.Paths
-import me.mnedokushev.zio.apache.arrow.core.codec.VectorSchemaRootDecoder
 
 object DataframeSpec extends ZIOSpecDefault {
 

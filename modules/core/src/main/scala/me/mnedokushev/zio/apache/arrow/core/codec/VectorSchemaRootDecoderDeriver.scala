@@ -1,13 +1,12 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
-import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.complex.ListVector
 import org.apache.arrow.vector.complex.reader.FieldReader
+import org.apache.arrow.vector.{ ValueVector, VectorSchemaRoot }
 import zio.schema.{ Deriver, DynamicValue, Schema, StandardType, TypeId }
 import zio.{ Chunk, ChunkBuilder }
 
 import scala.collection.immutable.ListMap
-import org.apache.arrow.vector.ValueVector
-import org.apache.arrow.vector.complex.ListVector
 
 object VectorSchemaRootDecoderDeriver {
 

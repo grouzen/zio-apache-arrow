@@ -39,7 +39,7 @@ object SchemaEncoderDeriver {
           }
           .toList
 
-        SchemaEncoder.struct(name, fields0, nullable)
+        SchemaEncoder.structField(name, fields0, nullable)
       }
 
     }
@@ -63,7 +63,7 @@ object SchemaEncoderDeriver {
 
       override def encodeField(name: String, nullable: Boolean): Field = {
         def namedField(arrowType: ArrowType.PrimitiveType) =
-          SchemaEncoder.primitive(name, arrowType, nullable)
+          SchemaEncoder.primitiveField(name, arrowType, nullable)
 
         st match {
           case StandardType.StringType         =>
@@ -149,7 +149,7 @@ object SchemaEncoderDeriver {
     ): SchemaEncoder[C[A]] = new SchemaEncoder[C[A]] {
 
       override def encodeField(name: String, nullable: Boolean): Field =
-        SchemaEncoder.list(name, inner.encodeField("element", nullable = false), nullable)
+        SchemaEncoder.listField(name, inner.encodeField("element", nullable = false), nullable)
 
     }
 

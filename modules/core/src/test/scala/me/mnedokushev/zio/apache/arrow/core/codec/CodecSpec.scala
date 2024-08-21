@@ -5,16 +5,61 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import me.mnedokushev.zio.apache.arrow.core.Fixtures._
 import me.mnedokushev.zio.apache.arrow.core.{ Allocator, Tabular }
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector._
+import org.apache.arrow.vector.complex.StructVector
+import org.apache.arrow.vector.complex.impl.VarCharWriterImpl
 import zio._
-import zio.schema._
-import zio.schema.Schema._
 import zio.schema.Factory._
+import zio.schema.Schema._
+import zio.schema._
 import zio.test.Assertion._
 import zio.test.{ Spec, _ }
-import org.apache.arrow.vector._
+
+import java.nio.charset.StandardCharsets
 // import java.util.UUID
 
 object CodecSpec extends ZIOSpecDefault {
+
+  final case class Summoned(a: Int, b: String)
+  object Summoned {
+    implicit val schema: Schema[Summoned] =
+      DeriveSchema.gen[Summoned]
+
+    // TODO: fix summoning
+    implicit val intEncoder: ValueVectorEncoder[VarCharVector, Int] =
+      ValueVectorEncoder.primitive(
+        allocateVec = alloc => new VarCharVector("stringVector", alloc),
+        getWriter = vec => new VarCharWriterImpl(vec),
+        encodeTopLevel = { case (v, writer, alloc) =>
+          val s      = v.toString
+          val len    = s.length
+          val buffer = alloc.buffer(len.toLong)
+
+          buffer.writeBytes(s.getBytes(StandardCharsets.UTF_8))
+          writer.writeVarChar(0, len, buffer)
+
+          buffer.close()
+        },
+        encodeNested = { case (v, name, writer, alloc) =>
+          val s      = v.toString
+          val len    = s.length
+          val buffer = alloc.buffer(len.toLong)
+
+          buffer.writeBytes(s.getBytes(StandardCharsets.UTF_8))
+          name.fold(writer.varChar)(writer.varChar).writeVarChar(0, len, buffer)
+
+          buffer.close()
+        }
+      )
+
+    // implicit val intEncoder: ValueVectorEncoder[IntVector, String] =
+    //   ValueVectorEncoder.intEncoder.contramap[String](_.toInt)
+
+    implicit val encoder: ValueVectorEncoder[StructVector, Summoned] =
+      Derive.derive[ValueVectorEncoder[StructVector, *], Summoned](ValueVectorEncoderDeriver.summoned[StructVector])
+    implicit val decoder: ValueVectorDecoder[StructVector, Summoned] =
+      Derive.derive[ValueVectorDecoder[StructVector, *], Summoned](ValueVectorDecoderDeriver.summoned[StructVector])
+  }
 
   override def spec: Spec[TestEnvironment with Scope, Any] =
     suite("Codec")(
@@ -229,6 +274,7 @@ object CodecSpec extends ZIOSpecDefault {
         val yearCodec           = listChunkCodec[java.time.Year]
         val yearMonthCodec      = listChunkCodec[java.time.YearMonth]
         val zoneIdCodec         = listChunkCodec[java.time.ZoneId]
+        // TODO: fix compilation for scala 3.3
         val zoneOffsetCodec     = listChunkCodec[java.time.ZoneOffset]
         val durationCodec       = listChunkCodec[java.time.Duration]
         val instantCodec        = listChunkCodec[java.time.Instant]
@@ -486,10 +532,10 @@ object CodecSpec extends ZIOSpecDefault {
         import ValueVectorDecoder._
         import ValueVectorCodec._
 
-        val stringPayload                      = Chunk(Some("zio"), None, Some("arrow"))
-        val shortPayload: Chunk[Option[Short]] = Chunk(Some(3), Some(2), None)
-        val intPayload                         = Chunk(Some(1), None, Some(3))
-        val listStringPayload                  = Chunk(Some(Chunk("zio", "cats")), None)
+        val stringPayload     = Chunk(Some("zio"), None, Some("arrow"))
+        val shortPayload      = Chunk[Option[Short]](Some(3), Some(2), None)
+        val intPayload        = Chunk(Some(1), None, Some(3))
+        val listStringPayload = Chunk(Some(Chunk("zio", "cats")), None)
 
         val stringCodec     = optionCodec[VarCharVector, String]
         val shortCodec      = optionCodec[SmallIntVector, Short]
@@ -514,6 +560,19 @@ object CodecSpec extends ZIOSpecDefault {
           )
         )
       }
+      // TODO: summoning does not work :(
+      // test("summoned") {
+      //   val payload = Chunk(Summoned(1, "a"), Summoned(2, "b"))
+      //   // val codec   = ValueVectorCodec.codec[StructVector, Summoned]
+
+      //   ZIO.scoped(
+      //     for {
+      //       vec    <- Summoned.encoder.encodeZIO(payload)
+      //       // _       = println(vec)
+      //       result <- Summoned.decoder.decodeZIO(vec)
+      //     } yield assertTrue(result == payload)
+      //   )
+      // }
     )
 
   val vectorSchemaRootCodecSpec: Spec[BufferAllocator, Throwable] =

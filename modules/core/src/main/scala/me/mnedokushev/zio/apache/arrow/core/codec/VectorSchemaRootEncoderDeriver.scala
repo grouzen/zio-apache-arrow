@@ -4,11 +4,10 @@ import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.complex.impl.{ PromotableWriter, UnionListWriter }
 import org.apache.arrow.vector.complex.writer.FieldWriter
 import org.apache.arrow.vector.complex.{ ListVector, StructVector }
-// import org.apache.arrow.vector.{ FieldVector, VectorSchemaRoot }
+import org.apache.arrow.vector.{ FieldVector, VectorSchemaRoot }
 import zio.Chunk
 import zio.schema.{ Deriver, Schema, StandardType }
-import org.apache.arrow.vector.VectorSchemaRoot
-import org.apache.arrow.vector.FieldVector
+
 import scala.annotation.tailrec
 
 object VectorSchemaRootEncoderDeriver {

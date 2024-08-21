@@ -1,14 +1,13 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.memory.{ ArrowBuf, BufferAllocator }
-import org.apache.arrow.vector.complex.writer.FieldWriter
+import org.apache.arrow.vector.complex.writer.{ FieldWriter, _ }
 import zio.Chunk
 import zio.schema.{ Schema, StandardType }
 
 import java.nio.charset.StandardCharsets
 import java.time._
 import java.util.UUID
-import org.apache.arrow.vector.complex.writer._
 
 trait ValueEncoder[-A] {
 

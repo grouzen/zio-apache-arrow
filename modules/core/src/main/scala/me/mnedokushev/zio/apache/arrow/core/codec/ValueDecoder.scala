@@ -1,5 +1,6 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
+import org.apache.arrow.vector.ValueVector
 import org.apache.arrow.vector.complex.reader.FieldReader
 import zio.schema.{ DynamicValue, _ }
 import zio.{ Duration, _ }
@@ -8,7 +9,6 @@ import java.nio.ByteBuffer
 import java.time._
 import java.util.UUID
 import scala.collection.immutable.ListMap
-import org.apache.arrow.vector.ValueVector
 
 trait ValueDecoder[+A] {
 

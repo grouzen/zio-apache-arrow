@@ -1,13 +1,13 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.complex.writer.FieldWriter
 import zio._
 import zio.schema.{ Deriver, Factory, Schema }
 
 import scala.annotation.unused
 import scala.util.control.NonFatal
-import org.apache.arrow.vector.VectorSchemaRoot
-import org.apache.arrow.vector.complex.writer.FieldWriter
 
 trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
 
@@ -58,7 +58,7 @@ trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
 object VectorSchemaRootEncoder {
 
   implicit def encoder[A: Factory: Schema]: VectorSchemaRootEncoder[A] =
-    fromSummonedDeriver[A]
+    fromDefaultDeriver[A]
 
   def fromDeriver[A: Factory: Schema](deriver: Deriver[VectorSchemaRootEncoder]): VectorSchemaRootEncoder[A] =
     implicitly[Factory[A]].derive[VectorSchemaRootEncoder](deriver)

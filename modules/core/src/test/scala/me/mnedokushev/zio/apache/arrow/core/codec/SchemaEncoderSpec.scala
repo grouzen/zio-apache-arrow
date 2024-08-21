@@ -4,8 +4,8 @@ import me.mnedokushev.zio.apache.arrow.core.Fixtures._
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.pojo.{ ArrowType, Field, Schema => JSchema }
 import zio.Scope
-import zio.schema._
 import zio.schema.Factory._
+import zio.schema._
 import zio.test.Assertion._
 import zio.test.{ Spec, _ }
 
@@ -23,9 +23,8 @@ object SchemaEncoderSpec extends ZIOSpecDefault {
     implicit val schema: Schema[Summoned]               =
       DeriveSchema.gen[Summoned]
     implicit val intSchemaEncoder: SchemaEncoder[Int]   =
-      new SchemaEncoder[Int] {
-        override def encodeField(name: String, nullable: Boolean): Field =
-          SchemaEncoder.primitive(name, new ArrowType.Int(64, true), nullable)
+      SchemaEncoder.primitive[Int] { case (name, nullable) =>
+        SchemaEncoder.primitiveField(name, new ArrowType.Int(64, true), nullable)
       }
     // TODO: fix fromSummonedDeriver
     // implicit val schemaEncoder: SchemaEncoder[Summoned] =
@@ -40,13 +39,16 @@ object SchemaEncoderSpec extends ZIOSpecDefault {
         for {
           result <- Primitives.schemaEncoder.encode
           fields  = getFields(result)
-        } yield assert(fields)(contains(SchemaEncoder.primitive("a", new ArrowType.Int(32, true), nullable = false))) &&
+        } yield assert(fields)(
+          contains(SchemaEncoder.primitiveField("a", new ArrowType.Int(32, true), nullable = false))
+        ) &&
           assert(fields)(
             contains(
-              SchemaEncoder.primitive("b", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), nullable = false)
+              SchemaEncoder
+                .primitiveField("b", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), nullable = false)
             )
           ) &&
-          assert(fields)(contains(SchemaEncoder.primitive("c", new ArrowType.Utf8, nullable = false)))
+          assert(fields)(contains(SchemaEncoder.primitiveField("c", new ArrowType.Utf8, nullable = false)))
       },
       test("struct") {
         for {
@@ -54,16 +56,16 @@ object SchemaEncoderSpec extends ZIOSpecDefault {
           fields  = getFields(result)
         } yield assert(fields)(
           contains(
-            SchemaEncoder.struct(
+            SchemaEncoder.structField(
               "struct",
               List(
-                SchemaEncoder.primitive("a", new ArrowType.Int(32, true), nullable = false),
-                SchemaEncoder.primitive(
+                SchemaEncoder.primitiveField("a", new ArrowType.Int(32, true), nullable = false),
+                SchemaEncoder.primitiveField(
                   "b",
                   new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE),
                   nullable = false
                 ),
-                SchemaEncoder.primitive("c", new ArrowType.Utf8, nullable = false)
+                SchemaEncoder.primitiveField("c", new ArrowType.Utf8, nullable = false)
               ),
               nullable = false
             )
@@ -76,9 +78,9 @@ object SchemaEncoderSpec extends ZIOSpecDefault {
           fields  = getFields(result)
         } yield assert(fields)(
           contains(
-            SchemaEncoder.list(
+            SchemaEncoder.listField(
               "list",
-              SchemaEncoder.primitive("element", new ArrowType.Int(32, true), nullable = false),
+              SchemaEncoder.primitiveField("element", new ArrowType.Int(32, true), nullable = false),
               nullable = false
             )
           )
@@ -88,10 +90,13 @@ object SchemaEncoderSpec extends ZIOSpecDefault {
         for {
           result <- NullablePrimitives.schemaEncoder.encode
           fields  = getFields(result)
-        } yield assert(fields)(contains(SchemaEncoder.primitive("a", new ArrowType.Int(32, true), nullable = true))) &&
+        } yield assert(fields)(
+          contains(SchemaEncoder.primitiveField("a", new ArrowType.Int(32, true), nullable = true))
+        ) &&
           assert(fields)(
             contains(
-              SchemaEncoder.primitive("b", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), nullable = true)
+              SchemaEncoder
+                .primitiveField("b", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), nullable = true)
             )
           )
       },
@@ -99,13 +104,19 @@ object SchemaEncoderSpec extends ZIOSpecDefault {
         for {
           result <- Summoned.schemaEncoder.encode
           fields  = getFields(result)
-        } yield assert(fields)(contains(SchemaEncoder.primitive("a", new ArrowType.Int(64, true), nullable = false))) &&
+        } yield assert(fields)(
+          contains(SchemaEncoder.primitiveField("a", new ArrowType.Int(64, true), nullable = false))
+        ) &&
           assert(fields)(
             contains(
-              SchemaEncoder.primitive("b", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE), nullable = false)
+              SchemaEncoder.primitiveField(
+                "b",
+                new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE),
+                nullable = false
+              )
             )
           ) &&
-          assert(fields)(contains(SchemaEncoder.primitive("c", new ArrowType.Utf8, nullable = false)))
+          assert(fields)(contains(SchemaEncoder.primitiveField("c", new ArrowType.Utf8, nullable = false)))
       }
     )
 

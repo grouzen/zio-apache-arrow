@@ -64,7 +64,7 @@ object ValueVectorEncoderDeriver {
       st: StandardType[A],
       summoned: => Option[ValueVectorEncoder[V1, A]]
     ): ValueVectorEncoder[V1, A] =
-      ValueVectorEncoder.overridePrimitive[V1, A](
+      ValueVectorEncoder.primitive[V1, A](
         allocateVec = { alloc =>
           val vec = st match {
             case StandardType.StringType         =>
@@ -130,10 +130,10 @@ object ValueVectorEncoderDeriver {
           }
           vec.asInstanceOf[V1]
         },
-        getWriter = { vec => primitiveWriter(st, vec.asInstanceOf[FieldVector]) },
-        encodeTop = { (v, writer, alloc) => ValueEncoder.encodePrimitive(st, v, writer)(alloc) },
-        encodeNested = { (v, name, writer, alloc) => ValueEncoder.encodePrimitive(st, v, name, writer)(alloc) }
-      )
+        getWriter = vec => primitiveWriter(st, vec.asInstanceOf[FieldVector]),
+        encodeTopLevel = (v, writer, alloc) => ValueEncoder.encodePrimitive(st, v, writer)(alloc),
+        encodeNested = (v, name, writer, alloc) => ValueEncoder.encodePrimitive(st, v, name, writer)(alloc)
+      )(st)
 
     override def deriveOption[A](
       option: Schema.Optional[A],

@@ -1,17 +1,12 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.vector._
+import org.apache.arrow.vector.complex.reader.FieldReader
+import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import zio._
-import zio.schema.Derive
-import zio.schema.Factory
+import zio.schema.{ Derive, Deriver, DynamicValue, Factory, Schema, StandardType }
 
 import scala.util.control.NonFatal
-import zio.schema.Deriver
-import org.apache.arrow.vector.complex.ListVector
-import zio.schema.Schema
-import org.apache.arrow.vector.complex.reader.FieldReader
-import zio.schema.DynamicValue
-import org.apache.arrow.vector.complex.StructVector
 
 trait ValueVectorDecoder[V <: ValueVector, A] extends ValueDecoder[A] { self =>
 
@@ -58,100 +53,131 @@ trait ValueVectorDecoder[V <: ValueVector, A] extends ValueDecoder[A] { self =>
 
 object ValueVectorDecoder {
 
+  def primitive[V <: ValueVector, A](
+    decode0: (StandardType[A], FieldReader) => DynamicValue
+  )(implicit st: StandardType[A]): ValueVectorDecoder[V, A] =
+    new ValueVectorDecoder[V, A] {
+
+      override def decodeUnsafe(vec: V): Chunk[A] = {
+        var idx     = 0
+        val len     = vec.getValueCount
+        val builder = ChunkBuilder.make[A](len)
+        val reader  = vec.getReader
+
+        while (idx < len) {
+          reader.setPosition(idx)
+          val dynamicValue = decode0(st, reader)
+
+          dynamicValue.toTypedValue(Schema.primitive(st)) match {
+            case Right(v)      =>
+              builder.addOne(v)
+              idx += 1
+            case Left(message) =>
+              throw DecoderError(message)
+          }
+        }
+
+        builder.result()
+      }
+
+      override def decodeNullableUnsafe(vec: V): Chunk[Option[A]] = {
+        var idx     = 0
+        val len     = vec.getValueCount
+        val builder = ChunkBuilder.make[Option[A]](len)
+        val reader  = vec.getReader
+
+        while (idx < len) {
+          if (!vec.isNull(idx)) {
+            reader.setPosition(idx)
+            val dynamicValue = decode0(st, reader)
+
+            dynamicValue.toTypedValue(Schema.primitive(st)) match {
+              case Right(v)      =>
+                builder.addOne(Some(v))
+              case Left(message) =>
+                throw DecoderError(message)
+            }
+          } else {
+            builder.addOne(None)
+          }
+
+          idx += 1
+        }
+
+        builder.result()
+      }
+
+      override def decodeValue[V0 <: ValueVector](
+        name: Option[String],
+        reader: FieldReader,
+        vec: V0,
+        idx: Int
+      ): DynamicValue =
+        decode0(st, resolveReaderByName(name, reader))
+
+    }
+
+  implicit def decoder[V <: ValueVector, A: Schema](implicit factory: Factory[A]): ValueVectorDecoder[V, A] =
+    factory.derive(ValueVectorDecoderDeriver.default[V])
+
   implicit val stringDecoder: ValueVectorDecoder[VarCharVector, String]                           =
-    Derive.derive[ValueVectorDecoder[VarCharVector, *], String](ValueVectorDecoderDeriver.default[VarCharVector])
+    decoder[VarCharVector, String]
   implicit val boolDecoder: ValueVectorDecoder[BitVector, Boolean]                                =
-    Derive.derive[ValueVectorDecoder[BitVector, *], Boolean](ValueVectorDecoderDeriver.default[BitVector])
+    decoder[BitVector, Boolean]
   implicit val byteDecoder: ValueVectorDecoder[UInt1Vector, Byte]                                 =
-    Derive.derive[ValueVectorDecoder[UInt1Vector, *], Byte](ValueVectorDecoderDeriver.default[UInt1Vector])
+    decoder[UInt1Vector, Byte]
   implicit val shortDecoder: ValueVectorDecoder[SmallIntVector, Short]                            =
-    Derive.derive[ValueVectorDecoder[SmallIntVector, *], Short](ValueVectorDecoderDeriver.default[SmallIntVector])
+    decoder[SmallIntVector, Short]
   implicit val intDecoder: ValueVectorDecoder[IntVector, Int]                                     =
-    Derive.derive[ValueVectorDecoder[IntVector, *], Int](ValueVectorDecoderDeriver.default[IntVector])
+    decoder[IntVector, Int]
   implicit val longDecoder: ValueVectorDecoder[BigIntVector, Long]                                =
-    Derive.derive[ValueVectorDecoder[BigIntVector, *], Long](ValueVectorDecoderDeriver.default[BigIntVector])
+    decoder[BigIntVector, Long]
   implicit val floatDecoder: ValueVectorDecoder[Float4Vector, Float]                              =
-    Derive.derive[ValueVectorDecoder[Float4Vector, *], Float](ValueVectorDecoderDeriver.default[Float4Vector])
+    decoder[Float4Vector, Float]
   implicit val doubleDecoder: ValueVectorDecoder[Float8Vector, Double]                            =
-    Derive.derive[ValueVectorDecoder[Float8Vector, *], Double](ValueVectorDecoderDeriver.default[Float8Vector])
+    decoder[Float8Vector, Double]
   implicit val binaryDecoder: ValueVectorDecoder[LargeVarBinaryVector, Chunk[Byte]]               =
-    Derive.derive[ValueVectorDecoder[LargeVarBinaryVector, *], Chunk[Byte]](
-      ValueVectorDecoderDeriver.default[LargeVarBinaryVector]
-    )
+    decoder[LargeVarBinaryVector, Chunk[Byte]]
   implicit val charDecoder: ValueVectorDecoder[UInt2Vector, Char]                                 =
-    Derive.derive[ValueVectorDecoder[UInt2Vector, *], Char](ValueVectorDecoderDeriver.default[UInt2Vector])
+    decoder[UInt2Vector, Char]
   implicit val uuidDecoder: ValueVectorDecoder[VarBinaryVector, java.util.UUID]                   =
-    Derive.derive[ValueVectorDecoder[VarBinaryVector, *], java.util.UUID](
-      ValueVectorDecoderDeriver.default[VarBinaryVector]
-    )
+    decoder[VarBinaryVector, java.util.UUID]
   implicit val bigDecimalDecoder: ValueVectorDecoder[DecimalVector, java.math.BigDecimal]         =
-    Derive.derive[ValueVectorDecoder[DecimalVector, *], java.math.BigDecimal](
-      ValueVectorDecoderDeriver.default[DecimalVector]
-    )
+    decoder[DecimalVector, java.math.BigDecimal]
   implicit val bigIntegerDecoder: ValueVectorDecoder[VarBinaryVector, java.math.BigInteger]       =
-    Derive.derive[ValueVectorDecoder[VarBinaryVector, *], java.math.BigInteger](
-      ValueVectorDecoderDeriver.default[VarBinaryVector]
-    )
+    decoder[VarBinaryVector, java.math.BigInteger]
   implicit val dayOfWeekDecoder: ValueVectorDecoder[IntVector, java.time.DayOfWeek]               =
-    Derive.derive[ValueVectorDecoder[IntVector, *], java.time.DayOfWeek](
-      ValueVectorDecoderDeriver.default[IntVector]
-    )
+    decoder[IntVector, java.time.DayOfWeek]
   implicit val monthDecoder: ValueVectorDecoder[IntVector, java.time.Month]                       =
-    Derive.derive[ValueVectorDecoder[IntVector, *], java.time.Month](ValueVectorDecoderDeriver.default[IntVector])
+    decoder[IntVector, java.time.Month]
   implicit val monthDayDecoder: ValueVectorDecoder[BigIntVector, java.time.MonthDay]              =
-    Derive.derive[ValueVectorDecoder[BigIntVector, *], java.time.MonthDay](
-      ValueVectorDecoderDeriver.default[BigIntVector]
-    )
+    decoder[BigIntVector, java.time.MonthDay]
   implicit val periodDecoder: ValueVectorDecoder[VarBinaryVector, java.time.Period]               =
-    Derive.derive[ValueVectorDecoder[VarBinaryVector, *], java.time.Period](
-      ValueVectorDecoderDeriver.default[VarBinaryVector]
-    )
+    decoder[VarBinaryVector, java.time.Period]
   implicit val yearDecoder: ValueVectorDecoder[IntVector, java.time.Year]                         =
-    Derive.derive[ValueVectorDecoder[IntVector, *], java.time.Year](ValueVectorDecoderDeriver.default[IntVector])
+    decoder[IntVector, java.time.Year]
   implicit val yearMonthDecoder: ValueVectorDecoder[BigIntVector, java.time.YearMonth]            =
-    Derive.derive[ValueVectorDecoder[BigIntVector, *], java.time.YearMonth](
-      ValueVectorDecoderDeriver.default[BigIntVector]
-    )
+    decoder[BigIntVector, java.time.YearMonth]
   implicit val zoneIdDecoder: ValueVectorDecoder[VarCharVector, java.time.ZoneId]                 =
-    Derive.derive[ValueVectorDecoder[VarCharVector, *], java.time.ZoneId](
-      ValueVectorDecoderDeriver.default[VarCharVector]
-    )
+    decoder[VarCharVector, java.time.ZoneId]
   implicit val zoneOffsetDecoder: ValueVectorDecoder[VarCharVector, java.time.ZoneOffset]         =
-    Derive.derive[ValueVectorDecoder[VarCharVector, *], java.time.ZoneOffset](
-      ValueVectorDecoderDeriver.default[VarCharVector]
-    )
+    decoder[VarCharVector, java.time.ZoneOffset]
   implicit val durationDecoder: ValueVectorDecoder[BigIntVector, java.time.Duration]              =
-    Derive.derive[ValueVectorDecoder[BigIntVector, *], java.time.Duration](
-      ValueVectorDecoderDeriver.default[BigIntVector]
-    )
+    decoder[BigIntVector, java.time.Duration]
   implicit val instantDecoder: ValueVectorDecoder[BigIntVector, java.time.Instant]                =
-    Derive.derive[ValueVectorDecoder[BigIntVector, *], java.time.Instant](
-      ValueVectorDecoderDeriver.default[BigIntVector]
-    )
+    decoder[BigIntVector, java.time.Instant]
   implicit val localDateDecoder: ValueVectorDecoder[VarCharVector, java.time.LocalDate]           =
-    Derive.derive[ValueVectorDecoder[VarCharVector, *], java.time.LocalDate](
-      ValueVectorDecoderDeriver.default[VarCharVector]
-    )
+    decoder[VarCharVector, java.time.LocalDate]
   implicit val localTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.LocalTime]           =
-    Derive.derive[ValueVectorDecoder[VarCharVector, *], java.time.LocalTime](
-      ValueVectorDecoderDeriver.default[VarCharVector]
-    )
+    decoder[VarCharVector, java.time.LocalTime]
   implicit val localDateTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.LocalDateTime]   =
-    Derive.derive[ValueVectorDecoder[VarCharVector, *], java.time.LocalDateTime](
-      ValueVectorDecoderDeriver.default[VarCharVector]
-    )
+    decoder[VarCharVector, java.time.LocalDateTime]
   implicit val offsetTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.OffsetTime]         =
-    Derive.derive[ValueVectorDecoder[VarCharVector, *], java.time.OffsetTime](
-      ValueVectorDecoderDeriver.default[VarCharVector]
-    )
+    decoder[VarCharVector, java.time.OffsetTime]
   implicit val offsetDateTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.OffsetDateTime] =
-    Derive.derive[ValueVectorDecoder[VarCharVector, *], java.time.OffsetDateTime](
-      ValueVectorDecoderDeriver.default[VarCharVector]
-    )
+    decoder[VarCharVector, java.time.OffsetDateTime]
   implicit val zonedDateTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.ZonedDateTime]   =
-    Derive.derive[ValueVectorDecoder[VarCharVector, *], java.time.ZonedDateTime](
-      ValueVectorDecoderDeriver.default[VarCharVector]
-    )
+    decoder[VarCharVector, java.time.ZonedDateTime]
 
   implicit def listDecoder[A, C[_]](implicit
     factory: Factory[C[A]],

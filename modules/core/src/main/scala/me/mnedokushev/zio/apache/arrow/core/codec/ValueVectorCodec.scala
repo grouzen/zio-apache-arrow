@@ -1,11 +1,10 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import org.apache.arrow.vector.{ ValueVector, _ }
 import zio._
-import org.apache.arrow.vector.complex.ListVector
 import zio.schema.Schema
-import org.apache.arrow.vector.complex.StructVector
 
 final case class ValueVectorCodec[V <: ValueVector, A](
   encoder: ValueVectorEncoder[V, A],
@@ -100,7 +99,7 @@ object ValueVectorCodec {
     encoder: ValueVectorEncoder[ListVector, C[A]],
     decoder: ValueVectorDecoder[ListVector, C[A]]
   ): ValueVectorCodec[ListVector, C[A]] =
-    ValueVectorCodec[ListVector, C[A]](encoder, decoder)
+    codec[ListVector, C[A]]
 
   implicit def listChunkCodec[A](implicit
     encoder: ValueVectorEncoder[ListVector, Chunk[A]],
@@ -124,13 +123,13 @@ object ValueVectorCodec {
     encoder: ValueVectorEncoder[StructVector, A],
     decoder: ValueVectorDecoder[StructVector, A]
   ): ValueVectorCodec[StructVector, A] =
-    ValueVectorCodec[StructVector, A](encoder, decoder)
+    codec[StructVector, A]
 
   implicit def optionCodec[V <: ValueVector, A](implicit
     encoder: ValueVectorEncoder[V, Option[A]],
     decoder: ValueVectorDecoder[V, Option[A]]
   ): ValueVectorCodec[V, Option[A]] =
-    ValueVectorCodec[V, Option[A]](encoder, decoder)
+    codec[V, Option[A]]
 
   implicit def optionListCodec[A, C[_]](implicit
     encoder: ValueVectorEncoder[ListVector, Option[C[A]]],

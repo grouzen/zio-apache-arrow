@@ -1,16 +1,12 @@
 package me.mnedokushev.zio.apache.arrow.core.codec
 
 import org.apache.arrow.vector.ValueVector
+import org.apache.arrow.vector.complex.ListVector
 import org.apache.arrow.vector.complex.reader.FieldReader
 import zio.schema.{ Deriver, DynamicValue, Schema, StandardType }
 import zio.{ Chunk, ChunkBuilder }
-import org.apache.arrow.vector.complex.ListVector
-// import org.apache.arrow.vector.complex.ListVector
 
 object ValueVectorDecoderDeriver {
-
-  private def resolveReaderByName(name: Option[String], reader: FieldReader) =
-    name.fold[FieldReader](reader.reader())(reader.reader(_))
 
   def default[V1 <: ValueVector]: Deriver[ValueVectorDecoder[V1, *]] = new Deriver[ValueVectorDecoder[V1, *]] {
 
@@ -91,66 +87,8 @@ object ValueVectorDecoderDeriver {
     override def derivePrimitive[A](
       st: StandardType[A],
       summoned: => Option[ValueVectorDecoder[V1, A]]
-    ): ValueVectorDecoder[V1, A] = new ValueVectorDecoder[V1, A] {
-
-      override def decodeUnsafe(vec: V1): Chunk[A] = {
-        var idx     = 0
-        val len     = vec.getValueCount
-        val builder = ChunkBuilder.make[A](len)
-        val reader  = vec.getReader
-
-        while (idx < len) {
-          reader.setPosition(idx)
-          val dynamicValue = ValueDecoder.decodePrimitive(st, reader)
-
-          dynamicValue.toTypedValue(Schema.primitive(st)) match {
-            case Right(v)      =>
-              builder.addOne(v)
-              idx += 1
-            case Left(message) =>
-              throw DecoderError(message)
-          }
-        }
-
-        builder.result()
-      }
-
-      override def decodeNullableUnsafe(vec: V1): Chunk[Option[A]] = {
-        var idx     = 0
-        val len     = vec.getValueCount
-        val builder = ChunkBuilder.make[Option[A]](len)
-        val reader  = vec.getReader
-
-        while (idx < len) {
-          if (!vec.isNull(idx)) {
-            reader.setPosition(idx)
-            val dynamicValue = ValueDecoder.decodePrimitive(st, reader)
-
-            dynamicValue.toTypedValue(Schema.primitive(st)) match {
-              case Right(v)      =>
-                builder.addOne(Some(v))
-              case Left(message) =>
-                throw DecoderError(message)
-            }
-          } else {
-            builder.addOne(None)
-          }
-
-          idx += 1
-        }
-
-        builder.result()
-      }
-
-      override def decodeValue[V0 <: ValueVector](
-        name: Option[String],
-        reader: FieldReader,
-        vec: V0,
-        idx: Int
-      ): DynamicValue =
-        ValueDecoder.decodePrimitive(st, resolveReaderByName(name, reader))
-
-    }
+    ): ValueVectorDecoder[V1, A] =
+      ValueVectorDecoder.primitive[V1, A](ValueDecoder.decodePrimitive)(st)
 
     override def deriveOption[A](
       option: Schema.Optional[A],

@@ -1,10 +1,13 @@
 package me.mnedokushev.zio.apache.arrow.core
 
-import me.mnedokushev.zio.apache.arrow.core.codec.{ SchemaEncoder, SchemaEncoderDeriver }
-import zio.schema._
+import me.mnedokushev.zio.apache.arrow.core.codec.{
+  SchemaEncoder,
+  SchemaEncoderDeriver,
+  VectorSchemaRootCodec,
+  VectorSchemaRootDecoder
+}
 import zio.schema.Factory._
-import me.mnedokushev.zio.apache.arrow.core.codec.VectorSchemaRootDecoder
-import me.mnedokushev.zio.apache.arrow.core.codec.VectorSchemaRootCodec
+import zio.schema._
 
 object Fixtures {
 

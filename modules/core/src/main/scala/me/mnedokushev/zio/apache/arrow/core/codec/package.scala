@@ -1,10 +1,10 @@
 package me.mnedokushev.zio.apache.arrow.core
 
-import zio.schema.StandardType
-import org.apache.arrow.vector.FieldVector
-import org.apache.arrow.vector.complex.writer.FieldWriter
-import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.impl._
+import org.apache.arrow.vector.complex.reader.FieldReader
+import org.apache.arrow.vector.complex.writer.FieldWriter
+import org.apache.arrow.vector.{ FieldVector, _ }
+import zio.schema.StandardType
 
 package object codec {
 
@@ -71,5 +71,8 @@ package object codec {
       case (other, _)                                             =>
         throw EncoderError(s"Unsupported ZIO Schema StandardType $other")
     }
+
+  def resolveReaderByName(name: Option[String], reader: FieldReader) =
+    name.fold[FieldReader](reader.reader())(reader.reader(_))
 
 }
