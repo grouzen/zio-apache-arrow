@@ -3,7 +3,7 @@ package me.mnedokushev.zio.apache.arrow.core.codec
 import org.apache.arrow.vector.complex.reader.FieldReader
 import org.apache.arrow.vector.{ ValueVector, VectorSchemaRoot }
 import zio._
-import zio.schema.{Deriver, DynamicValue, Factory, Schema, StandardType}
+import zio.schema.{ Deriver, DynamicValue, Factory, Schema, StandardType }
 
 import scala.annotation.unused
 import scala.util.control.NonFatal
