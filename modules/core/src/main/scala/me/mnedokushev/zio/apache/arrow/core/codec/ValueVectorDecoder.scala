@@ -4,32 +4,11 @@ import org.apache.arrow.vector._
 import org.apache.arrow.vector.complex.reader.FieldReader
 import org.apache.arrow.vector.complex.{ ListVector, StructVector }
 import zio._
-import zio.schema._
+import zio.schema.{ Derive, Deriver, DynamicValue, Factory, Schema, StandardType }
 
-import java.nio.ByteBuffer
-import java.time.{
-  DayOfWeek,
-  Instant,
-  LocalDate,
-  LocalDateTime,
-  LocalTime,
-  Month,
-  MonthDay,
-  OffsetDateTime,
-  OffsetTime,
-  Period,
-  Year,
-  YearMonth,
-  ZoneId,
-  ZoneOffset,
-  ZonedDateTime
-}
-import java.util.UUID
-import scala.annotation.tailrec
-import scala.collection.immutable.ListMap
 import scala.util.control.NonFatal
 
-trait ValueVectorDecoder[V <: ValueVector, +A] { self =>
+trait ValueVectorDecoder[V <: ValueVector, A] extends ValueDecoder[A] { self =>
 
   final def decodeZIO(vec: V): Task[Chunk[A]] =
     ZIO.fromEither(decode(vec))
@@ -42,213 +21,251 @@ trait ValueVectorDecoder[V <: ValueVector, +A] { self =>
       case NonFatal(ex)               => Left(DecoderError("Error decoding vector", Some(ex)))
     }
 
-  protected def decodeUnsafe(vec: V): Chunk[A]
+  def decodeUnsafe(vec: V): Chunk[A]
 
-  final def map[B](f: A => B): ValueVectorDecoder[V, B] =
+  def decodeNullableUnsafe(vec: V): Chunk[Option[A]]
+
+  final def map[B](f: A => B)(implicit schemaSrc: Schema[A], schemaDst: Schema[B]): ValueVectorDecoder[V, B] =
     new ValueVectorDecoder[V, B] {
-      override protected def decodeUnsafe(vec: V): Chunk[B] =
+
+      override def decodeUnsafe(vec: V): Chunk[B] =
         self.decodeUnsafe(vec).map(f)
+
+      override def decodeNullableUnsafe(vec: V): Chunk[Option[B]] =
+        self.decodeNullableUnsafe(vec).map(_.map(f))
+
+      override def decodeValue[V0 <: ValueVector](
+        name: Option[String],
+        reader: FieldReader,
+        vec: V0,
+        idx: Int
+      ): DynamicValue =
+        self
+          .decodeValue(name, reader, vec, idx)
+          .toValue(schemaSrc)
+          .map(a => schemaDst.toDynamic(f(a)))
+          .toTry
+          .get
+
     }
 
 }
 
 object ValueVectorDecoder {
 
-  def apply[V <: ValueVector, A](implicit decoder: ValueVectorDecoder[V, A]): ValueVectorDecoder[V, A] =
-    decoder
-
-  implicit def primitive[V <: ValueVector, A](implicit schema: Schema[A]): ValueVectorDecoder[V, A] =
+  def primitive[V <: ValueVector, A](
+    decode0: (StandardType[A], FieldReader) => DynamicValue
+  )(implicit st: StandardType[A]): ValueVectorDecoder[V, A] =
     new ValueVectorDecoder[V, A] {
-      override protected def decodeUnsafe(vec: V): Chunk[A] =
-        schema match {
-          case Schema.Primitive(standardType, _) =>
-            var idx     = 0
-            val len     = vec.getValueCount
-            val builder = ChunkBuilder.make[A](len)
-            val reader  = vec.getReader
 
-            while (idx < len) {
-              reader.setPosition(idx)
-              val dynamicValue = decodePrimitive(standardType, reader)
-
-              dynamicValue.toTypedValue match {
-                case Right(v)      =>
-                  builder.addOne(v)
-                  idx += 1
-                case Left(message) =>
-                  throw DecoderError(message)
-              }
-            }
-
-            builder.result()
-          case _                                 =>
-            throw DecoderError(s"Given ZIO schema must be of type Schema.Primitive[Val]")
-        }
-    }
-
-  implicit def list[A](implicit schema: Schema[A]): ValueVectorDecoder[ListVector, Chunk[A]] =
-    new ValueVectorDecoder[ListVector, Chunk[A]] {
-      override protected def decodeUnsafe(vec: ListVector): Chunk[Chunk[A]] = {
+      override def decodeUnsafe(vec: V): Chunk[A] = {
         var idx     = 0
         val len     = vec.getValueCount
-        val builder = ChunkBuilder.make[Chunk[A]](len)
+        val builder = ChunkBuilder.make[A](len)
         val reader  = vec.getReader
 
         while (idx < len) {
-          val innerBuilder = ChunkBuilder.make[A]()
-
           reader.setPosition(idx)
-          while (reader.next())
-            if (reader.isSet) {
-              val dynamicValue = decodeSchema(None, schema, reader)
+          val dynamicValue = decode0(st, reader)
 
-              dynamicValue.toTypedValue match {
-                case Right(v)      => innerBuilder.addOne(v)
-                case Left(message) => throw DecoderError(message)
-              }
+          dynamicValue.toTypedValue(Schema.primitive(st)) match {
+            case Right(v)      =>
+              builder.addOne(v)
+              idx += 1
+            case Left(message) =>
+              throw DecoderError(message)
+          }
+        }
+
+        builder.result()
+      }
+
+      override def decodeNullableUnsafe(vec: V): Chunk[Option[A]] = {
+        var idx     = 0
+        val len     = vec.getValueCount
+        val builder = ChunkBuilder.make[Option[A]](len)
+        val reader  = vec.getReader
+
+        while (idx < len) {
+          if (!vec.isNull(idx)) {
+            reader.setPosition(idx)
+            val dynamicValue = decode0(st, reader)
+
+            dynamicValue.toTypedValue(Schema.primitive(st)) match {
+              case Right(v)      =>
+                builder.addOne(Some(v))
+              case Left(message) =>
+                throw DecoderError(message)
             }
+          } else {
+            builder.addOne(None)
+          }
 
-          builder.addOne(innerBuilder.result())
           idx += 1
         }
 
         builder.result()
       }
+
+      override def decodeValue[V0 <: ValueVector](
+        name: Option[String],
+        reader: FieldReader,
+        vec: V0,
+        idx: Int
+      ): DynamicValue =
+        decode0(st, resolveReaderByName(name, reader))
+
     }
 
-  implicit def struct[A](implicit schema: Schema[A]): ValueVectorDecoder[StructVector, A] =
-    new ValueVectorDecoder[StructVector, A] {
-      override protected def decodeUnsafe(vec: StructVector): Chunk[A] =
-        schema match {
-          case record: Schema.Record[A] =>
-            var idx     = 0
-            val len     = vec.getValueCount
-            val builder = ChunkBuilder.make[A](len)
-            val reader  = vec.getReader
+  implicit def decoder[V <: ValueVector, A: Schema](deriver: Deriver[ValueVectorDecoder[V, *]])(implicit
+    factory: Factory[A]
+  ): ValueVectorDecoder[V, A] =
+    factory.derive(deriver)
 
-            while (idx < len) {
-              reader.setPosition(idx)
-              val dynamicValue = decodeCaseClass(record.fields, reader)
+  implicit val stringDecoder: ValueVectorDecoder[VarCharVector, String]                           =
+    decoder[VarCharVector, String](ValueVectorDecoderDeriver.default)
+  implicit val boolDecoder: ValueVectorDecoder[BitVector, Boolean]                                =
+    decoder[BitVector, Boolean](ValueVectorDecoderDeriver.default)
+  implicit val byteDecoder: ValueVectorDecoder[UInt1Vector, Byte]                                 =
+    decoder[UInt1Vector, Byte](ValueVectorDecoderDeriver.default)
+  implicit val shortDecoder: ValueVectorDecoder[SmallIntVector, Short]                            =
+    decoder[SmallIntVector, Short](ValueVectorDecoderDeriver.default)
+  implicit val intDecoder: ValueVectorDecoder[IntVector, Int]                                     =
+    decoder[IntVector, Int](ValueVectorDecoderDeriver.default)
+  implicit val longDecoder: ValueVectorDecoder[BigIntVector, Long]                                =
+    decoder[BigIntVector, Long](ValueVectorDecoderDeriver.default)
+  implicit val floatDecoder: ValueVectorDecoder[Float4Vector, Float]                              =
+    decoder[Float4Vector, Float](ValueVectorDecoderDeriver.default)
+  implicit val doubleDecoder: ValueVectorDecoder[Float8Vector, Double]                            =
+    decoder[Float8Vector, Double](ValueVectorDecoderDeriver.default)
+  implicit val binaryDecoder: ValueVectorDecoder[LargeVarBinaryVector, Chunk[Byte]]               =
+    decoder[LargeVarBinaryVector, Chunk[Byte]](ValueVectorDecoderDeriver.default)
+  implicit val charDecoder: ValueVectorDecoder[UInt2Vector, Char]                                 =
+    decoder[UInt2Vector, Char](ValueVectorDecoderDeriver.default)
+  implicit val uuidDecoder: ValueVectorDecoder[VarBinaryVector, java.util.UUID]                   =
+    decoder[VarBinaryVector, java.util.UUID](ValueVectorDecoderDeriver.default)
+  implicit val bigDecimalDecoder: ValueVectorDecoder[DecimalVector, java.math.BigDecimal]         =
+    decoder[DecimalVector, java.math.BigDecimal](ValueVectorDecoderDeriver.default)
+  implicit val bigIntegerDecoder: ValueVectorDecoder[VarBinaryVector, java.math.BigInteger]       =
+    decoder[VarBinaryVector, java.math.BigInteger](ValueVectorDecoderDeriver.default)
+  implicit val dayOfWeekDecoder: ValueVectorDecoder[IntVector, java.time.DayOfWeek]               =
+    decoder[IntVector, java.time.DayOfWeek](ValueVectorDecoderDeriver.default)
+  implicit val monthDecoder: ValueVectorDecoder[IntVector, java.time.Month]                       =
+    decoder[IntVector, java.time.Month](ValueVectorDecoderDeriver.default)
+  implicit val monthDayDecoder: ValueVectorDecoder[BigIntVector, java.time.MonthDay]              =
+    decoder[BigIntVector, java.time.MonthDay](ValueVectorDecoderDeriver.default)
+  implicit val periodDecoder: ValueVectorDecoder[VarBinaryVector, java.time.Period]               =
+    decoder[VarBinaryVector, java.time.Period](ValueVectorDecoderDeriver.default)
+  implicit val yearDecoder: ValueVectorDecoder[IntVector, java.time.Year]                         =
+    decoder[IntVector, java.time.Year](ValueVectorDecoderDeriver.default)
+  implicit val yearMonthDecoder: ValueVectorDecoder[BigIntVector, java.time.YearMonth]            =
+    decoder[BigIntVector, java.time.YearMonth](ValueVectorDecoderDeriver.default)
+  implicit val zoneIdDecoder: ValueVectorDecoder[VarCharVector, java.time.ZoneId]                 =
+    decoder[VarCharVector, java.time.ZoneId](ValueVectorDecoderDeriver.default)
+  implicit val zoneOffsetDecoder: ValueVectorDecoder[VarCharVector, java.time.ZoneOffset]         =
+    decoder[VarCharVector, java.time.ZoneOffset](ValueVectorDecoderDeriver.default)
+  implicit val durationDecoder: ValueVectorDecoder[BigIntVector, java.time.Duration]              =
+    decoder[BigIntVector, java.time.Duration](ValueVectorDecoderDeriver.default)
+  implicit val instantDecoder: ValueVectorDecoder[BigIntVector, java.time.Instant]                =
+    decoder[BigIntVector, java.time.Instant](ValueVectorDecoderDeriver.default)
+  implicit val localDateDecoder: ValueVectorDecoder[VarCharVector, java.time.LocalDate]           =
+    decoder[VarCharVector, java.time.LocalDate](ValueVectorDecoderDeriver.default)
+  implicit val localTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.LocalTime]           =
+    decoder[VarCharVector, java.time.LocalTime](ValueVectorDecoderDeriver.default)
+  implicit val localDateTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.LocalDateTime]   =
+    decoder[VarCharVector, java.time.LocalDateTime](ValueVectorDecoderDeriver.default)
+  implicit val offsetTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.OffsetTime]         =
+    decoder[VarCharVector, java.time.OffsetTime](ValueVectorDecoderDeriver.default)
+  implicit val offsetDateTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.OffsetDateTime] =
+    decoder[VarCharVector, java.time.OffsetDateTime](ValueVectorDecoderDeriver.default)
+  implicit val zonedDateTimeDecoder: ValueVectorDecoder[VarCharVector, java.time.ZonedDateTime]   =
+    decoder[VarCharVector, java.time.ZonedDateTime](ValueVectorDecoderDeriver.default)
 
-              dynamicValue.toTypedValue match {
-                case Right(v)      =>
-                  builder.addOne(v)
-                  idx += 1
-                case Left(message) =>
-                  throw DecoderError(message)
-              }
-            }
+  implicit def listDecoder[A, C[_]](implicit
+    factory: Factory[C[A]],
+    schema: Schema[C[A]]
+  ): ValueVectorDecoder[ListVector, C[A]] =
+    listDecoderFromDefaultDeriver[A, C]
 
-            builder.result()
-          case _                        =>
-            throw DecoderError(s"Given ZIO schema must be of type Schema.Record[Val]")
-        }
-    }
+  implicit def listChunkDecoder[A](implicit
+    factory: Factory[Chunk[A]],
+    schema: Schema[Chunk[A]]
+  ): ValueVectorDecoder[ListVector, Chunk[A]] =
+    listDecoder[A, Chunk]
 
-  @tailrec
-  private[codec] def decodeSchema[A](name: Option[String], schema: Schema[A], reader: FieldReader): DynamicValue = {
-    val reader0 = name.fold[FieldReader](reader.reader())(reader.reader(_))
+  implicit def listOptionDecoder[A, C[_]](implicit
+    factory: Factory[C[Option[A]]],
+    schema: Schema[C[Option[A]]]
+  ): ValueVectorDecoder[ListVector, C[Option[A]]] =
+    listDecoder[Option[A], C]
 
-    schema match {
-      case Schema.Primitive(standardType, _)       =>
-        decodePrimitive(standardType, reader0)
-      case record: Schema.Record[A]                =>
-        decodeCaseClass(record.fields, reader0)
-      case Schema.Sequence(elemSchema, _, _, _, _) =>
-        decodeSequence(elemSchema, reader0)
-      case lzy: Schema.Lazy[_]                     =>
-        decodeSchema(name, lzy.schema, reader)
-      case other                                   =>
-        throw DecoderError(s"Unsupported ZIO Schema type $other")
-    }
-  }
+  implicit def listChunkOptionDecoder[A](implicit
+    factory: Factory[Chunk[Option[A]]],
+    schema: Schema[Chunk[Option[A]]]
+  ): ValueVectorDecoder[ListVector, Chunk[Option[A]]] =
+    listChunkDecoder[Option[A]]
 
-  private[codec] def decodeCaseClass[A](fields: Chunk[Schema.Field[A, _]], reader: FieldReader): DynamicValue = {
-    val values = ListMap(fields.map { case Schema.Field(name, schema0, _, _, _, _) =>
-      val value: DynamicValue = decodeSchema(Some(name), schema0, reader)
+  def listDecoderFromDeriver[A, C[_]](
+    deriver: Deriver[ValueVectorDecoder[ListVector, *]]
+  )(implicit factory: Factory[C[A]], schema: Schema[C[A]]): ValueVectorDecoder[ListVector, C[A]] =
+    factory.derive[ValueVectorDecoder[ListVector, *]](deriver)
 
-      name -> value
-    }: _*)
+  def listDecoderFromDefaultDeriver[A, C[_]](implicit
+    factory: Factory[C[A]],
+    schema: Schema[C[A]]
+  ): ValueVectorDecoder[ListVector, C[A]] =
+    listDecoderFromDeriver[A, C](ValueVectorDecoderDeriver.default[ListVector])
 
-    DynamicValue.Record(TypeId.Structural, values)
-  }
+  def listDecoderFromSummonedDeriver[A, C[_]](implicit
+    factory: Factory[C[A]],
+    schema: Schema[C[A]]
+  ): ValueVectorDecoder[ListVector, C[A]] =
+    listDecoderFromDeriver(ValueVectorDecoderDeriver.summoned[ListVector])
 
-  private[codec] def decodeSequence[A](schema: Schema[A], reader: FieldReader): DynamicValue = {
-    val builder = ChunkBuilder.make[DynamicValue]()
+  implicit def structDecoder[A](implicit
+    factory: Factory[A],
+    schema: Schema[A]
+  ): ValueVectorDecoder[StructVector, A] =
+    structDecoderFromDefaultDeriver[A]
 
-    while (reader.next())
-      if (reader.isSet)
-        builder.addOne(decodeSchema(None, schema, reader))
+  def structDecoderFromDeriver[A](
+    deriver: Deriver[ValueVectorDecoder[StructVector, *]]
+  )(implicit factory: Factory[A], schema: Schema[A]): ValueVectorDecoder[StructVector, A] =
+    factory.derive[ValueVectorDecoder[StructVector, *]](deriver)
 
-    DynamicValue.Sequence(builder.result())
-  }
+  def structDecoderFromDefaultDeriver[A](implicit
+    factory: Factory[A],
+    schema: Schema[A]
+  ): ValueVectorDecoder[StructVector, A] =
+    structDecoderFromDeriver(ValueVectorDecoderDeriver.default[StructVector])
 
-  private[codec] def decodePrimitive[A](standardType: StandardType[A], reader: FieldReader): DynamicValue =
-    standardType match {
-      case t: StandardType.StringType.type         =>
-        DynamicValue.Primitive[String](reader.readText().toString, t)
-      case t: StandardType.BoolType.type           =>
-        DynamicValue.Primitive[Boolean](reader.readBoolean(), t)
-      case t: StandardType.ByteType.type           =>
-        DynamicValue.Primitive[Byte](reader.readByte(), t)
-      case t: StandardType.ShortType.type          =>
-        DynamicValue.Primitive[Short](reader.readShort(), t)
-      case t: StandardType.IntType.type            =>
-        DynamicValue.Primitive[Int](reader.readInteger(), t)
-      case t: StandardType.LongType.type           =>
-        DynamicValue.Primitive[Long](reader.readLong(), t)
-      case t: StandardType.FloatType.type          =>
-        DynamicValue.Primitive[Float](reader.readFloat(), t)
-      case t: StandardType.DoubleType.type         =>
-        DynamicValue.Primitive[Double](reader.readDouble(), t)
-      case t: StandardType.BinaryType.type         =>
-        DynamicValue.Primitive[Chunk[Byte]](Chunk.fromArray(reader.readByteArray()), t)
-      case t: StandardType.CharType.type           =>
-        DynamicValue.Primitive[Char](reader.readCharacter(), t)
-      case t: StandardType.UUIDType.type           =>
-        val bb = ByteBuffer.wrap(reader.readByteArray())
-        DynamicValue.Primitive[UUID](new UUID(bb.getLong, bb.getLong), t)
-      case t: StandardType.BigDecimalType.type     =>
-        DynamicValue.Primitive[java.math.BigDecimal](reader.readBigDecimal(), t)
-      case t: StandardType.BigIntegerType.type     =>
-        DynamicValue.Primitive[java.math.BigInteger](new java.math.BigInteger(reader.readByteArray()), t)
-      case t: StandardType.DayOfWeekType.type      =>
-        DynamicValue.Primitive[DayOfWeek](DayOfWeek.of(reader.readInteger()), t)
-      case t: StandardType.MonthType.type          =>
-        DynamicValue.Primitive[Month](Month.of(reader.readInteger()), t)
-      case t: StandardType.MonthDayType.type       =>
-        val bb = ByteBuffer.allocate(8).putLong(reader.readLong())
-        DynamicValue.Primitive[MonthDay](MonthDay.of(bb.getInt(0), bb.getInt(4)), t)
-      case t: StandardType.PeriodType.type         =>
-        val bb = ByteBuffer.wrap(reader.readByteArray())
-        DynamicValue.Primitive[Period](Period.of(bb.getInt(0), bb.getInt(4), bb.getInt(8)), t)
-      case t: StandardType.YearType.type           =>
-        DynamicValue.Primitive[Year](Year.of(reader.readInteger()), t)
-      case t: StandardType.YearMonthType.type      =>
-        val bb = ByteBuffer.allocate(8).putLong(reader.readLong())
-        DynamicValue.Primitive[YearMonth](YearMonth.of(bb.getInt(0), bb.getInt(4)), t)
-      case t: StandardType.ZoneIdType.type         =>
-        DynamicValue.Primitive[ZoneId](ZoneId.of(reader.readText().toString), t)
-      case t: StandardType.ZoneOffsetType.type     =>
-        DynamicValue.Primitive[ZoneOffset](ZoneOffset.of(reader.readText().toString), t)
-      case t: StandardType.DurationType.type       =>
-        DynamicValue.Primitive[Duration](Duration.fromMillis(reader.readLong()), t)
-      case t: StandardType.InstantType.type        =>
-        DynamicValue.Primitive[Instant](Instant.ofEpochMilli(reader.readLong()), t)
-      case t: StandardType.LocalDateType.type      =>
-        DynamicValue.Primitive[LocalDate](LocalDate.parse(reader.readText().toString), t)
-      case t: StandardType.LocalTimeType.type      =>
-        DynamicValue.Primitive[LocalTime](LocalTime.parse(reader.readText().toString), t)
-      case t: StandardType.LocalDateTimeType.type  =>
-        DynamicValue.Primitive[LocalDateTime](LocalDateTime.parse(reader.readText().toString), t)
-      case t: StandardType.OffsetTimeType.type     =>
-        DynamicValue.Primitive[OffsetTime](OffsetTime.parse(reader.readText().toString), t)
-      case t: StandardType.OffsetDateTimeType.type =>
-        DynamicValue.Primitive[OffsetDateTime](OffsetDateTime.parse(reader.readText().toString), t)
-      case t: StandardType.ZonedDateTimeType.type  =>
-        DynamicValue.Primitive[ZonedDateTime](ZonedDateTime.parse(reader.readText().toString), t)
-      case other                                   =>
-        throw DecoderError(s"Unsupported ZIO Schema type $other")
-    }
+  implicit def optionDecoder[V <: ValueVector, A](implicit
+    factory: Factory[Option[A]],
+    schema: Schema[Option[A]]
+  ): ValueVectorDecoder[V, Option[A]] =
+    optionDecoderFromDefaultDeriver[V, A]
+
+  implicit def optionListDecoder[A, C[_]](implicit
+    factory: Factory[Option[C[A]]],
+    schema: Schema[Option[C[A]]]
+  ): ValueVectorDecoder[ListVector, Option[C[A]]] =
+    optionDecoder[ListVector, C[A]]
+
+  implicit def optionListChunkDecoder[A](implicit
+    factory: Factory[Option[Chunk[A]]],
+    schema: Schema[Option[Chunk[A]]]
+  ): ValueVectorDecoder[ListVector, Option[Chunk[A]]] =
+    optionDecoder[ListVector, Chunk[A]]
+
+  def optionDecoderFromDeriver[V <: ValueVector, A](
+    deriver: Deriver[ValueVectorDecoder[V, *]]
+  )(implicit factory: Factory[Option[A]], schema: Schema[Option[A]]): ValueVectorDecoder[V, Option[A]] =
+    factory.derive[ValueVectorDecoder[V, *]](deriver)
+
+  def optionDecoderFromDefaultDeriver[V <: ValueVector, A](implicit
+    factory: Factory[Option[A]],
+    schema: Schema[Option[A]]
+  ): ValueVectorDecoder[V, Option[A]] =
+    optionDecoderFromDeriver(ValueVectorDecoderDeriver.default[V])
 
 }

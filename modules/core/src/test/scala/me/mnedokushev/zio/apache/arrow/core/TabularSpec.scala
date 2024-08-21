@@ -1,7 +1,6 @@
 package me.mnedokushev.zio.apache.arrow.core
 
 import me.mnedokushev.zio.apache.arrow.core.Fixtures._
-import me.mnedokushev.zio.apache.arrow.core.codec.VectorSchemaRootDecoder
 import zio._
 import zio.stream.ZStream
 import zio.test.Assertion._
@@ -14,8 +13,8 @@ object TabularSpec extends ZIOSpecDefault {
       test("empty") {
         ZIO.scoped(
           for {
-            root   <- Tabular.empty[NullablePrimitives]
-            result <- VectorSchemaRootDecoder[NullablePrimitives].decodeZIO(root)
+            root   <- Tabular.empty[Primitives]
+            result <- Primitives.vectorSchemaRootCodec.decodeZIO(root)
           } yield assert(result)(isEmpty)
         )
       },
@@ -25,7 +24,7 @@ object TabularSpec extends ZIOSpecDefault {
         ZIO.scoped(
           for {
             root   <- Tabular.fromChunk(payload)
-            result <- VectorSchemaRootDecoder[Primitives].decodeZIO(root)
+            result <- Primitives.vectorSchemaRootCodec.decodeZIO(root)
           } yield assert(result)(equalTo(payload))
         )
       },
@@ -35,7 +34,7 @@ object TabularSpec extends ZIOSpecDefault {
         ZIO.scoped(
           for {
             root   <- Tabular.fromStream(ZStream.fromChunk(payload))
-            result <- VectorSchemaRootDecoder[Primitives].decodeZIO(root)
+            result <- Primitives.vectorSchemaRootCodec.decodeZIO(root)
           } yield assert(result)(equalTo(payload))
         )
       },
