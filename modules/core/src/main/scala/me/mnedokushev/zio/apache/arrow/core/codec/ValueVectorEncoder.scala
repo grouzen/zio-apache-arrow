@@ -81,67 +81,67 @@ object ValueVectorEncoder {
 
     }
 
-  implicit def encoder[V <: ValueVector, A: Schema](implicit factory: Factory[A]): ValueVectorEncoder[V, A] =
-    factory.derive(ValueVectorEncoderDeriver.default[V])
+  implicit def encoder[V <: ValueVector, A: Schema](deriver: Deriver[ValueVectorEncoder[V, *]])(implicit factory: Factory[A]): ValueVectorEncoder[V, A] =
+    factory.derive(deriver)
 
   implicit val stringEncoder: ValueVectorEncoder[VarCharVector, String]                           =
-    encoder[VarCharVector, String]
+    encoder[VarCharVector, String](ValueVectorEncoderDeriver.default)
   implicit val boolEncoder: ValueVectorEncoder[BitVector, Boolean]                                =
-    encoder[BitVector, Boolean]
+    encoder[BitVector, Boolean](ValueVectorEncoderDeriver.default)
   implicit val byteEncoder: ValueVectorEncoder[UInt1Vector, Byte]                                 =
-    encoder[UInt1Vector, Byte]
+    encoder[UInt1Vector, Byte](ValueVectorEncoderDeriver.default)
   implicit val shortEncoder: ValueVectorEncoder[SmallIntVector, Short]                            =
-    encoder[SmallIntVector, Short]
+    encoder[SmallIntVector, Short](ValueVectorEncoderDeriver.default)
   implicit val intEncoder: ValueVectorEncoder[IntVector, Int]                                     =
-    encoder[IntVector, Int]
+    encoder[IntVector, Int](ValueVectorEncoderDeriver.default)
   implicit val longEncoder: ValueVectorEncoder[BigIntVector, Long]                                =
-    encoder[BigIntVector, Long]
+    encoder[BigIntVector, Long](ValueVectorEncoderDeriver.default)
   implicit val floatEncoder: ValueVectorEncoder[Float4Vector, Float]                              =
-    encoder[Float4Vector, Float]
+    encoder[Float4Vector, Float](ValueVectorEncoderDeriver.default)
   implicit val doubleEncoder: ValueVectorEncoder[Float8Vector, Double]                            =
-    encoder[Float8Vector, Double]
+    encoder[Float8Vector, Double](ValueVectorEncoderDeriver.default)
   implicit val binaryEncoder: ValueVectorEncoder[LargeVarBinaryVector, Chunk[Byte]]               =
-    encoder[LargeVarBinaryVector, Chunk[Byte]]
+    encoder[LargeVarBinaryVector, Chunk[Byte]](ValueVectorEncoderDeriver.default)
   implicit val charEncoder: ValueVectorEncoder[UInt2Vector, Char]                                 =
-    encoder[UInt2Vector, Char]
+    encoder[UInt2Vector, Char](ValueVectorEncoderDeriver.default)
   implicit val uuidEncoder: ValueVectorEncoder[VarBinaryVector, java.util.UUID]                   =
-    encoder[VarBinaryVector, java.util.UUID]
+    encoder[VarBinaryVector, java.util.UUID](ValueVectorEncoderDeriver.default)
   implicit val bigDecimalEncoder: ValueVectorEncoder[DecimalVector, java.math.BigDecimal]         =
-    encoder[DecimalVector, java.math.BigDecimal]
+    encoder[DecimalVector, java.math.BigDecimal](ValueVectorEncoderDeriver.default)
   implicit val bigIntegerEncoder: ValueVectorEncoder[VarBinaryVector, java.math.BigInteger]       =
-    encoder[VarBinaryVector, java.math.BigInteger]
+    encoder[VarBinaryVector, java.math.BigInteger](ValueVectorEncoderDeriver.default)
   implicit val dayOfWeekEncoder: ValueVectorEncoder[IntVector, java.time.DayOfWeek]               =
-    encoder[IntVector, java.time.DayOfWeek]
+    encoder[IntVector, java.time.DayOfWeek](ValueVectorEncoderDeriver.default)
   implicit val monthEncoder: ValueVectorEncoder[IntVector, java.time.Month]                       =
-    encoder[IntVector, java.time.Month]
+    encoder[IntVector, java.time.Month](ValueVectorEncoderDeriver.default)
   implicit val monthDayEncoder: ValueVectorEncoder[BigIntVector, java.time.MonthDay]              =
-    encoder[BigIntVector, java.time.MonthDay]
+    encoder[BigIntVector, java.time.MonthDay](ValueVectorEncoderDeriver.default)
   implicit val periodEncoder: ValueVectorEncoder[VarBinaryVector, java.time.Period]               =
-    encoder[VarBinaryVector, java.time.Period]
+    encoder[VarBinaryVector, java.time.Period](ValueVectorEncoderDeriver.default)
   implicit val yearEncoder: ValueVectorEncoder[IntVector, java.time.Year]                         =
-    encoder[IntVector, java.time.Year]
+    encoder[IntVector, java.time.Year](ValueVectorEncoderDeriver.default)
   implicit val yearMonthEncoder: ValueVectorEncoder[BigIntVector, java.time.YearMonth]            =
-    encoder[BigIntVector, java.time.YearMonth]
+    encoder[BigIntVector, java.time.YearMonth](ValueVectorEncoderDeriver.default)
   implicit val zoneIdEncoder: ValueVectorEncoder[VarCharVector, java.time.ZoneId]                 =
-    encoder[VarCharVector, java.time.ZoneId]
+    encoder[VarCharVector, java.time.ZoneId](ValueVectorEncoderDeriver.default)
   implicit val zoneOffsetEncoder: ValueVectorEncoder[VarCharVector, java.time.ZoneOffset]         =
-    encoder[VarCharVector, java.time.ZoneOffset]
+    encoder[VarCharVector, java.time.ZoneOffset](ValueVectorEncoderDeriver.default)
   implicit val durationEncoder: ValueVectorEncoder[BigIntVector, java.time.Duration]              =
-    encoder[BigIntVector, java.time.Duration]
+    encoder[BigIntVector, java.time.Duration](ValueVectorEncoderDeriver.default)
   implicit val instantEncoder: ValueVectorEncoder[BigIntVector, java.time.Instant]                =
-    encoder[BigIntVector, java.time.Instant]
+    encoder[BigIntVector, java.time.Instant](ValueVectorEncoderDeriver.default)
   implicit val localDateEncoder: ValueVectorEncoder[VarCharVector, java.time.LocalDate]           =
-    encoder[VarCharVector, java.time.LocalDate]
+    encoder[VarCharVector, java.time.LocalDate](ValueVectorEncoderDeriver.default)
   implicit val localTimeEncoder: ValueVectorEncoder[VarCharVector, java.time.LocalTime]           =
-    encoder[VarCharVector, java.time.LocalTime]
+    encoder[VarCharVector, java.time.LocalTime](ValueVectorEncoderDeriver.default)
   implicit val localDateTimeEncoder: ValueVectorEncoder[VarCharVector, java.time.LocalDateTime]   =
-    encoder[VarCharVector, java.time.LocalDateTime]
+    encoder[VarCharVector, java.time.LocalDateTime](ValueVectorEncoderDeriver.default)
   implicit val offsetTimeEncoder: ValueVectorEncoder[VarCharVector, java.time.OffsetTime]         =
-    encoder[VarCharVector, java.time.OffsetTime]
+    encoder[VarCharVector, java.time.OffsetTime](ValueVectorEncoderDeriver.default)
   implicit val offsetDateTimeEncoder: ValueVectorEncoder[VarCharVector, java.time.OffsetDateTime] =
-    encoder[VarCharVector, java.time.OffsetDateTime]
+    encoder[VarCharVector, java.time.OffsetDateTime](ValueVectorEncoderDeriver.default)
   implicit val zonedDateTimeEncoder: ValueVectorEncoder[VarCharVector, java.time.ZonedDateTime]   =
-    encoder[VarCharVector, java.time.ZonedDateTime]
+    encoder[VarCharVector, java.time.ZonedDateTime](ValueVectorEncoderDeriver.default)
 
   implicit def listEncoder[A, C[_]](implicit
     factory: Factory[C[A]],
