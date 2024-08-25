@@ -30,12 +30,14 @@ and [VectorSchemaRoot](https://arrow.apache.org/docs/java/reference/index.html).
       - [Tabular](#tabular)
         - [SchemaEncoder](#schemaencoder)
         - [VectorSchemaRoot](#vectorschemaroot)
+    - [IPC](#ipc)
   - [Datafusion](#datafusion)
 
 ## Installation
 
 ```scala
-libraryDependencies += "me.mnedokushev" %% "zio-apache-arrow-core" % "@VERSION@"
+libraryDependencies += "me.mnedokushev" %% "zio-apache-arrow-core"       % "@VERSION@"
+libraryDependencies += "me.mnedokushev" %% "zio-apache-arrow-datafusion" % "@VERSION@"
 ```
 
 ## Modules
@@ -216,5 +218,46 @@ ZIO.scoped(
 ).provide(Allocator.rootLayer())
 ```
 
-
 ### Datafusion
+
+This module provides a thin wrapper around [Apache Arrow's DataFusion library](https://github.com/G-Research/datafusion-java). It enables running SQL queries on data loaded from CSV or Parquet files, and then processing the results using the power of ZIO and ZIO Streams.
+
+For this example we will use the following CSV file:
+```csv
+fname,lname,address,age
+Bob,Dylan,Hollywood,80
+Dog,Cat,NY,3
+John,Doe,London,99
+```
+
+```scala
+import me.mnedokushev.zio.apache.arrow.core.Allocator
+import me.mnedokushev.zio.apache.arrow.core.codec._
+import me.mnedokushev.zio.apache.arrow.datafusion._
+import zio._
+import zio.schema._
+
+import java.nio.file.Paths
+
+case class User(fname: String, lname: String, address: String, age: Long)
+object User {
+  implicit val schema: Schema[User]                                   =
+    DeriveSchema.gen[User]
+  implicit val schemaEncoder: SchemaEncoder[User]                     =
+    Derive.derive[SchemaEncoder, User](SchemaEncoderDeriver.default)
+  implicit val vectorSchemaRootDecoder: VectorSchemaRootDecoder[User] =
+    VectorSchemaRootDecoder.fromDefaultDeriver[User]
+}
+
+(
+  ZIO.serviceWithZIO[Context] { context =>
+    for {
+      _      <- context.registerCsv("test", Paths.get(getClass.getResource("/test.csv").toURI))
+      df     <- context.sql("SELECT * FROM test WHERE fname = 'Dog'")
+      result <- df.collect[User].runCollect // Chunk(User("Dog", "Cat", "NY", 3)))
+    } yield ()
+  }
+).provide(Context.create, Allocator.rootLayer())
+```
+
+You can also write the data back to CSV or Parquet files using `df.writeCsv` and `df.writeParquet` methods.
