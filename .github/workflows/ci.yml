@@ -47,6 +47,9 @@ jobs:
           java-version: 17
           cache: sbt
 
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
+
       - name: Lint Scala code
         run: sbt '++ ${{ matrix.scala }}' 'scalafix --check' scalafmtCheckAll
 
