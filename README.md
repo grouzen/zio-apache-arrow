@@ -6,9 +6,11 @@
 # ZIO Apache Arrow
 
 ZIO based wrapper for [Apache Arrow Java Implementation](https://arrow.apache.org/docs/java/index.html) that leverages
-[ZIO Schema](https://zio.dev/zio-schema/) library to derive codecs
-for [ValueVector](https://arrow.apache.org/docs/java/reference/index.html)
-and [VectorSchemaRoot](https://arrow.apache.org/docs/java/reference/index.html).
+[ZIO Schema](https://zio.dev/zio-schema/) library to derive codecs for [ValueVector](https://arrow.apache.org/docs/java/reference/index.html) and [VectorSchemaRoot](https://arrow.apache.org/docs/java/reference/index.html).
+
+**To the best of my knowledge at the time of writing, this is the only library that provides automatic codecs derivation for Apache Arrow among all type-safe programming languages.**
+
+Want more? Checkout out my ZIO-powered library for Apache Parquet - [ZIO Apache Parquet](https://github.com/grouzen/zio-apache-parquet).
 
 ## Why?
 
@@ -18,10 +20,10 @@ and [VectorSchemaRoot](https://arrow.apache.org/docs/java/reference/index.html).
 - **Integration with Arrow ecosystem** - the [Core](#core) module provides the groundwork for integrating your application or library with various parts of the Arrow ecosystem such as [Datafusion](https://datafusion.apache.org), [Polars](https://pola.rs), [Apache Iceberg](https://iceberg.apache.org), and more.
 
 
-## Content
+## Contents
 
 - [Installation](#installation)
-- [Modules](#modules)
+- [Usage](#usage)
   - [Core](#core)
     - [Codecs](#codecs)
       - [ValueVector](#valuevector)
@@ -40,7 +42,7 @@ libraryDependencies += "me.mnedokushev" %% "zio-apache-arrow-core"       % "@VER
 libraryDependencies += "me.mnedokushev" %% "zio-apache-arrow-datafusion" % "@VERSION@"
 ```
 
-## Modules
+## Usage
 
 ### Core
 
