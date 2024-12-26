@@ -11,14 +11,16 @@ import scala.jdk.CollectionConverters._
 
 object Tabular {
 
-  def empty[A](implicit schema: ZSchema[A]): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
+  def empty[A: ZSchema](implicit
+    schemaEncoder: SchemaEncoder[A]
+  ): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
     ZIO.fromAutoCloseable(
       ZIO.serviceWithZIO[BufferAllocator] { implicit alloc =>
         for {
-          schema0 <- ZIO.fromEither(SchemaEncoder.schemaRoot[A])
-          vectors <- ZIO.foreach(schema0.getFields.asScala.toList) { f =>
+          schema0 <- ZIO.fromEither(schemaEncoder.encode)
+          vectors <- ZIO.foreach(schema0.getFields.asScala.toList) { field =>
                        for {
-                         vec <- ZIO.attempt(f.createVector(alloc))
+                         vec <- ZIO.attempt(field.createVector(alloc))
                          _   <- ZIO.attempt(vec.allocateNew())
                        } yield vec
                      }
@@ -27,8 +29,7 @@ object Tabular {
       }
     )
 
-  def fromChunk[A](chunk: Chunk[A])(implicit
-    schema: ZSchema[A],
+  def fromChunk[A: ZSchema: SchemaEncoder](chunk: Chunk[A])(implicit
     encoder: VectorSchemaRootEncoder[A]
   ): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
     for {
@@ -36,8 +37,7 @@ object Tabular {
       _    <- encoder.encodeZIO(chunk, root)
     } yield root
 
-  def fromStream[R, A](stream: ZStream[R, Throwable, A])(implicit
-    schema: ZSchema[A],
+  def fromStream[R, A: ZSchema: SchemaEncoder](stream: ZStream[R, Throwable, A])(implicit
     encoder: VectorSchemaRootEncoder[A]
   ): RIO[R with Scope with BufferAllocator, VectorSchemaRoot] =
     for {

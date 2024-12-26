@@ -10,3 +10,5 @@ private/
 .metals/
 .vscode/
 metals.sbt
+.ammonite/
+*.sc
