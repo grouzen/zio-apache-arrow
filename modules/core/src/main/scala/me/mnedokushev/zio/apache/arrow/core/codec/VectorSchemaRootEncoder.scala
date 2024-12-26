@@ -11,7 +11,7 @@ import scala.util.control.NonFatal
 
 trait VectorSchemaRootEncoder[-A] extends ValueEncoder[A] { self =>
 
-  final def encodeZIO(chunk: Chunk[A], root: VectorSchemaRoot): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
+  final def encodeZIO(chunk: Chunk[A], root: VectorSchemaRoot): RIO[Scope & BufferAllocator, VectorSchemaRoot] =
     ZIO.fromAutoCloseable(
       ZIO.serviceWithZIO[BufferAllocator] { implicit alloc =>
         ZIO.fromEither(encode(chunk, root))

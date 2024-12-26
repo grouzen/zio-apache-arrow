@@ -22,7 +22,7 @@ object DataframeSpec extends ZIOSpecDefault {
 
   }
 
-  override def spec: Spec[TestEnvironment with Scope, Any] =
+  override def spec: Spec[TestEnvironment & Scope, Any] =
     suite("Dataframe")(
       test("collect") {
         ZIO.serviceWithZIO[Context] { context =>

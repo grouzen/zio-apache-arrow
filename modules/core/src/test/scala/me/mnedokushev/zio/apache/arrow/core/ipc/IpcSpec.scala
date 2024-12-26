@@ -10,7 +10,7 @@ import zio.test._
 import java.io.ByteArrayInputStream
 
 object IpcSpec extends ZIOSpecDefault {
-  override def spec: Spec[TestEnvironment with Scope, Any] =
+  override def spec: Spec[TestEnvironment & Scope, Any] =
     suite("IPC")(
       test("streaming") {
         val payload = (1 to 8096).map(i => Primitives(i, i.toDouble, i.toString))

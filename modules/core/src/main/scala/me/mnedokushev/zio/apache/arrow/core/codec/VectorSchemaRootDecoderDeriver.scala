@@ -14,7 +14,7 @@ object VectorSchemaRootDecoderDeriver {
 
     override def deriveRecord[A](
       record: Schema.Record[A],
-      fields: => Chunk[Deriver.WrappedF[VectorSchemaRootDecoder, _]],
+      fields: => Chunk[Deriver.WrappedF[VectorSchemaRootDecoder, ?]],
       summoned: => Option[VectorSchemaRootDecoder[A]]
     ): VectorSchemaRootDecoder[A] = new VectorSchemaRootDecoder[A] {
 
@@ -40,7 +40,7 @@ object VectorSchemaRootDecoderDeriver {
             val value = decoder.decodeField(reader, vec, idx)
 
             name.toString -> value
-          }: _*)
+          } *)
 
           DynamicValue.Record(TypeId.Structural, values).toTypedValue(record) match {
             case Right(v)      =>
@@ -69,7 +69,7 @@ object VectorSchemaRootDecoderDeriver {
 
     override def deriveEnum[A](
       `enum`: Schema.Enum[A],
-      cases: => Chunk[Deriver.WrappedF[VectorSchemaRootDecoder, _]],
+      cases: => Chunk[Deriver.WrappedF[VectorSchemaRootDecoder, ?]],
       summoned: => Option[VectorSchemaRootDecoder[A]]
     ): VectorSchemaRootDecoder[A] = ???
 
@@ -105,7 +105,7 @@ object VectorSchemaRootDecoderDeriver {
     }
 
     override def deriveSequence[C[_], A](
-      sequence: Schema.Sequence[C[A], A, _],
+      sequence: Schema.Sequence[C[A], A, ?],
       inner: => VectorSchemaRootDecoder[A],
       summoned: => Option[VectorSchemaRootDecoder[C[A]]]
     ): VectorSchemaRootDecoder[C[A]] = new VectorSchemaRootDecoder[C[A]] {
@@ -138,8 +138,8 @@ object VectorSchemaRootDecoderDeriver {
 
     override def deriveTransformedRecord[A, B](
       record: Schema.Record[A],
-      transform: Schema.Transform[A, B, _],
-      fields: => Chunk[Deriver.WrappedF[VectorSchemaRootDecoder, _]],
+      transform: Schema.Transform[A, B, ?],
+      fields: => Chunk[Deriver.WrappedF[VectorSchemaRootDecoder, ?]],
       summoned: => Option[VectorSchemaRootDecoder[B]]
     ): VectorSchemaRootDecoder[B] = ???
 

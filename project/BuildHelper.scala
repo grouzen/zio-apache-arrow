@@ -10,6 +10,7 @@ object BuildHelper {
     libraryDependencies ++= betterMonadicFor(scalaVersion.value),
     libraryDependencies ++= kindProjector(scalaVersion.value),
     scalacOptions --= disableUnusedImportsWarnings(scalaVersion.value),
+    scalacOptions ++= source3Compatibility(scalaVersion.value),
     semanticdbEnabled := true,
     semanticdbVersion := scalafixSemanticdb.revision,
     Test / javaOptions ++= arrowJavaCompat,
@@ -43,6 +44,13 @@ object BuildHelper {
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((2, 13)) => Seq("-Wunused:imports")
       case _             => Seq()
+    }
+
+  // See https://www.scala-lang.org/api/3.x/docs/docs/reference/changed-features/vararg-splices.html#compatibility-considerations-2
+  private def source3Compatibility(scalaVersion: String) =
+    CrossVersion.partialVersion(scalaVersion) match {
+      case Some((2, _)) => Seq("-Xsource:3")
+      case _            => Seq()
     }
 
 }

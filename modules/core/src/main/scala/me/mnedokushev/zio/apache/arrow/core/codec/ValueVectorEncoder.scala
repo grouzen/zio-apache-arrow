@@ -12,7 +12,7 @@ import scala.util.control.NonFatal
 
 trait ValueVectorEncoder[V <: ValueVector, -A] extends ValueEncoder[A] { self =>
 
-  final def encodeZIO(chunk: Chunk[A]): RIO[Scope with BufferAllocator, V] =
+  final def encodeZIO(chunk: Chunk[A]): RIO[Scope & BufferAllocator, V] =
     ZIO.fromAutoCloseable(
       ZIO.serviceWithZIO[BufferAllocator] { implicit alloc =>
         ZIO.fromEither(encode(chunk))

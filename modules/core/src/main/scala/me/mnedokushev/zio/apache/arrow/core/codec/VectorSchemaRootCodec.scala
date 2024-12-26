@@ -16,7 +16,7 @@ final case class VectorSchemaRootCodec[A](
   def decode(root: VectorSchemaRoot): Either[Throwable, Chunk[A]] =
     decoder.decode(root)
 
-  def encodeZIO(chunk: Chunk[A], root: VectorSchemaRoot): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
+  def encodeZIO(chunk: Chunk[A], root: VectorSchemaRoot): RIO[Scope & BufferAllocator, VectorSchemaRoot] =
     encoder.encodeZIO(chunk, root)
 
   def encode(
