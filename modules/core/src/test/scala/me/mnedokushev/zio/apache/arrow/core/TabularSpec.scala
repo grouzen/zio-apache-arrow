@@ -8,7 +8,7 @@ import zio.test._
 
 object TabularSpec extends ZIOSpecDefault {
 
-  override def spec: Spec[TestEnvironment with Scope, Any] =
+  override def spec: Spec[TestEnvironment & Scope, Any] =
     suite("Tabular")(
       test("empty") {
         ZIO.scoped(

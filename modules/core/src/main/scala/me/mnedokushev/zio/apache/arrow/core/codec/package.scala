@@ -8,7 +8,7 @@ import zio.schema.StandardType
 
 package object codec {
 
-  def primitiveWriter(st: StandardType[_], vec: FieldVector): FieldWriter =
+  def primitiveWriter(st: StandardType[?], vec: FieldVector): FieldWriter =
     (st, vec) match {
       case (StandardType.StringType, vec0: VarCharVector)         =>
         new VarCharWriterImpl(vec0)

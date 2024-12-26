@@ -19,17 +19,21 @@ trait ValueDecoder[+A] {
 object ValueDecoder {
 
   private[codec] def decodeStruct[V0 <: ValueVector, A](
-    fields: Chunk[Schema.Field[A, _]],
-    decoders: Chunk[ValueDecoder[_]],
+    fields: Chunk[Schema.Field[A, ?]],
+    decoders: Chunk[ValueDecoder[?]],
     reader: FieldReader,
     vec: V0,
     idx: Int
   ): DynamicValue = {
-    val values = ListMap(fields.zip(decoders).map { case (field, decoder) =>
-      val value: DynamicValue = decoder.decodeValue(Some(field.name), reader, vec, idx)
+    val values = ListMap(
+      fields
+        .zip(decoders)
+        .map { case (field, decoder) =>
+          val value: DynamicValue = decoder.decodeValue(Some(field.name), reader, vec, idx)
 
-      field.name.toString -> value
-    }: _*)
+          field.name.toString -> value
+        } *
+    )
 
     DynamicValue.Record(TypeId.Structural, values)
   }

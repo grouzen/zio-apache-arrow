@@ -13,7 +13,7 @@ object Tabular {
 
   def empty[A: ZSchema](implicit
     schemaEncoder: SchemaEncoder[A]
-  ): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
+  ): RIO[Scope & BufferAllocator, VectorSchemaRoot] =
     ZIO.fromAutoCloseable(
       ZIO.serviceWithZIO[BufferAllocator] { implicit alloc =>
         for {
@@ -31,7 +31,7 @@ object Tabular {
 
   def fromChunk[A: ZSchema: SchemaEncoder](chunk: Chunk[A])(implicit
     encoder: VectorSchemaRootEncoder[A]
-  ): RIO[Scope with BufferAllocator, VectorSchemaRoot] =
+  ): RIO[Scope & BufferAllocator, VectorSchemaRoot] =
     for {
       root <- empty
       _    <- encoder.encodeZIO(chunk, root)
@@ -39,7 +39,7 @@ object Tabular {
 
   def fromStream[R, A: ZSchema: SchemaEncoder](stream: ZStream[R, Throwable, A])(implicit
     encoder: VectorSchemaRootEncoder[A]
-  ): RIO[R with Scope with BufferAllocator, VectorSchemaRoot] =
+  ): RIO[R & Scope & BufferAllocator, VectorSchemaRoot] =
     for {
       chunk <- stream.runCollect
       root  <- fromChunk(chunk)

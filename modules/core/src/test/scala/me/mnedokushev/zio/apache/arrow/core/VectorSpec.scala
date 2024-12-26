@@ -9,7 +9,7 @@ import zio.test._
 
 object VectorSpec extends ZIOSpecDefault {
 
-  override def spec: Spec[TestEnvironment with Scope, Any] =
+  override def spec: Spec[TestEnvironment & Scope, Any] =
     suite("Vector")(
       test("fromChunk") {
         val payload = Chunk(1, 2, 3)

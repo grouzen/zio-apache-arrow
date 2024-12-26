@@ -14,7 +14,7 @@ object SchemaEncoderDeriver {
 
     override def deriveRecord[A](
       record: Schema.Record[A],
-      fields: => Chunk[Deriver.WrappedF[SchemaEncoder, _]],
+      fields: => Chunk[Deriver.WrappedF[SchemaEncoder, ?]],
       summoned: => Option[SchemaEncoder[A]]
     ): SchemaEncoder[A] = new SchemaEncoder[A] {
 
@@ -46,7 +46,7 @@ object SchemaEncoderDeriver {
 
     override def deriveEnum[A](
       `enum`: Schema.Enum[A],
-      cases: => Chunk[Deriver.WrappedF[SchemaEncoder, _]],
+      cases: => Chunk[Deriver.WrappedF[SchemaEncoder, ?]],
       summoned: => Option[SchemaEncoder[A]]
     ): SchemaEncoder[A] =
       new SchemaEncoder[A] {
@@ -143,7 +143,7 @@ object SchemaEncoderDeriver {
     }
 
     override def deriveSequence[C[_], A](
-      sequence: Schema.Sequence[C[A], A, _],
+      sequence: Schema.Sequence[C[A], A, ?],
       inner: => SchemaEncoder[A],
       summoned: => Option[SchemaEncoder[C[A]]]
     ): SchemaEncoder[C[A]] = new SchemaEncoder[C[A]] {
@@ -167,8 +167,8 @@ object SchemaEncoderDeriver {
 
     override def deriveTransformedRecord[A, B](
       record: Schema.Record[A],
-      transform: Schema.Transform[A, B, _],
-      fields: => Chunk[Deriver.WrappedF[SchemaEncoder, _]],
+      transform: Schema.Transform[A, B, ?],
+      fields: => Chunk[Deriver.WrappedF[SchemaEncoder, ?]],
       summoned: => Option[SchemaEncoder[B]]
     ): SchemaEncoder[B] = new SchemaEncoder[B] {
 

@@ -110,7 +110,7 @@ object CodecSpec extends ZIOSpecDefault {
       Derive.derive[VectorSchemaRootDecoder, Summoned0](VectorSchemaRootDecoderDeriver.summoned)
   }
 
-  override def spec: Spec[TestEnvironment with Scope, Any] =
+  override def spec: Spec[TestEnvironment & Scope, Any] =
     suite("Codec")(
       valueVectorDecoderSpec,
       valueVectorEncoderSpec,

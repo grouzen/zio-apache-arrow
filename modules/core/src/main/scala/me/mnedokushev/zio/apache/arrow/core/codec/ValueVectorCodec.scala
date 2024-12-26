@@ -17,7 +17,7 @@ final case class ValueVectorCodec[V <: ValueVector, A](
   def decode(vec: V): Either[Throwable, Chunk[A]] =
     decoder.decode(vec)
 
-  def encodeZIO(chunk: Chunk[A]): RIO[Scope with BufferAllocator, V] =
+  def encodeZIO(chunk: Chunk[A]): RIO[Scope & BufferAllocator, V] =
     encoder.encodeZIO(chunk)
 
   def encode(chunk: Chunk[A])(implicit alloc: BufferAllocator): Either[Throwable, V] =

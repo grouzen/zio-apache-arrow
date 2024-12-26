@@ -14,14 +14,14 @@ object VectorSchemaRootEncoderDeriver {
 
     override def deriveRecord[A](
       record: Schema.Record[A],
-      fields: => Chunk[Deriver.WrappedF[VectorSchemaRootEncoder, _]],
+      fields: => Chunk[Deriver.WrappedF[VectorSchemaRootEncoder, ?]],
       summoned: => Option[VectorSchemaRootEncoder[A]]
     ): VectorSchemaRootEncoder[A] = new VectorSchemaRootEncoder[A] {
 
       private val encoders = fields.map(_.unwrap)
 
       private def encodeField0[A1](
-        encoder: VectorSchemaRootEncoder[_],
+        encoder: VectorSchemaRootEncoder[?],
         value: A1,
         writer: FieldWriter
       )(implicit
@@ -86,7 +86,7 @@ object VectorSchemaRootEncoderDeriver {
 
     override def deriveEnum[A](
       `enum`: Schema.Enum[A],
-      cases: => Chunk[Deriver.WrappedF[VectorSchemaRootEncoder, _]],
+      cases: => Chunk[Deriver.WrappedF[VectorSchemaRootEncoder, ?]],
       summoned: => Option[VectorSchemaRootEncoder[A]]
     ): VectorSchemaRootEncoder[A] = ???
 
@@ -130,7 +130,7 @@ object VectorSchemaRootEncoderDeriver {
     }
 
     override def deriveSequence[C[_], A](
-      sequence: Schema.Sequence[C[A], A, _],
+      sequence: Schema.Sequence[C[A], A, ?],
       inner: => VectorSchemaRootEncoder[A],
       summoned: => Option[VectorSchemaRootEncoder[C[A]]]
     ): VectorSchemaRootEncoder[C[A]] = new VectorSchemaRootEncoder[C[A]] {
@@ -160,8 +160,8 @@ object VectorSchemaRootEncoderDeriver {
 
     override def deriveTransformedRecord[A, B](
       record: Schema.Record[A],
-      transform: Schema.Transform[A, B, _],
-      fields: => Chunk[Deriver.WrappedF[VectorSchemaRootEncoder, _]],
+      transform: Schema.Transform[A, B, ?],
+      fields: => Chunk[Deriver.WrappedF[VectorSchemaRootEncoder, ?]],
       summoned: => Option[VectorSchemaRootEncoder[B]]
     ): VectorSchemaRootEncoder[B] = ???
 

@@ -12,7 +12,7 @@ object Vector {
     new FromChunkPartiallyApplied[V]
 
   final class FromChunkPartiallyApplied[V <: ValueVector](private val dummy: Boolean = true) extends AnyVal {
-    def apply[A](chunk: Chunk[A])(implicit encoder: ValueVectorEncoder[V, A]): RIO[Scope with BufferAllocator, V] =
+    def apply[A](chunk: Chunk[A])(implicit encoder: ValueVectorEncoder[V, A]): RIO[Scope & BufferAllocator, V] =
       encoder.encodeZIO(chunk)
   }
 
@@ -22,7 +22,7 @@ object Vector {
   final class FromStreamPartiallyApplied[V <: ValueVector](private val dummy: Boolean = true) extends AnyVal {
     def apply[R, A](
       stream: ZStream[R, Throwable, A]
-    )(implicit encoder: ValueVectorEncoder[V, A]): RIO[R with Scope with BufferAllocator, V] =
+    )(implicit encoder: ValueVectorEncoder[V, A]): RIO[R & Scope & BufferAllocator, V] =
       for {
         chunk <- stream.runCollect
         vec   <- fromChunk(chunk)

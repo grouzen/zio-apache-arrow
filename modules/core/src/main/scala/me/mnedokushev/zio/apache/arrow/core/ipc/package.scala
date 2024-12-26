@@ -16,7 +16,7 @@ package object ipc {
     in: InputStream
   )(implicit
     decoder: VectorSchemaRootDecoder[A]
-  ): ZStream[Scope with BufferAllocator, Throwable, A] =
+  ): ZStream[Scope & BufferAllocator, Throwable, A] =
     for {
       (reader, root) <- ZStream
                           .fromZIO(
@@ -45,7 +45,7 @@ package object ipc {
     batchSize: Int = 2048
   )(implicit
     encoder: VectorSchemaRootEncoder[A]
-  ): ZIO[R with Scope with BufferAllocator, Throwable, ByteArrayOutputStream] = {
+  ): ZIO[R & Scope & BufferAllocator, Throwable, ByteArrayOutputStream] = {
     val out = new ByteArrayOutputStream()
 
     for {

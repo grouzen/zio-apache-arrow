@@ -23,8 +23,8 @@ object ValueEncoder {
 
   private[codec] def encodeStruct[A](
     value: A,
-    fields: Chunk[Schema.Field[A, _]],
-    encoders: Chunk[ValueEncoder[_]],
+    fields: Chunk[Schema.Field[A, ?]],
+    encoders: Chunk[ValueEncoder[?]],
     writer: FieldWriter
   )(implicit alloc: BufferAllocator): Unit = {
 
