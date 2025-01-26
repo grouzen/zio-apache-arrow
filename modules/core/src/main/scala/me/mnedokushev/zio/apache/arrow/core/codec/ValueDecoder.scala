@@ -32,7 +32,7 @@ object ValueDecoder {
           val value: DynamicValue = decoder.decodeValue(Some(field.name), reader, vec, idx)
 
           field.name.toString -> value
-        } *
+        }*
     )
 
     DynamicValue.Record(TypeId.Structural, values)

@@ -40,7 +40,7 @@ object VectorSchemaRootDecoderDeriver {
             val value = decoder.decodeField(reader, vec, idx)
 
             name.toString -> value
-          } *)
+          }*)
 
           DynamicValue.Record(TypeId.Structural, values).toTypedValue(record) match {
             case Right(v)      =>
