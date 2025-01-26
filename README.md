@@ -44,6 +44,8 @@ libraryDependencies += "me.mnedokushev" %% "zio-apache-arrow-datafusion" % "@VER
 
 ## Usage
 
+All examples are self-contained [Scala CLI](https://scala-cli.virtuslab.org) snippets. You can find copies of them in `docs/scala-cli`.
+
 ### Core
 
 The module does all the grunt work to implement a familiar FP-oriented API for some of the basic blocks of the Java API of Apache Arrow such as:
