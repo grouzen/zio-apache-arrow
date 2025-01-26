@@ -12,3 +12,4 @@ private/
 metals.sbt
 .ammonite/
 *.sc
+.scala-build
