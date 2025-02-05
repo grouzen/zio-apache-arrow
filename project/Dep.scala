@@ -3,7 +3,7 @@ import sbt._
 object Dep {
 
   object V {
-    val zio                   = "2.1.14"
+    val zio                   = "2.1.15"
     val zioSchema             = "1.5.0"
     val arrow                 = "18.1.0"
     val scalaCollectionCompat = "2.13.0"
