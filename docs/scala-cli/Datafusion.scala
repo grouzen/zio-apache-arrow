@@ -1,6 +1,6 @@
 //> using scala "3.4.3"
-//> using dep me.mnedokushev::zio-apache-arrow-core:0.1.7
-//> using dep me.mnedokushev::zio-apache-arrow-datafusion:0.1.7
+//> using dep me.mnedokushev::zio-apache-arrow-core:0.1.8
+//> using dep me.mnedokushev::zio-apache-arrow-datafusion:0.1.8
 //> using dep org.apache.arrow:arrow-memory-unsafe:18.2.0
 //> using javaOpt --add-opens=java.base/java.nio=ALL-UNNAMED
 
