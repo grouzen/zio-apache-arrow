@@ -4,7 +4,7 @@ object Dep {
 
   object V {
     val zio                   = "2.1.17"
-    val zioSchema             = "1.6.6"
+    val zioSchema             = "1.7.0"
     val arrow                 = "18.2.0"
     val scalaCollectionCompat = "2.13.0"
   }
