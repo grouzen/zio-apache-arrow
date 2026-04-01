@@ -1,4 +1,4 @@
-//> using scala "3.4.3"
+//> using scala "3.8.3"
 //> using dep me.mnedokushev::zio-apache-arrow-core:0.1.8
 //> using dep org.apache.arrow:arrow-memory-unsafe:18.3.0
 //> using javaOpt --add-opens=java.base/java.nio=ALL-UNNAMED
