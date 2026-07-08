@@ -3,7 +3,7 @@ addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.4")
 addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.3")
 
 // Dependencies management
-addSbtPlugin("ch.epfl.scala"    % "sbt-missinglink"           % "0.3.6")
+addSbtPlugin("ch.epfl.scala"    % "sbt-missinglink"           % "0.3.8")
 addSbtPlugin("com.github.cb372" % "sbt-explicit-dependencies" % "0.3.1")
 
 // Versioning and release
