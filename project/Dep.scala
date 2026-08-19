@@ -6,7 +6,7 @@ object Dep {
     val zio                   = "2.1.19"
     val zioSchema             = "1.7.2"
     val arrow                 = "18.3.0"
-    val scalaCollectionCompat = "2.13.0"
+    val scalaCollectionCompat = "2.14.0"
   }
 
   object O {
