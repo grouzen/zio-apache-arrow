@@ -29,7 +29,7 @@ object BuildHelper {
 
   private def kindProjector(scalaVersion: String) =
     CrossVersion.partialVersion(scalaVersion) match {
-      case Some((2, _)) => Seq(compilerPlugin("org.typelevel" % "kind-projector" % "0.13.3" cross CrossVersion.full))
+      case Some((2, _)) => Seq(compilerPlugin("org.typelevel" % "kind-projector" % "0.13.4" cross CrossVersion.full))
       case _            => Seq()
     }
 
