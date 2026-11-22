@@ -19,7 +19,7 @@ object BuildHelper {
 
   val Scala212 = "2.12.20"
   val Scala213 = "2.13.18"
-  val Scala3   = "3.3.6"
+  val Scala3   = "3.10.0"
 
   private def betterMonadicFor(scalaVersion: String) =
     CrossVersion.partialVersion(scalaVersion) match {
@@ -50,6 +50,9 @@ object BuildHelper {
   private def source3Compatibility(scalaVersion: String) =
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((2, _)) => Seq("-Xsource:3")
+      case Some((3, _)) =>
+        // Scala 2 needs the Derive imports in these codecs to materialize Factory instances.
+        Seq("-source:3.3", "-Wconf:msg=unused import&src=.*ValueVector(Encoder|Decoder)[.]scala:s")
       case _            => Seq()
     }
 
