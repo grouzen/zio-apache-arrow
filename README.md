@@ -39,6 +39,8 @@ Want more? Checkout out my ZIO-powered library for Apache Parquet - [ZIO Apache 
 
 ## Installation
 
+Java 17 or newer is required.
+
 ```scala
 libraryDependencies += "me.mnedokushev" %% "zio-apache-arrow-core"       % "@VERSION@"
 libraryDependencies += "me.mnedokushev" %% "zio-apache-arrow-datafusion" % "@VERSION@"
