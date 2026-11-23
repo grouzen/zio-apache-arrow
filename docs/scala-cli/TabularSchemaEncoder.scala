@@ -1,5 +1,5 @@
 //> using scala "3.10.1"
-//> using dep me.mnedokushev::zio-apache-arrow-core:0.1.10
+//> using dep me.mnedokushev::zio-apache-arrow-core:0.1.11
 //> using dep org.apache.arrow:arrow-memory-unsafe:20.0.0
 //> using javaOpt --add-opens=java.base/java.nio=ALL-UNNAMED
 
